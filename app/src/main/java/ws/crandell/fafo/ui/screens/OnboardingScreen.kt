@@ -98,6 +98,7 @@ fun OnboardingScreen(
         modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = FafoDims.Gutter, vertical = 16.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
+        ws.crandell.fafo.ui.components.FafoLockup(Modifier.align(Alignment.CenterHorizontally).padding(vertical = 4.dp), wordmarkHeight = 26.dp)
         FafoCard(accent = if (todo.isEmpty()) FafoColors.Guard else FafoColors.Amber, shape = RoundedCornerShape(24.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 ShieldLogo(64.dp)

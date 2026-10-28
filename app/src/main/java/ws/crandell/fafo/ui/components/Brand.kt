@@ -28,6 +28,7 @@ import ws.crandell.fafo.R
 import ws.crandell.fafo.ui.theme.Barlow
 import ws.crandell.fafo.ui.theme.FafoBrand
 import ws.crandell.fafo.ui.theme.FafoColors
+import ws.crandell.fafo.ui.theme.LocalFafoTokens
 
 /** Width / height of the shield art (fafo_shield.webp). */
 private const val SHIELD_ASPECT = 0.908f
@@ -54,27 +55,64 @@ fun ShieldLogo(height: Dp, modifier: Modifier = Modifier, haloOnRed: Boolean = f
     }
 }
 
+/** Which hand-built wordmark (~/Pictures/fafo-logo/wordmark, converted by tools/svg2vd.py) to draw. */
+enum class WordmarkVariant { AUTO, DARK_WHITE, LIGHT, MONO_WHITE }
+
+/** Width / height of the wordmark art (SVG viewBox 1096.03 x 335.19). */
+const val WORDMARK_ASPECT = 3.2699f
+
+@Composable
+private fun WordmarkVariant.resolve(): WordmarkVariant =
+    if (this != WordmarkVariant.AUTO) this else if (LocalFafoTokens.current.isDark) WordmarkVariant.DARK_WHITE else WordmarkVariant.LIGHT
+
 /**
- * "FAFO SECURITY" as styled text (there is no wordmark file yet). [onRed] draws both words white so there is
- * never red on red.
+ * The FAFO SECURITY wordmark (Bill 2026-10-28): white letters with red accents on dark, navy on light,
+ * all white on red / status backgrounds ([onRed] or [WordmarkVariant.MONO_WHITE]). [height] sets the size.
  */
 @Composable
-fun FafoWordmark(modifier: Modifier = Modifier, size: TextUnit = 22.sp, stacked: Boolean = false, onRed: Boolean = false) {
-    val fafo = TextStyle(fontFamily = Barlow, fontWeight = FontWeight.ExtraBold, fontSize = size, letterSpacing = 0.08.em, color = if (onRed) FafoBrand.White else FafoColors.White)
-    val sec = TextStyle(
-        fontFamily = Barlow, fontWeight = FontWeight.Bold, letterSpacing = 0.18.em,
-        fontSize = if (stacked) size * 0.42f else size, color = if (onRed) FafoBrand.White else FafoColors.RedText,
+fun FafoWordmark(
+    modifier: Modifier = Modifier,
+    height: Dp = 22.dp,
+    variant: WordmarkVariant = WordmarkVariant.AUTO,
+    onRed: Boolean = false,
+) {
+    val v = if (onRed) WordmarkVariant.MONO_WHITE else variant.resolve()
+    val res = when (v) {
+        WordmarkVariant.LIGHT -> R.drawable.wordmark_light
+        WordmarkVariant.MONO_WHITE -> R.drawable.wordmark_mono_white
+        else -> R.drawable.wordmark_dark_white
+    }
+    Image(
+        painterResource(res), contentDescription = "FAFO Security",
+        modifier = modifier.size(height * WORDMARK_ASPECT, height),
     )
+}
+
+/**
+ * Shield plus wordmark. Wide: side by side (Help and Setup headers); stacked: shield over the wordmark
+ * (splash / first-run hero). Built in Compose because the lockup SVGs embed the shield as a bitmap.
+ */
+@Composable
+fun FafoLockup(
+    modifier: Modifier = Modifier,
+    stacked: Boolean = false,
+    wordmarkHeight: Dp = 28.dp,
+    variant: WordmarkVariant = WordmarkVariant.AUTO,
+    eye: androidx.compose.ui.graphics.Color? = null,
+) {
     val m = modifier.semantics(mergeDescendants = true) { contentDescription = "FAFO Security" }
     if (stacked) {
-        Column(m, horizontalAlignment = Alignment.CenterHorizontally) {
-            Text("FAFO", style = fafo.copy(lineHeight = size * 0.95f))
-            Text("SECURITY", style = sec)
+        Column(m, horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(wordmarkHeight * 0.45f)) {
+            LockupShield(wordmarkHeight * 3.4f, eye)
+            FafoWordmark(height = wordmarkHeight, variant = variant)
         }
     } else {
-        Row(m, horizontalArrangement = Arrangement.spacedBy(size.value.times(0.4f).dp), verticalAlignment = Alignment.CenterVertically) {
-            Text("FAFO", style = fafo)
-            Text("SECURITY", style = sec)
+        Row(m, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(wordmarkHeight * 0.4f)) {
+            LockupShield(wordmarkHeight * 1.9f, eye)
+            FafoWordmark(height = wordmarkHeight, variant = variant)
         }
     }
 }
+
+@Composable
+private fun LockupShield(height: Dp, eye: androidx.compose.ui.graphics.Color?) = ShieldLogo(height)

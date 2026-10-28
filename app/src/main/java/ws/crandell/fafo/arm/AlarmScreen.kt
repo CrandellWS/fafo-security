@@ -123,7 +123,7 @@ private fun Triggered(photosOn: Boolean, now: Long?) {
         )
         Spacer(Modifier.height(12.dp))
         Text("This phone is protected by", style = MaterialTheme.typography.titleLarge, color = FafoBrand.White, textAlign = TextAlign.Center)
-        FafoWordmark(size = 30.sp, onRed = true, modifier = Modifier.padding(top = 2.dp))
+        FafoWordmark(height = 30.dp, onRed = true, modifier = Modifier.padding(top = 6.dp))
         Spacer(Modifier.height(16.dp))
         Text(
             "Only the owner can stop the alarm, by unlocking this phone.",

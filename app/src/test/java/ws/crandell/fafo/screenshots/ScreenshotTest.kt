@@ -54,6 +54,15 @@ import ws.crandell.fafo.ui.screens.SettingsScreen
 import ws.crandell.fafo.ui.screens.TrustedScreen
 import ws.crandell.fafo.ui.theme.FafoTheme
 import ws.crandell.fafo.ui.theme.ThemeMode
+import ws.crandell.fafo.ui.theme.DarkTokens
+import ws.crandell.fafo.ui.theme.LightTokens
+import ws.crandell.fafo.ui.theme.FafoBrand
+import ws.crandell.fafo.ui.components.FafoWordmark
+import ws.crandell.fafo.ui.components.FafoLockup
+import ws.crandell.fafo.ui.components.WordmarkVariant
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.CompositionLocalProvider
@@ -175,6 +184,28 @@ class ScreenshotTest {
     @Test fun s43_setup_light() = shotLight("43_setup_light") { Setup(partial) }
     @Test fun s45_home_arming_light() = shotLight("45_home_arming_light") {
         Home(ready.copy(alarmState = AlarmState.Arming(0, 5_000), arming = true, armingLeftS = 4, stateLabel = "Arming (4 s)"))
+    }
+
+    // ---- Brand ------------------------------------------------------------------------------------
+
+    @Config(qualifiers = TALL)
+    @Test fun s74_wordmark_variants() = shot("74_wordmark_variants") {
+        Column(Modifier.fillMaxSize()) {
+            Column(Modifier.fillMaxWidth().background(DarkTokens.bg).padding(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                FafoWordmark(height = 48.dp, variant = WordmarkVariant.DARK_WHITE)
+                FafoLockup(wordmarkHeight = 32.dp, variant = WordmarkVariant.DARK_WHITE)
+            }
+            Column(Modifier.fillMaxWidth().background(LightTokens.bg).padding(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                FafoWordmark(height = 48.dp, variant = WordmarkVariant.LIGHT)
+                FafoLockup(wordmarkHeight = 32.dp, variant = WordmarkVariant.LIGHT)
+            }
+            Row(Modifier.fillMaxWidth().background(FafoBrand.Red).padding(20.dp), horizontalArrangement = Arrangement.SpaceEvenly) {
+                FafoLockup(stacked = true, wordmarkHeight = 30.dp, variant = WordmarkVariant.MONO_WHITE)
+            }
+            Row(Modifier.fillMaxWidth().background(DarkTokens.bg).padding(20.dp), horizontalArrangement = Arrangement.SpaceEvenly) {
+                FafoLockup(stacked = true, wordmarkHeight = 30.dp, variant = WordmarkVariant.DARK_WHITE)
+            }
+        }
     }
 
     // ---- Large font and narrow width (AutoFitText) ------------------------------------------------

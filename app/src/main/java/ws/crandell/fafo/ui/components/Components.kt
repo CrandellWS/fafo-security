@@ -130,7 +130,7 @@ fun FafoTopBar(
             Spacer(Modifier.width(10.dp))
             Box(Modifier.weight(1f)) {
                 if (title == null) {
-                    FafoWordmark(size = 24.sp)
+                    FafoWordmark(height = 24.dp)
                 } else {
                     AutoFitText(title.uppercase(), style = MaterialTheme.typography.headlineSmall, color = FafoColors.White, minFontSize = 16.sp, modifier = Modifier.semantics { heading() })
                 }

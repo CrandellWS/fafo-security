@@ -43,7 +43,7 @@ import androidx.compose.ui.unit.sp
 import ws.crandell.fafo.ui.components.FafoCard
 import ws.crandell.fafo.ui.components.FafoDims
 import ws.crandell.fafo.ui.components.FafoIcons
-import ws.crandell.fafo.ui.components.FafoWordmark
+import ws.crandell.fafo.ui.components.FafoLockup
 import ws.crandell.fafo.ui.components.SectionHeader
 import ws.crandell.fafo.ui.components.ShieldLogo
 import ws.crandell.fafo.ui.help.HelpContent
@@ -94,9 +94,7 @@ fun HelpScreen(
     ) {
         item {
             Column(Modifier.fillMaxWidth().padding(vertical = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                ShieldLogo(104.dp)
-                Spacer(Modifier.height(12.dp))
-                FafoWordmark(size = 40.sp, stacked = true)
+                FafoLockup(wordmarkHeight = 40.dp)
                 Spacer(Modifier.height(8.dp))
                 Text(
                     "Free Advanced Features Offline. Everything stays on your phones.",
