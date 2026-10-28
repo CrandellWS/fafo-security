@@ -16,7 +16,9 @@ Bill's phones never block the next milestone: list them in `docs/DEVICE-TESTS.md
   addresses only), `NoRemoteEndpointsTest` (no hardcoded non-local URLs/hosts), the Gradle task
   `checkNoRemoteDeps` (no network or analytics libraries on the runtime classpath) and the manifest test.
   No message type may arm, start room mode, open a mic or change circles on the receiving device.
-- **No analytics, trackers, crash reporters or ad SDKs.** No Firebase, Crashlytics, Play Services, Sentry, etc.
+- **No analytics, trackers, crash reporters or ad SDKs.** No Firebase, Crashlytics, Sentry, etc. Play Services:
+  none in the `oss` flavor; the `play` flavor may use only the allowlisted `play-services-auth` modules
+  (Gmail sign-in), enforced per flavor by `checkNoRemoteDeps`.
 - **Intercom is open-use only (spec F10).** The mic opens only in room mode turned on by the person at that
   phone (persistent notification naming listeners, system mic indicator) or while someone holds
   push-to-talk in the visible app. Never started by a remote message, from boot or from a sticky restart;
@@ -53,17 +55,20 @@ minSdk 30, targetSdk/compileSdk 36. Package `ws.crandell.fafo`.
 export ANDROID_HOME="$HOME/android-sdk"
 export PATH="$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$PATH"
 
-./gradlew assembleDebug        # APK: app/build/outputs/apk/debug/app-debug.apk
-./gradlew test                 # JVM unit tests + Robolectric
-./gradlew lint
-./gradlew recordRoborazziDebug # screenshots of every screen: app/build/outputs/roborazzi/*.png
+# Two flavors: oss (default; F-Droid, no Google libraries) and play (adds Gmail sign-in).
+./gradlew assembleOssDebug assemblePlayDebug  # APKs: app/build/outputs/apk/{oss,play}/debug/
+./gradlew test                 # testOssDebugUnitTest (full suite) + testPlayDebugUnitTest (flavor subset)
+./gradlew lintOssDebug lintPlayDebug
+./gradlew checkNoRemoteDeps    # per-flavor dependency guard
+./gradlew recordRoborazziOssDebug # screenshots of every screen: app/build/outputs/roborazzi/*.png
 python3 tools/make-icons.py <shield.png>  # regenerate launcher icon / logo bitmaps (Pillow)
 ```
 
 No emulator is available in the cloud (no KVM). Keep logic in pure Kotlin classes and test them on the
 JVM; use Robolectric for services, receivers, storage, manifest and Compose. Device-only behavior is
 checked by Bill on his Samsung Galaxy A17 (Android 16) using the APK from CI
-(`.github/workflows/android.yml`, artifact `fafo-debug-apk`).
+(`.github/workflows/android.yml`, artifacts `fafo-debug-apk-oss` and `fafo-debug-apk-play`, both signed with
+the shared debug key in `keystore/`).
 
 ## Android gotchas that shape the design
 

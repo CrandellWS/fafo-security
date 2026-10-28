@@ -3,7 +3,7 @@ plugins {
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.serialization)
-    // Screenshot tests (test classpath only): `./gradlew recordRoborazziDebug` writes the PNGs Bill reviews.
+    // Screenshot tests (test classpath only): `./gradlew recordRoborazziOssDebug` writes the PNGs Bill reviews.
     alias(libs.plugins.roborazzi)
 }
 
@@ -17,6 +17,21 @@ android {
         targetSdk = 36
         versionCode = 1
         versionName = "0.1.0"
+    }
+
+    // oss: the F-Droid / open-source build, no Google libraries at all. play: adds Google sign-in for
+    // Gmail photo email. Same applicationId, so one installs over the other (same debug key).
+    flavorDimensions += "dist"
+    productFlavors {
+        create("oss") {
+            dimension = "dist"
+            isDefault = true
+            versionNameSuffix = "-oss"
+        }
+        create("play") {
+            dimension = "dist"
+            versionNameSuffix = "-play"
+        }
     }
 
     // One shared, PUBLIC debug key (keystore/README.md) so CI and local debug builds install over each
@@ -50,7 +65,7 @@ android {
     }
 
     lint {
-        // Plain-text report (build/reports/lint-results-debug.txt); CI prints it when lint fails.
+        // Plain-text report (build/reports/lint-results-<variant>.txt); CI prints it when lint fails.
         textReport = true
     }
 
@@ -65,6 +80,21 @@ androidComponents {
     beforeVariants(selector().withBuildType("release")) {
         (it as com.android.build.api.variant.HasHostTestsBuilder)
             .hostTests[com.android.build.api.variant.HostTestBuilder.UNIT_TEST_TYPE]?.enable = false
+    }
+}
+
+// The full JVM suite runs on oss. play runs only what differs per flavor (mail, manifest, endpoint and
+// egress guards), so CI time does not double.
+val playOnlyTests = listOf(
+    "ws.crandell.fafo.mail.*", "ws.crandell.fafo.ManifestTest", "ws.crandell.fafo.NoRemoteEndpointsTest",
+    "ws.crandell.fafo.EgressTest", "ws.crandell.fafo.RepoSecretsTest", "ws.crandell.fafo.FlavorTest",
+)
+tasks.withType<Test>().configureEach {
+    if (name == "testPlayDebugUnitTest") {
+        filter {
+            playOnlyTests.forEach { includeTestsMatching(it) }
+            isFailOnNoMatchingTests = false
+        }
     }
 }
 
@@ -99,6 +129,9 @@ dependencies {
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
 
+    // play flavor only: Google sign-in for Gmail send. Exact module allowlist in checkNoRemoteDeps.
+    "playImplementation"(libs.play.services.auth)
+
     testImplementation(libs.junit)
     testImplementation(libs.robolectric)
     testImplementation(libs.truth)
@@ -114,6 +147,9 @@ dependencies {
 
 // Spec section 6: no network or analytics libraries on the runtime classpath. A JVM test cannot see the
 // Gradle classpath, so this is a verification task wired into `check` and run by CI.
+// oss: the full deny list, including every Google Play services and Firebase module.
+// play: the same deny list, except an exact allowlist of the Play services modules that
+// play-services-auth (Gmail sign-in) pulls in. Any other gms module, any Firebase, ads or analytics fails.
 val deniedGroups = listOf(
     "com.squareup.okhttp", "com.squareup.okhttp3", "com.squareup.retrofit2", "io.ktor", "org.chromium.net",
     "com.google.firebase", "com.google.android.gms", "com.crashlytics", "io.fabric", "io.sentry",
@@ -122,24 +158,42 @@ val deniedGroups = listOf(
     "com.inmobi", "com.adcolony", "com.flurry", "com.amplitude", "com.mixpanel", "com.segment",
     "io.branch", "com.appsflyer", "com.adjust", "com.bugsnag", "com.datadoghq", "com.newrelic", "com.instabug",
 )
+val playAllowedGms = setOf(
+    "com.google.android.gms:play-services-auth",
+    "com.google.android.gms:play-services-auth-api-phone",
+    "com.google.android.gms:play-services-auth-base",
+    "com.google.android.gms:play-services-base",
+    "com.google.android.gms:play-services-basement",
+    "com.google.android.gms:play-services-fido",
+    "com.google.android.gms:play-services-tasks",
+)
 
 val checkNoRemoteDeps by tasks.registering {
     group = "verification"
-    description = "Fails if a network or analytics library is on the runtime classpath (spec section 6)."
+    description = "Fails if a network or analytics library is on a runtime classpath (spec section 6), per flavor."
     doLast {
         val bad = mutableListOf<String>()
-        listOf("debugRuntimeClasspath", "releaseRuntimeClasspath").forEach { name ->
+        val gmsSeen = sortedSetOf<String>()
+        listOf("ossDebug", "ossRelease", "playDebug", "playRelease").forEach { variant ->
+            val name = "${variant}RuntimeClasspath"
+            val isPlay = variant.startsWith("play")
             project.configurations.getByName(name).incoming.resolutionResult.allComponents.forEach { c ->
-                val id = c.moduleVersion
-                if (id != null && deniedGroups.any { id.group == it || id.group.startsWith("$it.") }) {
-                    bad += "$name: ${id.group}:${id.name}:${id.version}"
+                val id = c.moduleVersion ?: return@forEach
+                val module = "${id.group}:${id.name}"
+                if (isPlay && module in playAllowedGms) {
+                    gmsSeen += "$module:${id.version}"
+                    return@forEach
+                }
+                if (deniedGroups.any { id.group == it || id.group.startsWith("$it.") }) {
+                    bad += "$name: $module:${id.version}"
                 }
             }
         }
         if (bad.isNotEmpty()) {
             throw GradleException("Denied network/analytics dependencies found:\n" + bad.joinToString("\n"))
         }
-        println("checkNoRemoteDeps: no denied groups on debug/release runtime classpaths")
+        println("checkNoRemoteDeps: oss has no Google/network/analytics libraries; play gms modules (allowlisted):")
+        gmsSeen.forEach { println("  $it") }
     }
 }
 

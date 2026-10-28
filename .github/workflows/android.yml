@@ -59,7 +59,7 @@ jobs:
         if: steps.wrapper.outputs.present == 'true'
         run: |
           chmod +x ./gradlew
-          ./gradlew --no-daemon assembleDebug test
+          ./gradlew --no-daemon assembleOssDebug assemblePlayDebug testOssDebugUnitTest testPlayDebugUnitTest
           # From M4 on: fail on any network/analytics library on the runtime classpath (spec section 6).
           if ./gradlew --no-daemon -q tasks --all | grep -q 'checkNoRemoteDeps'; then
             ./gradlew --no-daemon checkNoRemoteDeps
@@ -80,14 +80,23 @@ jobs:
         if: steps.wrapper.outputs.present == 'true'
         # Blocking since M13. On failure the plain-text report is printed so every issue shows in the log.
         run: |
-          ./gradlew --no-daemon lintDebug || { cat app/build/reports/lint-results-debug.txt; exit 1; }
+          ./gradlew --no-daemon lintOssDebug lintPlayDebug || {
+            cat app/build/reports/lint-results-ossDebug.txt app/build/reports/lint-results-playDebug.txt 2>/dev/null; exit 1; }
 
-      - name: Upload debug APK
+      - name: Upload debug APK (oss)
         if: steps.wrapper.outputs.present == 'true'
         uses: actions/upload-artifact@v4
         with:
-          name: fafo-debug-apk
-          path: app/build/outputs/apk/debug/*.apk
+          name: fafo-debug-apk-oss
+          path: app/build/outputs/apk/oss/debug/*.apk
+          if-no-files-found: error
+
+      - name: Upload debug APK (play)
+        if: steps.wrapper.outputs.present == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: fafo-debug-apk-play
+          path: app/build/outputs/apk/play/debug/*.apk
           if-no-files-found: error
 
       - name: Upload test reports

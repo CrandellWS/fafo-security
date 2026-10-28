@@ -17,6 +17,8 @@ truth = "1.4.4"
 androidxTestCore = "1.6.1"
 androidxTestExtJunit = "1.2.1"
 roborazzi = "1.75.0"
+# play flavor only (Gmail sign-in). Never on the oss classpath; checkNoRemoteDeps enforces it.
+playServicesAuth = "21.3.0"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -51,6 +53,8 @@ androidx-test-ext-junit = { group = "androidx.test.ext", name = "junit-ktx", ver
 roborazzi = { group = "io.github.takahirom.roborazzi", name = "roborazzi", version.ref = "roborazzi" }
 roborazzi-compose = { group = "io.github.takahirom.roborazzi", name = "roborazzi-compose", version.ref = "roborazzi" }
 roborazzi-junit-rule = { group = "io.github.takahirom.roborazzi", name = "roborazzi-junit-rule", version.ref = "roborazzi" }
+
+play-services-auth = { group = "com.google.android.gms", name = "play-services-auth", version.ref = "playServicesAuth" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

@@ -92,8 +92,16 @@ class ManifestTest {
         assertThat(declared).isEqualTo(v1Permissions + legacy)
     }
 
+    /**
+     * play flavor only: play-services-auth merges in its legacy sign-in revocation service. It is not a
+     * foreground service, is permission-guarded by Play services, and is absent from the oss build.
+     */
+    private val playLibraryServices = setOf("com.google.android.gms.auth.api.signin.RevocationBoundService")
+
     @Test fun serviceTypes() {
-        val types = info.services.orEmpty().associate { it.name to it.foregroundServiceType }
+        val types = info.services.orEmpty()
+            .filterNot { ws.crandell.fafo.mail.flavor.FlavorMail.FLAVOR == "play" && it.name in playLibraryServices && it.foregroundServiceType == 0 }
+            .associate { it.name to it.foregroundServiceType }
         assertThat(types).containsExactly(
             "ws.crandell.fafo.arm.ArmService", ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE or ServiceInfo.FOREGROUND_SERVICE_TYPE_CAMERA,
             "ws.crandell.fafo.reach.ReachableService", ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE,
