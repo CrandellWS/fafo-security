@@ -56,6 +56,19 @@ exact steps, and the next build session fixes it.
 - [ ] After a process kill (not a reboot), tapping the alarm notification / alarm screen resumes photos.
 - [ ] Self-test takes a test photo ("Test photo OK").
 
+## M9 Pairing (two phones, both with this APK)
+
+- [ ] Open Trusted devices on both phones: one Android "Nearby devices" prompt (no location prompt).
+- [ ] Phone A: "Show this phone". Phone B: "Find the other phone". Both show the same 6-digit code.
+      (Android 11 phones get the system device picker instead of a scan: pick the FAFO entry.)
+- [ ] Tap "Codes match" on both; each asks for its own PIN/pattern/password (a fingerprint is not
+      offered). Both list the other phone with name, fingerprint and today's date.
+- [ ] Tap "Don't match" on one phone: neither phone saves anything.
+- [ ] Cancel the PIN prompt on one phone: neither phone saves anything.
+- [ ] Phone with no screen lock: "Set a screen lock first", pairing does not start.
+- [ ] Remove a trusted device: asks for the PIN; the device disappears.
+- [ ] Bluetooth off: "Turn on Bluetooth first".
+
 ## Results
 
 (Bill: write findings here, newest first.)

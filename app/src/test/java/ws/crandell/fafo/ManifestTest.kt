@@ -8,6 +8,7 @@ import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.google.common.truth.Truth.assertThat
 import org.junit.Test
+import java.io.File
 import org.junit.runner.RunWith
 import ws.crandell.fafo.arm.ArmService
 
@@ -74,6 +75,30 @@ class ManifestTest {
         )
         assertThat(si.directBootAware).isTrue()
         assertThat(si.exported).isFalse()
+    }
+
+    @Test fun bluetoothPermissions() {
+        assertThat(permissions).containsAtLeast(
+            "android.permission.BLUETOOTH_SCAN",
+            "android.permission.BLUETOOTH_ADVERTISE",
+            "android.permission.BLUETOOTH_CONNECT",
+        )
+    }
+
+    /** AC6.5: neverForLocation on BLUETOOTH_SCAN, legacy Bluetooth capped at API 30 (read from the source manifest). */
+    @Test fun bluetoothScanNeverForLocationAndLegacyCapped() {
+        val xml = sourceManifest()
+        val scan = Regex("<uses-permission[^>]*BLUETOOTH_SCAN[^>]*>").find(xml)!!.value
+        assertThat(scan).contains("neverForLocation")
+        for (legacy in listOf("android.permission.BLUETOOTH\"", "android.permission.BLUETOOTH_ADMIN\"")) {
+            val tag = Regex("<uses-permission[^>]*${Regex.escape(legacy)}[^>]*>").find(xml)!!.value
+            assertThat(tag).contains("maxSdkVersion=\"30\"")
+        }
+    }
+
+    private fun sourceManifest(): String {
+        val candidates = listOf("src/main/AndroidManifest.xml", "app/src/main/AndroidManifest.xml").map { File(it) }
+        return candidates.first { it.isFile }.readText()
     }
 
     @Test fun backupDisabled() {

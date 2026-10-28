@@ -15,6 +15,10 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import ws.crandell.fafo.pairing.DelegatingGate
+import ws.crandell.fafo.pairing.PairingFinisher
+import ws.crandell.fafo.pairing.TrustedDevice
+import ws.crandell.fafo.trust.TrustGraph
 import ws.crandell.fafo.camera.IncidentSidecar
 import ws.crandell.fafo.camera.PhotoStore
 import ws.crandell.fafo.core.AlarmState
@@ -97,6 +101,19 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     }
     fun deleteIncident(id: String) = viewModelScope.launch(Dispatchers.IO) {
         photoStore.deleteIncident(id); _incidents.value = photoStore.list()
+    }
+
+    /** The activity on screen sets [DelegatingGate.target] so ViewModel flows can show BiometricPrompt. */
+    val gate = DelegatingGate()
+    private val trustedStore by lazy { TrustGraph.trusted(app) }
+    val trustedDevices: StateFlow<List<TrustedDevice>> by lazy { trustedStore.devices }
+
+    val pairing = PairingController(
+        app, viewModelScope, gate, TrustGraph::keys, { trustedStore }, { ce.read().deviceLabel },
+    )
+
+    fun removeDevice(d: TrustedDevice) = viewModelScope.launch {
+        PairingFinisher(gate, trustedStore) { System.currentTimeMillis() }.remove(d.fingerprint)
     }
 
     fun markOnboarding(flag: String) = viewModelScope.launch { ce.markOnboarding(flag) }

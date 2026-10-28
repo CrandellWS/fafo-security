@@ -15,6 +15,25 @@ Built on Bill's workstation (Ubuntu, no sudo used), not a cloud container:
   `repo.maven.apache.org` all reachable (HTTP 200). Nothing blocked.
 - No emulator (no device work here); device checks go to `docs/DEVICE-TESTS.md`.
 
+## Environment (M9 on, cloud session 2026-10-28)
+
+M9-M13 are built in a Claude Code cloud container, not on Bill's workstation:
+
+- **Blocked by the environment's network policy:** `dl.google.com` (HTTP 403 from the egress proxy on
+  CONNECT). That host serves the Android SDK (`sdkmanager`, platforms, build-tools) and Google's Maven
+  repository (`maven.google.com` redirects there: AGP, AndroidX, Compose). So `./gradlew assembleDebug`,
+  `testDebugUnitTest` and `lint` **cannot run in this container**. To allow it: add `dl.google.com` (and
+  `maven.google.com`) to the cloud environment's allowed hosts.
+- Reachable: `services.gradle.org`, `plugins.gradle.org`, `repo.maven.apache.org` (with occasional
+  HTTP 429 rate limits), so the Gradle wrapper and Maven Central artifacts download.
+- What is done instead, per milestone: (1) a local JVM harness (outside the repo) compiles every pure
+  Kotlin file and runs its JUnit tests on JDK 21 (crypto, pairing, handshake, circles, policies), and
+  type-checks the Android-framework files (BLE, NSD, sockets, Keystore) against Robolectric's
+  `android-all` 16 jar from Maven Central; (2) the full `assembleDebug test checkNoRemoteDeps lintDebug`
+  runs in GitHub Actions on a scratch branch (`ci/work`, `workflow_dispatch`) until green; (3) only then
+  the milestone is committed to `main` as one commit, and its own `main` run must go green before the
+  next push.
+
 ## Milestones
 
 | Milestone | State | Tests |
@@ -29,6 +48,9 @@ Built on Bill's workstation (Ubuntu, no sudo used), not a cloud container:
 | M7 Motion chirps | done | JVM synthetic 50 Hz traces at Low/Medium/High: rest quiet, hard table bump = BUMP everywhere, gentle bump only on High, pick-up = PICKUP (no bump), walking = PICKUP, vibrating surface ignored; 1.5 s chirp rate limit. Robolectric: accelerometer listens only while ARMED (stops in TRIGGERED), not when motion is Off. |
 | M8 Trigger photos and offline queue | done | 100 tests total. PrunePolicy: never deletes protected frames (first, latest, up to 20 big-change), respects the cap, oldest closed incident first, thins the current incident every other frame. PhotoStore JVM tests (pending status, close label keeps photos, cap pruning). PhotoController: first shot immediately then every N s, alternate lenses, failures logged and retried, low storage pauses photos while the siren keeps going (state machine + fake capturer), Off setting. Robolectric: trigger writes the first photo into `filesDir/incidents/<id>/` and unlock closes the incident. Incidents screen with viewer, delete, share sheet (FileProvider, user-initiated only). |
 
+| M9 Trusted-device pairing | done | Reused the sound parts of `wip/m9-pairing` (Crypto helpers, `PairingCode`, commit-then-reveal, `KeystoreIdentityKeys`, `BiometricCredentialGate`, `TrustedDeviceStore`); split Android code from pure code and added the missing pieces: `PairingProtocol` (both roles over a `MessageLink`, both owners' credential, nothing stored unless both confirm), GATT server/client links with chunking, BLE advertise/scan (API 30 via CompanionDeviceManager), Trusted devices screen. JVM: code is 6 digits, identical on both sides, changes with any key (identity or command) or nonce; a reveal not matching the commitment aborts; full exchange over an in-memory link stores both peers with both public keys; refused credential, no secure lock, code mismatch and peer decline store nothing; remove needs the credential; chunker round trips. Robolectric: manifest has the Bluetooth permissions, `neverForLocation` on `BLUETOOTH_SCAN`, legacy Bluetooth capped at API 30, no location; Trusted screen lists name + fingerprint, asks for Nearby devices, code dialog answers. Spec AC6.1 note: one credential prompt per pairing, right after the code comparison. CI (ci/work run 14) green. |
+
 ## Open questions for Bill
 
-- None yet.
+- Allow `dl.google.com` / `maven.google.com` in the cloud environment so later sessions can build and lint
+  locally instead of only in GitHub Actions.

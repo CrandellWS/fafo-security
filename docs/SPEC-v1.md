@@ -203,10 +203,12 @@ over Bluetooth, end-to-end encrypted with the paired keys.
 
 ### F6. Trusted-device Bluetooth pairing gated by device credential
 
-- AC6.1 "Add trusted device" first requires `BiometricPrompt` with
+- AC6.1 "Add trusted device" requires `BiometricPrompt` with
   `setAllowedAuthenticators(DEVICE_CREDENTIAL)` only (the real PIN/pattern/password, not a fingerprint
   and not "phone already unlocked"). If `canAuthenticate(DEVICE_CREDENTIAL)` is not `BIOMETRIC_SUCCESS`
-  (no secure lock screen), pairing is blocked with "Set a screen lock first".
+  (no secure lock screen), pairing is blocked with "Set a screen lock first" before anything starts.
+  The prompt itself is shown once, right after the person confirms the 6-digit code and before anything
+  is stored (build note M9: one prompt per pairing instead of one before and one after the code).
 - AC6.2 Pairing uses Bluetooth LE between two phones that both run FAFO Security. Each install has an
   identity keypair (ECDSA P-256; Keystore Ed25519 is not available on API 30-32) in Android Keystore.
   Devices exchange public keys over a GATT characteristic, both screens show a 6-digit code derived from

@@ -30,6 +30,17 @@ import kotlinx.coroutines.launch
 import ws.crandell.fafo.camera.CameraXCapturer
 import ws.crandell.fafo.camera.Lens
 import ws.crandell.fafo.ui.screens.IncidentsScreen
+import ws.crandell.fafo.ui.screens.TrustedScreen
+import ws.crandell.fafo.pairing.BiometricCredentialGate
+import ws.crandell.fafo.ble.BleIds
+import android.bluetooth.le.ScanFilter
+import android.bluetooth.le.ScanResult
+import android.companion.AssociationRequest
+import android.companion.BluetoothLeDeviceFilter
+import android.companion.CompanionDeviceManager
+import android.content.IntentSender
+import android.os.ParcelUuid
+import androidx.activity.result.IntentSenderRequest
 import java.io.File
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
@@ -55,10 +66,62 @@ class MainActivity : FragmentActivity() {
             if (armAfterPermissions) onArm()
         }
 
+    private val nearbyLauncher =
+        registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { vm.refresh() }
+
+    /** API 30: the CompanionDeviceManager picker finds the other phone without location (AC6.5). */
+    private val companionLauncher =
+        registerForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) { r ->
+            val scan: ScanResult? = if (Build.VERSION.SDK_INT >= 33) {
+                r.data?.getParcelableExtra(CompanionDeviceManager.EXTRA_DEVICE, ScanResult::class.java)
+            } else {
+                @Suppress("DEPRECATION")
+                r.data?.getParcelableExtra(CompanionDeviceManager.EXTRA_DEVICE)
+            }
+            if (r.resultCode == RESULT_OK && scan != null) vm.pairing.findOther(scan.device)
+        }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
+        vm.gate.target = BiometricCredentialGate(this)
         setContent { FafoTheme { AppRoot() } }
+    }
+
+    override fun onDestroy() {
+        if (vm.gate.target is BiometricCredentialGate) vm.gate.target = null
+        super.onDestroy()
+    }
+
+    fun requestNearby() {
+        val perms = NearbyPermissions.missing(this)
+        if (perms.isNotEmpty()) nearbyLauncher.launch(perms.toTypedArray())
+    }
+
+    fun findOther() {
+        if (Build.VERSION.SDK_INT >= 31) {
+            vm.pairing.findOther()
+            return
+        }
+        val cdm = getSystemService(CompanionDeviceManager::class.java) ?: return
+        val filter = BluetoothLeDeviceFilter.Builder()
+            .setScanFilter(ScanFilter.Builder().setServiceUuid(ParcelUuid(BleIds.SERVICE)).build())
+            .build()
+        val request = AssociationRequest.Builder().addDeviceFilter(filter).setSingleDevice(true).build()
+        cdm.associate(
+            request,
+            object : CompanionDeviceManager.Callback() {
+                @Deprecated("API 30 path")
+                override fun onDeviceFound(chooserLauncher: IntentSender) {
+                    companionLauncher.launch(IntentSenderRequest.Builder(chooserLauncher).build())
+                }
+
+                override fun onFailure(error: CharSequence?) {
+                    Toast.makeText(this@MainActivity, "Other phone not found: $error", Toast.LENGTH_LONG).show()
+                }
+            },
+            null,
+        )
     }
 
     override fun onResume() {
@@ -191,7 +254,24 @@ class MainActivity : FragmentActivity() {
                         onShare = ::share, modifier = m,
                     )
                 }
-                Screen.TRUSTED -> PlaceholderScreen("Trusted devices", "Pairing arrives in a later build.", m)
+                Screen.TRUSTED -> {
+                    val devices by vm.trustedDevices.collectAsStateWithLifecycle()
+                    val pairing by vm.pairing.state.collectAsStateWithLifecycle()
+                    val nearby = NearbyPermissions.missing(this).isEmpty()
+                    // F7: Nearby devices is asked when the owner first opens Trusted devices.
+                    LaunchedEffect(Unit) { if (!nearby) requestNearby() }
+                    TrustedScreen(
+                        devices, pairing, nearby,
+                        onRequestNearby = ::requestNearby,
+                        onShowThisPhone = vm.pairing::showThisPhone,
+                        onFindOther = ::findOther,
+                        onAnswerCode = vm.pairing::answerCode,
+                        onCancel = vm.pairing::cancel,
+                        onDismiss = vm.pairing::dismiss,
+                        onRemove = vm::removeDevice,
+                        modifier = m,
+                    )
+                }
                 Screen.CIRCLES -> PlaceholderScreen("Circles", "Circles arrive in a later build.", m)
                 Screen.INTERCOM -> PlaceholderScreen("Intercom", "Intercom arrives in a later build.", m)
             }
