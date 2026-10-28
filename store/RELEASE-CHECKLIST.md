@@ -20,10 +20,10 @@ packs. Sources were checked on 2026-10-28; recheck any form whose wording looks 
       reset request to Play, not a lost app.
       ```bash
       mkdir -p ~/.config/fafo-keys && chmod 700 ~/.config/fafo-keys
-      ~/.local/opt/jdk-17.0.21+9/bin/keytool -genkeypair -v \
+      keytool -genkeypair -v \
         -keystore ~/.config/fafo-keys/fafo-upload.jks -alias fafo-upload \
         -keyalg RSA -keysize 4096 -validity 10000 \
-        -dname "CN={{DEVELOPER_NAME}}, O=FAFO Security, C=US"
+        -dname "CN=Bill Crandell, O=FAFO Security, C=US"
       chmod 600 ~/.config/fafo-keys/fafo-upload.jks
       keytool -list -v -keystore ~/.config/fafo-keys/fafo-upload.jks -alias fafo-upload | grep SHA1   # for the OAuth upload client
       ```
@@ -32,9 +32,9 @@ packs. Sources were checked on 2026-10-28; recheck any form whose wording looks 
 - [ ] **Version:** `app/build.gradle.kts` > defaultConfig `versionCode` (integer, +1 for every upload to
       any track, never reused) and `versionName` (shown to users; first release `0.1.0`, the play flavor
       appends `-play`, so Play shows `0.1.0-play`: drop the suffix for play if that is unwanted). Commit the bump.
-- [ ] **Build the signed AAB** (play flavor = Gmail sign-in; oss is for F-Droid). Passwords are read, not typed on the command line:
+- [ ] **Build the signed AAB** (play flavor = Gmail sign-in; oss is for F-Droid). Needs JDK 17 `bin/` (keytool, jarsigner) on PATH. Passwords are read, not typed on the command line:
       ```bash
-      cd ~/projects/fafo-security
+      cd fafo-security   # repo root
       read -rsp "Upload key password: " FAFO_PW; echo
       ./gradlew clean test checkNoRemoteDeps :app:bundlePlayRelease \
         -Pandroid.injected.signing.store.file="$HOME/.config/fafo-keys/fafo-upload.jks" \
@@ -43,7 +43,7 @@ packs. Sources were checked on 2026-10-28; recheck any form whose wording looks 
         -Pandroid.injected.signing.key.password="$FAFO_PW"
       unset FAFO_PW
       ls -l app/build/outputs/bundle/playRelease/app-play-release.aab
-      ~/.local/opt/jdk-17.0.21+9/bin/jarsigner -verify app/build/outputs/bundle/playRelease/app-play-release.aab
+      jarsigner -verify app/build/outputs/bundle/playRelease/app-play-release.aab
       ```
       (If the Gradle version rejects the injected properties, build unsigned and sign with
       `jarsigner -keystore ~/.config/fafo-keys/fafo-upload.jks <aab> fafo-upload`.)
@@ -118,13 +118,13 @@ metadata policy: https://support.google.com/googleplay/android-developer/answer/
 ## 2. Privacy policy and homepage hosting
 Play requirements: public, non-geofenced URL, not a PDF, names app/developer, has a contact, matches
 Data safety, also linked inside the app. https://support.google.com/googleplay/android-developer/answer/10144311
-Files: site/index.html (homepage), site/privacy-policy.html, site/icon.png (text: PRIVACY-POLICY.md). Fill {{DEVELOPER_NAME}},
-{{CONTACT_EMAIL}}, {{EFFECTIVE_DATE}}, {{PLAY_LINK}} first.
+Files: docs/index.html (homepage), docs/privacy-policy.html, docs/icon.png (text: PRIVACY-POLICY.md); placeholders
+filled 2026-10-28. Policy URL: https://crandellws.github.io/fafo-security/privacy-policy.html (later https://fafo.crandell.ws/privacy-policy.html). When the app is on Play, add its link in docs/index.html
+in place of "coming soon".
 
 Hosting options (all free):
-- **GitHub Pages**: Free plan serves Pages only from public repos (private repos need Pro/Team). The app
-  repo CrandellWS/fafo-security is private, so either open-source it or make a small **public repo with
-  only site/** (e.g. CrandellWS/fafo-site). https://docs.github.com/en/pages/getting-started-with-github-pages/about-github-pages
+- **GitHub Pages (chosen 2026-10-28)**: the app repo is being open-sourced (GPL-3.0-or-later), so Pages
+  serves `main` /docs directly. https://docs.github.com/en/pages/getting-started-with-github-pages/about-github-pages
 - **Cloudflare Pages** or **Netlify** free tiers: deploy from a private repo or by upload.
 - **Custom domain (recommended for OAuth):** `fafo.crandell.ws` (CNAME at GoDaddy to the host). Google
   OAuth needs the homepage and privacy policy on a domain verified in Search Console; crandell.ws

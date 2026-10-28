@@ -66,7 +66,7 @@ val LocalShieldEye = androidx.compose.runtime.staticCompositionLocalOf { FafoBra
 fun shieldEyeFor(state: ws.crandell.fafo.core.AlarmState): Color =
     if (state is ws.crandell.fafo.core.AlarmState.Armed || state.isAlarming) FafoBrand.Red else FafoBrand.White
 
-/** Which hand-built wordmark (~/Pictures/fafo-logo/wordmark, converted by tools/svg2vd.py) to draw. */
+/** Which hand-built wordmark (original SVG art, converted by tools/svg2vd.py) to draw. */
 enum class WordmarkVariant { AUTO, DARK_WHITE, LIGHT, MONO_WHITE }
 
 /** Width / height of the wordmark art (SVG viewBox 1096.03 x 335.19). */

@@ -16,10 +16,10 @@ Upload the description that matches the AAB you submit. Never list a feature the
 | Release notes (first release) | listing/en-US/release-notes.txt | 125 / 500 |
 | App category | **Tools** (Application > Tools) | |
 | Tags | Up to 5 from the list the Console offers. Choose only ones that describe the app, e.g. the security or alarm tags if offered. Do not pick tags for features it lacks (no tracking, no locator). | 5 |
-| Contact email (required, public) | `{{CONTACT_EMAIL}}` (Bill fills in) | |
-| Website | homepage URL once hosted (site/index.html, see PRIVACY-POLICY.md "Hosting") | |
+| Contact email (required, public) | `fafo@crandell.ws` | |
+| Website | https://crandellws.github.io/fafo-security/ (later https://fafo.crandell.ws/) | |
 | Phone | leave empty | |
-| Privacy policy | site/privacy-policy.html URL (App content page) | |
+| Privacy policy | https://crandellws.github.io/fafo-security/privacy-policy.html (later https://fafo.crandell.ws/privacy-policy.html; App content page) | |
 | App icon | graphics/icon-512.png | 512x512, 32-bit PNG, max 1 MB |
 | Feature graphic | graphics/feature-graphic-1024x500.png | 1024x500, 24-bit PNG, no alpha |
 | Phone screenshots | graphics/phone/01..08-*.png, upload in file-name order | 2-8, 1080x1920 |

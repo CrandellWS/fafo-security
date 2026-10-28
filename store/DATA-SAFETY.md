@@ -28,7 +28,7 @@ Pick the column that matches the AAB you submit.
 | Question | Answer | Why |
 |---|---|---|
 | Does your app collect or share any of the required user data types? | **No** | Photos, settings and keys stay on the phone. Alerts, commands and intercom audio go device-to-device on the local network or Bluetooth, end-to-end encrypted with the paired keys (E2E exemption). No analytics or crash SDKs. |
-| Privacy policy | site/privacy-policy.html URL | Required even with no data. |
+| Privacy policy | https://crandellws.github.io/fafo-security/privacy-policy.html (later https://fafo.crandell.ws/privacy-policy.html) | Required even with no data. |
 
 Play then shows "No data collected" and "No data shared with third parties".
 

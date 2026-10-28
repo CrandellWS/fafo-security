@@ -9,7 +9,9 @@ a debug build proves nothing about who made it.
 - F-Droid builds and signs with its own key, so an F-Droid install and a CI/Play install cannot update
   each other.
 
-Fingerprints (needed for the play flavor's Android OAuth client and checked by CI):
+Fingerprints (checked by CI). Because this key is public, register its SHA-1 only on a **separate,
+Testing-status** Android OAuth client (the "FAFO Security Dev" project), never on the production OAuth
+client: anyone can sign a `ws.crandell.fafo` debug APK with it.
 
 ```
 SHA-256: 9A:B9:9D:D8:04:08:9B:3C:B8:26:D5:D4:85:F1:29:A5:32:EE:99:53:17:E6:5B:E5:53:A3:2C:3D:81:12:A9:05

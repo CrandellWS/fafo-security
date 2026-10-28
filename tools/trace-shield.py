@@ -3,7 +3,7 @@
 
 Usage (needs numpy, pillow, scipy and potracer in a throwaway venv; the output is committed, so the
 build never depends on this):
-    python3 tools/trace-shield.py ~/Pictures/fafo-logo/fafo-shield2-FINAL-1024.png \
+    python3 tools/trace-shield.py <path>/fafo-shield2-FINAL-1024.png \
         app/src/main/java/ws/crandell/fafo/ui/components/ShieldPaths.kt
 
 The source uses exactly three colors (navy #0B1F35, red #D61018, white) on transparency. Each pixel is

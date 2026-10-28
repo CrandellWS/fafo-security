@@ -1,4 +1,4 @@
-source: /tmp/claude-1000/-home-crandellws/f7afe390-9ed8-4ba7-aebc-37c96a60172c/scratchpad/fafo-ui/shots (round 2)
+source: $FAFO_SHOTS_ROOT/fafo-ui/shots (round 2 Roborazzi captures)
 01-arm-it-while-it-charges.png	<- 07_home_armed.png
 02-unplugged-a-countdown-starts.png	<- 11_alarm_prealarm_5s.png
 03-then-a-loud-siren-until-you-unlock.png	<- 13_alarm_triggered.png

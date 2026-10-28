@@ -30,14 +30,14 @@ access, Verification center); recheck if a screen looks different.
 
 Recompute the debug SHA-1 any time:
 `keytool -list -v -keystore keystore/debug.keystore -storepass android -alias androiddebugkey | grep SHA1`
-(on this workstation keytool is at `~/.local/opt/jdk-17.0.21+9/bin/keytool`).
+(keytool ships in the JDK's `bin/` folder).
 
 ### Authorized domain options
 | Option | Homepage / policy URLs | Verify how |
 |---|---|---|
 | **`crandell.ws` with `fafo.crandell.ws` (recommended)** | as above | Search Console > Domain property `crandell.ws` > TXT record at GoDaddy |
 | A dedicated domain, e.g. a new `fafo…` domain | `https://<domain>/` | Same, at its registrar. Costs a domain |
-| `crandellws.github.io` | `https://crandellws.github.io/fafo-site/` | URL-prefix property with HTML file; workable but harder to keep tidy |
+| `crandellws.github.io` | `https://crandellws.github.io/fafo-security/` | URL-prefix property with HTML file; workable but harder to keep tidy |
 
 The Google account doing the verification must be an Owner or Editor on the Cloud project.
 
@@ -114,7 +114,7 @@ Checklist before clicking **Prepare for verification / Submit**:
 - [ ] Privacy policy on the same domain, says how Google user data is used, and contains:
       "FAFO Security's use and transfer to any other app of information received from Google APIs will
       adhere to the Google API Services User Data Policy, including the Limited Use requirements."
-      (already in site/privacy-policy.html). https://developers.google.com/terms/api-services-user-data-policy
+      (already in docs/privacy-policy.html). https://developers.google.com/terms/api-services-user-data-policy
 - [ ] `crandell.ws` verified in Search Console by a project Owner/Editor.
 - [ ] App name and logo on the consent screen match the Play listing.
 - [ ] Only gmail.send requested.

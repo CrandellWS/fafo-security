@@ -1,8 +1,10 @@
 # FAFO Security Privacy Policy (source text) and hosting
 
-The published page is `site/privacy-policy.html` (same text, styled, light and dark). Edit both together.
-Before hosting, fill `{{DEVELOPER_NAME}}`, `{{CONTACT_EMAIL}}`, `{{EFFECTIVE_DATE}}` in both files and
-`{{PLAY_LINK}}` in site/index.html.
+The published page is `docs/privacy-policy.html` at the repo root (same text, styled, light and dark),
+served by GitHub Pages from `main` /docs. Edit both together.
+
+Privacy policy URL: https://crandellws.github.io/fafo-security/privacy-policy.html
+(after the custom domain is live: https://fafo.crandell.ws/privacy-policy.html). Homepage: `docs/index.html`.
 
 Play requirements met: public, non-geofenced URL, not a PDF, names the app and developer, has a contact,
 matches the Data safety answers, describes access/collection/sharing. Also link it inside the app
@@ -19,8 +21,8 @@ Two sentences depend on the round 3 build and must be checked before publishing:
 
 ---
 
-**App:** FAFO Security (Android, package ws.crandell.fafo). **Developer:** {{DEVELOPER_NAME}}.
-**Effective:** {{EFFECTIVE_DATE}}.
+**App:** FAFO Security (Android, package ws.crandell.fafo). **Developer:** Bill Crandell.
+**Effective:** 2026-10-28.
 
 FAFO Security is an anti-theft alarm for your own Android phone. It has no ads, no analytics, no sign-up
 and no server run by the developer. The developer does not receive any of your data. This policy explains
@@ -84,13 +86,24 @@ If this policy changes, the new version is posted at this address with a new eff
 sends any new kind of data off your phone will be shown in the app before it takes effect.
 
 ## Contact
-Questions: {{CONTACT_EMAIL}}
+Questions: fafo@crandell.ws
 
 ---
 
+# Hosting
+
+**Chosen (2026-10-28): GitHub Pages from this repo** once it is public (GPL-3.0-or-later), source
+`main` branch, folder `/docs`.
+- Now: https://crandellws.github.io/fafo-security/ and https://crandellws.github.io/fafo-security/privacy-policy.html
+- Later: `fafo.crandell.ws` (DNS at GoDaddy): add a CNAME record `fafo` -> `crandellws.github.io`, rename
+  `docs/CNAME.pending` to `docs/CNAME`, set the custom domain in Settings > Pages, tick Enforce HTTPS.
+  Then the URLs become https://fafo.crandell.ws/ and https://fafo.crandell.ws/privacy-policy.html.
+
+The alternatives considered are kept below for reference.
+
 # Hosting options
 
-Files to host together: `site/index.html` (homepage), `site/privacy-policy.html`, `site/icon.png`.
+Files hosted together from `docs/`: `index.html` (homepage), `privacy-policy.html`, `icon.png`.
 Resulting URLs: `https://<host>/` and `https://<host>/privacy-policy.html`.
 
 | Option | Cost | Works for Play | Works for Google OAuth verification | Notes |
@@ -108,7 +121,7 @@ listed as an authorized domain). DNS for crandell.ws is at GoDaddy.
 Steps (Bill):
 1. Fill the placeholders, commit.
 2. Cloudflare dashboard > Workers & Pages > Create > Pages > connect GitHub repo `CrandellWS/fafo-security`,
-   framework preset None, build command empty, output directory `store/site`. Or Upload assets: drag `store/site/`.
+   framework preset None, build command empty, output directory `docs`. Or Upload assets: drag `docs/`.
 3. Custom domains > add `fafo.crandell.ws`; at GoDaddy add the CNAME it shows.
 4. Open both URLs logged out (private window) to confirm they are public.
 5. Search Console > Add property > Domain `crandell.ws` > copy the TXT record > GoDaddy DNS > add TXT > Verify.

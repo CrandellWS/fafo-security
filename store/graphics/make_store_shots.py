@@ -18,7 +18,8 @@ from PIL import Image, ImageDraw, ImageFont, ImageFilter
 
 ROOT = Path(__file__).resolve().parent.parent
 BRAND = ROOT / "brand"
-SCRATCH = Path("/tmp/claude-1000/-home-crandellws/f7afe390-9ed8-4ba7-aebc-37c96a60172c/scratchpad")
+# Folder holding fafo-r3/shots and fafo-ui/shots (Roborazzi captures copied out of app/build). Set FAFO_SHOTS_ROOT.
+SCRATCH = Path(os.environ.get("FAFO_SHOTS_ROOT", ROOT.parent / "app/build/outputs/store-shots"))
 R3, R2 = SCRATCH / "fafo-r3/shots", SCRATCH / "fafo-ui/shots"
 NAVY, NAVY_DEEP, RED, WHITE = (11, 31, 53), (7, 20, 35), (214, 16, 24), (255, 255, 255)
 W, H, MAX_SHOTS = 1080, 1920, 8

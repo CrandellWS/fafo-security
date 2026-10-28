@@ -41,7 +41,7 @@ https://support.google.com/googleplay/android-developer/answer/9867159
 ## Other declarations
 | Form | Answer |
 |---|---|
-| Privacy policy | URL of site/privacy-policy.html once hosted (PRIVACY-POLICY.md) |
+| Privacy policy | https://crandellws.github.io/fafo-security/privacy-policy.html (later https://fafo.crandell.ws/privacy-policy.html) |
 | News app | No |
 | Government app | No |
 | Financial features | My app doesn't provide any financial features |

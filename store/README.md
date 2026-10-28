@@ -10,7 +10,7 @@ submits everything.
 | listing/en-US/ | Exact upload text: title, short description, full description (core and round 3), release notes |
 | graphics/ | icon-512.png, feature-graphic-1024x500.png, oauth-logo-120.png, phone/ screenshots (8 at 1080x1920), shots.json, make_store_shots.py |
 | PRIVACY-POLICY.md | Policy source text, round 3 caveats, hosting options and the recommended one |
-| site/ | index.html (homepage), privacy-policy.html, icon.png; fill the {{placeholders}} |
+| ../docs/ | Website (GitHub Pages): index.html (homepage), privacy-policy.html, icon.png, CNAME.pending. Policy URL https://crandellws.github.io/fafo-security/privacy-policy.html |
 | DATA-SAFETY.md | Every Data safety answer, core build and photo-email build |
 | CONTENT-RATING.md | IARC answers plus ads, target audience and other App content forms |
 | PERMISSIONS-DECLARATIONS.md | Foreground service, full-screen intent, battery and (optional) location declaration text and video shot lists |
