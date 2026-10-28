@@ -1,14 +1,15 @@
 {
-  "_note": "Order = Play order. 'match' globs are tried in order against the source folder; first hit wins. Entries with requires_r3 are skipped unless a matching r3 shot exists (no claim without a screen to show it). Captions must stay true to the submitted build.",
+  "_note": "Play order = list order. 'match' globs are tried in order against the source folder; first hit wins. requires_r3 entries are skipped unless the source is round 3 and a matching shot exists (no claim without a screen to show it). Play allows 8 per device type: when more match, the highest 'rank' is dropped first. Captions must stay true to the submitted build.",
   "shots": [
-    {"caption": "Arm it while it charges", "accent": "Arm", "match": ["*status*armed*", "*status*green*", "*home_armed.png", "*_armed.png"]},
-    {"caption": "Unplugged? A countdown starts", "accent": "countdown", "match": ["*alarm_prealarm_5s*", "*status*orange*", "*prealarm*"]},
-    {"caption": "Then a loud siren until you unlock", "accent": "siren", "match": ["*alarm_triggered*", "*status*red*", "*triggered*"]},
-    {"caption": "Email trigger photos to your list", "accent": "Email", "requires_r3": true, "match": ["*email*", "*mail*"]},
-    {"caption": "Pair your own phones with a code check", "accent": "Pair", "match": ["*pairing_code*", "*pairing*"]},
-    {"caption": "Circles decide who can reset or disarm", "accent": "Circles", "match": ["*devices_circles*", "*circles*"]},
-    {"caption": "Push-to-talk on your own Wi-Fi", "accent": "Push-to-talk", "match": ["*intercom_talking*", "*intercom*"]},
-    {"caption": "Trigger photos stay on your phone", "accent": "photos", "match": ["*incidents_list*", "*incidents*"]},
-    {"caption": "You set the countdown, sensitivity and photos", "accent": "set", "match": ["*settings_top*", "*settings*"]}
+    {"rank": 1, "caption": "Arm it while it charges", "accent": "Arm", "match": ["*status*armed*", "*status*green*", "*home_armed.png", "*_armed.png"]},
+    {"rank": 1, "caption": "Unplugged? A countdown starts", "accent": "countdown", "match": ["*alarm_prealarm_5s*", "*status*orange*", "*prealarm*"]},
+    {"rank": 1, "caption": "Then a loud siren until you unlock", "accent": "siren", "match": ["*alarm_triggered*", "*status*red*", "*triggered*"]},
+    {"rank": 2, "caption": "Email trigger photos to your list", "accent": "Email", "requires_r3": true, "match": ["*email*", "*mail*"]},
+    {"rank": 2, "caption": "Pair your own phones with a code check", "accent": "Pair", "match": ["*pairing_code*", "*pairing*"]},
+    {"rank": 5, "caption": "Circles decide who can reset or disarm", "accent": "Circles", "match": ["*devices_circles*", "*circles*"]},
+    {"rank": 2, "caption": "Push-to-talk on your own Wi-Fi", "accent": "Push-to-talk", "match": ["*intercom_talking*", "*intercom*"]},
+    {"rank": 4, "caption": "Trigger photos stay on your phone", "accent": "photos", "match": ["*incidents_list*", "*incidents*"]},
+    {"rank": 3, "caption": "Setup walks you through each phone setting", "accent": "Setup", "match": ["*setup_partial*", "*setup*", "*help_index*"]},
+    {"rank": 3, "caption": "Light or dark, your choice", "accent": "Light", "requires_r3": true, "match": ["*theme_light*", "*light_theme*", "*_light.png", "*light_mode*"]}
   ]
 }

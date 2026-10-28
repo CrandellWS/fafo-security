@@ -1,79 +1,137 @@
-# Google Cloud OAuth for Gmail send (play flavor only)
+# Google Cloud OAuth setup for Gmail photo email (play flavor only)
 
-Bill does every console step. Nothing here touches Play or Cloud by itself.
+Bill does every console step; nothing in this repo touches Google Cloud. Needed only if the Play build
+includes "Sign in with Google" for photo email. The oss/F-Droid build has no Google sign-in and needs none.
+Console labels checked 2026-10-28 (Google Auth Platform menu: Overview, Branding, Audience, Clients, Data
+access, Verification center); recheck if a screen looks different.
 
-Scope: `https://www.googleapis.com/auth/gmail.send` ("Send email on your behalf"), classified
-**Sensitive** (https://developers.google.com/workspace/gmail/api/auth/scopes). Sensitive, not restricted:
-no CASA security assessment, but Google verification is needed before more than 100 users and to remove
-the "unverified app" screen.
+## Values used below (pre-filled)
 
-Android flow (no server, no refresh token on the device): Credential Manager for sign-in, then
-`Identity.getAuthorizationClient(...).authorize()` with the gmail.send scope; each send calls authorize()
-again and gets a fresh short-lived access token silently once granted. Do not call
-`requestOfflineAccess` (that needs a Web client and a server). https://developer.android.com/identity/authorization
+| Field | Value |
+|---|---|
+| Production project name | `FAFO Security` (project ID suggestion `fafo-security`; Google appends digits if taken) |
+| Dev project name | `FAFO Security Dev` (ID `fafo-security-dev`), stays in Testing forever |
+| App name on consent screen | `FAFO Security` (same as the app label on the phone) |
+| User support email | Bill's Google account email, or a Google Group he owns |
+| App logo | `store/graphics/oauth-logo-120.png` (120x120 PNG). Optional; uploading one triggers brand verification |
+| Application home page | `https://fafo.crandell.ws/` |
+| Privacy policy link | `https://fafo.crandell.ws/privacy-policy.html` |
+| Terms of service link | leave empty (optional) |
+| Authorized domain | `crandell.ws` (recommended; see options below) |
+| Developer contact email | Bill's email |
+| User type | External |
+| Scope | `https://www.googleapis.com/auth/gmail.send` (Sensitive) only |
+| Client type | Android |
+| Package name | `ws.crandell.fafo` |
+| Debug key SHA-1 (computed 2026-10-28 from `keystore/debug.keystore`, alias androiddebugkey, password android) | `2A:A7:8B:2A:6F:A1:BD:0B:38:CA:95:DE:73:52:94:B9:60:49:29:B7` |
+| Debug key SHA-256 (for reference) | `9A:B9:9D:D8:04:08:9B:3C:B8:26:D5:D4:85:F1:29:A5:32:EE:99:53:17:E6:5B:E5:53:A3:2C:3D:81:12:A9:05` |
+| Upload key SHA-1 | from Bill's private upload keystore (RELEASE-CHECKLIST.md step 1) |
+| Play app signing key SHA-1 | from Play Console after the first AAB upload (step 6) |
 
-## 1. Project
-- [ ] Create a project "FAFO Security": https://console.cloud.google.com/projectcreate
-- [ ] Enable the Gmail API: https://console.cloud.google.com/apis/library/gmail.googleapis.com
-- [ ] Optional but recommended: a second project "FAFO Security Dev" in Testing status for debug builds (see step 5).
+Recompute the debug SHA-1 any time:
+`keytool -list -v -keystore keystore/debug.keystore -storepass android -alias androiddebugkey | grep SHA1`
+(on this workstation keytool is at `~/.local/opt/jdk-17.0.21+9/bin/keytool`).
 
-## 2. Google Auth Platform > Branding  (https://console.cloud.google.com/auth/branding)
-- App name: **FAFO Security** (must match the Play listing and the app's name on the phone)
-- User support email: Bill's address or a Google Group he owns
-- App logo: store/graphics/oauth-logo-120.png (120x120). Uploading a logo triggers brand verification; skip it while testing if you want to avoid that.
-- App home page: `https://<site>/` (store/site/index.html). A Play Store link does NOT count as a homepage.
-- Privacy policy: `https://<site>/privacy.html`, same domain as the homepage.
-- Authorized domains: the site's domain (e.g. `crandell.ws`). Verify it in Search Console with an account that is Owner/Editor on the Cloud project: https://search.google.com/search-console (DNS TXT record at the registrar; crandell.ws DNS is at GoDaddy, ns43/ns44.domaincontrol.com).
-- Developer contact email.
-
-## 3. Audience  (https://console.cloud.google.com/auth/audience)
-- User type: **External**.
-- Publishing status **Testing** first: only listed test users (up to 100) can sign in; refresh tokens
-  for apps in Testing expire after 7 days (irrelevant here since the app keeps none, but sign-in may be
-  asked again). https://developers.google.com/identity/protocols/oauth2#expiration
-- Then **In production**. Until verification passes, users see the "Google hasn't verified this app"
-  screen and the app is capped at **100 new users in total**. https://support.google.com/cloud/answer/7454865
-  That is the temporary "unverified app" note in the listing and in the app's Gmail sign-in screen.
-
-## 4. Data access  (https://console.cloud.google.com/auth/scopes)
-- Add only `.../auth/gmail.send`. No openid/email/profile beyond what Credential Manager sign-in needs
-  (those are non-sensitive).
-
-## 5. Clients  (https://console.cloud.google.com/auth/clients) - one Android client per signing certificate
-Android clients match on package name + SHA-1, so every key that signs a build that will sign in needs its own client:
-
-| Client | Package | SHA-1 source |
+### Authorized domain options
+| Option | Homepage / policy URLs | Verify how |
 |---|---|---|
-| Play app signing key (what users install) | ws.crandell.fafo | Play Console > Test and release > App integrity > App signing > "App signing key certificate" SHA-1 (exists after the first AAB upload) |
-| Upload key (internal sharing / local release builds) | ws.crandell.fafo | Same page, "Upload key certificate", or `keytool -list -v -keystore <upload.jks>` |
-| Shared debug key (keystore/debug.keystore) | ws.crandell.fafo | `2A:A7:8B:2A:6F:A1:BD:0B:38:CA:95:DE:73:52:94:B9:60:49:29:B7` |
+| **`crandell.ws` with `fafo.crandell.ws` (recommended)** | as above | Search Console > Domain property `crandell.ws` > TXT record at GoDaddy |
+| A dedicated domain, e.g. a new `fafo…` domain | `https://<domain>/` | Same, at its registrar. Costs a domain |
+| `crandellws.github.io` | `https://crandellws.github.io/fafo-site/` | URL-prefix property with HTML file; workable but harder to keep tidy |
 
-- Warning: the debug key is public in the repo, so anyone can build an APK that matches the debug client
-  and show Google's consent screen under the FAFO name. Put the debug client in the separate **Dev project
-  kept in Testing** (only Bill's test accounts can sign in), never in the production project being verified.
-  The play flavor then needs the matching project's client wiring per build type (Android clients need no
-  client ID in code; Google matches package + SHA-1, so registering the client in the right project is enough).
-- F-Droid/oss builds have no Google sign-in, so no client.
+The Google account doing the verification must be an Owner or Editor on the Cloud project.
 
-## 6. Verification  (Google Auth Platform > Verification center)
-Requirements: https://developers.google.com/identity/protocols/oauth2/production-readiness/sensitive-scope-verification
-- [ ] Homepage public, clearly about FAFO Security, on the verified domain.
-- [ ] Privacy policy on the same domain, linked from the consent screen, describing Google data use, plus
-      the Limited Use sentence (already in site/privacy.html):
-      "FAFO Security's use and transfer to any other app of information received from Google APIs will adhere to the Google API Services User Data Policy, including the Limited Use requirements."
-      https://developers.google.com/terms/api-services-user-data-policy
+## How the app uses it (no Web client, no server)
+The play flavor uses `play-services-auth`: `Identity.getAuthorizationClient(context).authorize()` with
+the gmail.send scope shows the account picker and consent, then returns a short-lived access token; each
+send calls authorize() again and gets a new token silently once granted. No `requestOfflineAccess`, so no
+Web client ID and no refresh token. Google matches the calling app by **package name + signing SHA-1**,
+which is why each signing key needs its own Android client. https://developer.android.com/identity/authorization
+
+## 1. Create the projects
+1. Open https://console.cloud.google.com/projectcreate
+2. Project name `FAFO Security`, Organization: No organization, Create.
+3. Repeat for `FAFO Security Dev`.
+4. Top bar project picker: select **FAFO Security** for steps 2-5 (repeat 2-5 in Dev, using only the debug client).
+
+## 2. Enable the Gmail API
+1. https://console.cloud.google.com/apis/library/gmail.googleapis.com
+2. Check the project picker shows the right project, click **Enable**.
+
+## 3. Google Auth Platform: Branding
+1. https://console.cloud.google.com/auth/branding (first visit shows **Get started**: click it).
+2. App information: App name `FAFO Security`; User support email: pick Bill's address. Next.
+3. Audience: **External**. Next.
+4. Contact information: Bill's email. Next. Agree to the Google API Services User Data Policy. Create.
+5. Back on Branding, fill: App logo (optional, see table), Application home page, Privacy policy link,
+   Authorized domains > Add domain `crandell.ws`, Developer contact email. Save.
+
+## 4. Audience
+1. https://console.cloud.google.com/auth/audience
+2. Publishing status starts at **Testing**. Test users > Add users: Bill's Gmail accounts (max 100).
+   Only test users can sign in while in Testing.
+3. When the Play build is ready for real users: **Publish app** > Confirm (status becomes In production).
+   Until verification passes, users see "Google hasn't verified this app" (Advanced > Go to FAFO Security
+   (unsafe)) and the app is capped at 100 users in total. https://support.google.com/cloud/answer/7454865
+   This is the temporary "unverified app" note in the listing and the app.
+4. Dev project: leave in **Testing** permanently with only Bill's accounts.
+
+## 5. Data access (scopes)
+1. https://console.cloud.google.com/auth/scopes > **Add or remove scopes**.
+2. Filter `gmail.send`, tick `https://www.googleapis.com/auth/gmail.send` ("Send email on your behalf"),
+   Update. It lands under "Your sensitive scopes". Save.
+   (If not listed, "Manually add scopes" > paste the URL.) Nothing else: no gmail.readonly, no gmail.modify.
+   https://developers.google.com/workspace/gmail/api/auth/scopes
+
+## 6. Clients (one Android client per signing key)
+https://console.cloud.google.com/auth/clients > **Create client** > Application type **Android**:
+
+| Project | Name | Package name | SHA-1 certificate fingerprint |
+|---|---|---|---|
+| FAFO Security Dev | `FAFO debug (public key)` | `ws.crandell.fafo` | `2A:A7:8B:2A:6F:A1:BD:0B:38:CA:95:DE:73:52:94:B9:60:49:29:B7` |
+| FAFO Security | `FAFO upload key` | `ws.crandell.fafo` | upload key SHA-1 |
+| FAFO Security | `FAFO Play app signing` | `ws.crandell.fafo` | Play app signing SHA-1 |
+
+Leave "Enable custom URI scheme" off. Create. No client ID needs to go into the app.
+
+- **Debug key only in the Dev project.** The debug keystore is public in the repo, so anyone can build an
+  APK that matches it. In a Testing project only Bill's test users can sign in, so it cannot be used to show
+  a production consent screen under the FAFO name.
+- **Upload key SHA-1:** `keytool -list -v -keystore ~/.config/fafo-keys/fafo-upload.jks -alias fafo-upload | grep SHA1`
+  (path and alias from RELEASE-CHECKLIST.md). Also shown in Play Console (below) once uploaded.
+- **Play app signing SHA-1 (what Play users actually install):** after the first AAB upload to any track,
+  Play Console > the app > Test and release > Setup > **App signing** (older label: Release > Setup >
+  App integrity > App signing). Copy **SHA-1 certificate fingerprint** under "App signing key certificate".
+  The "Upload key certificate" SHA-1 is on the same page. Create the client the same day; sign-in in the
+  Play-installed build fails until it exists ("DEVELOPER_ERROR" / status 10 is the usual symptom).
+
+## 7. Verification (Verification center)
+https://console.cloud.google.com/auth/verification ·
+requirements: https://developers.google.com/identity/protocols/oauth2/production-readiness/sensitive-scope-verification
+
+Checklist before clicking **Prepare for verification / Submit**:
+- [ ] Homepage `https://fafo.crandell.ws/` public, describes FAFO Security, links the privacy policy.
+- [ ] Privacy policy on the same domain, says how Google user data is used, and contains:
+      "FAFO Security's use and transfer to any other app of information received from Google APIs will
+      adhere to the Google API Services User Data Policy, including the Limited Use requirements."
+      (already in site/privacy-policy.html). https://developers.google.com/terms/api-services-user-data-policy
+- [ ] `crandell.ws` verified in Search Console by a project Owner/Editor.
+- [ ] App name and logo on the consent screen match the Play listing.
+- [ ] Only gmail.send requested.
 - [ ] Scope justification (paste):
-      "FAFO Security is an anti-theft alarm. When the user's phone is unplugged without being unlocked, the
-      app takes photos and, if the user turned on photo email, sends them from the user's own Gmail account
-      to recipients the user typed in. gmail.send is the narrowest scope that can send a message; the app
-      never reads, lists, modifies or deletes mail, and there is no server: the request goes straight from
-      the phone to the Gmail API."
-- [ ] Demo video, YouTube **Unlisted**, in English, showing: (1) the Cloud Console Clients page with the
-      Android client ID and package name (Android sign-in has no browser address bar, so show the client
-      ID here and say so in the submission notes); (2) in the app: Settings > Photo email > Sign in with
-      Google; the consent screen showing the app name "FAFO Security" and the gmail.send permission;
-      (3) the scope in use: arm, unplug, alarm, then the recipient's inbox receiving the trigger-photo email
-      sent from the user's account.
-- [ ] Sensitive scope review typically takes 3-5 business days (Google).
-      Brand verification results must be published within 7 days.
-- [ ] After approval: listing and in-app "unverified app" notes can be removed.
+      "FAFO Security is an anti-theft alarm for the user's own phone. When the phone is unplugged without
+      being unlocked, the app takes photos and, if the user turned on photo email, sends them from the user's
+      own Gmail account to recipients the user typed in. gmail.send is the narrowest scope that can send a
+      message; the app never reads, lists, modifies or deletes mail, and there is no server: the request goes
+      straight from the phone to the Gmail API."
+- [ ] Demo video on YouTube, **Unlisted**, English, link in the form. Shot list:
+      1. Cloud Console Clients page showing the Android client ID and package `ws.crandell.fafo` (Android
+         sign-in has no browser address bar; say so in the notes and show the client ID here).
+      2. In the app: Settings > Photo email > Sign in with Google > account picker > consent screen showing
+         "FAFO Security" and the send-email permission > Allow.
+      3. Add a recipient, arm on the charger, unplug, let the alarm run, unlock.
+      4. The recipient's inbox receiving the trigger-photo email from the user's account.
+- [ ] Notes field: "Android-only app, no web client. Gmail is used only to send photos the user chose to
+      email to recipients the user entered. No server; tokens are short-lived and never leave the device."
+- Review typically takes 3-5 business days. Reply to any Google email from the verification inbox promptly.
+- [ ] After approval: remove the "unverified app" note from listing/en-US/full-description.txt and the app.

@@ -90,7 +90,20 @@ no permission needed.
   declaration, and it breaks spec rule "no location permission". Options: (a) leave the open-Wi-Fi
   fallback out of the Play build; (b) only suggest networks without scanning; (c) accept the location
   permission and its declaration. Decide before release.
-- addNetworkSuggestions needs CHANGE_WIFI_STATE (install-time, no form).
+- addNetworkSuggestions needs CHANGE_WIFI_STATE (install-time, no form); from general Android documentation, not confirmed on the
+  wifi-permissions page above, so check the r3 manifest and a test on the A17.
 - Photo email adds INTERNET use beyond the LAN: update spec section 6 / CLAUDE.md rule text and the
-  Data safety answers (data-safety.md column B).
-- Gmail sign-in adds play-services-auth (play flavor only): no Play form, but OAuth setup in oauth-gmail.md.
+  Data safety answers (DATA-SAFETY.md column B).
+- Gmail sign-in adds play-services-auth (play flavor only): no Play form, but OAuth setup in GOOGLE-CLOUD-OAUTH-SETUP.md.
+
+## Only if option (c) is chosen: location declaration (Policy > App content > Sensitive permissions)
+Needed only if the Play build keeps a fallback that scans for open Wi-Fi while the alarm runs
+(ACCESS_FINE_LOCATION + ACCESS_BACKGROUND_LOCATION). https://support.google.com/googleplay/android-developer/answer/9799150
+- Feature that uses background location: "Photo email fallback: while the theft alarm is sounding and the phone
+  has no connection, FAFO scans for open Wi-Fi networks so it can send the trigger photos the user chose to
+  email. Android requires the location permission to read Wi-Fi scan results. FAFO never reads, stores or
+  sends a location."
+- Video: turn on photo email > grant location "Allow all the time" > arm > disable mobile data and Wi-Fi >
+  unplug > alarm > the app suggests an open network > approve > email arrives.
+- This also requires a prominent in-app disclosure before the permission prompt, a spec change (spec rule
+  "no location permission"), and a Data safety re-check. Options (a) and (b) avoid all of this.

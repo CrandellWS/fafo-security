@@ -1,50 +1,51 @@
-# App content answers (Play Console > Policy > App content)
+# Content rating and other App content answers
 
-## Privacy policy
-URL of site/privacy.html once hosted (see CHECKLIST.md "Hosting"). Also link it inside the app (Help or
-Settings > About). Play rules: active, public, non-geofenced, not a PDF, names the app or developer,
-consistent with Data safety. https://support.google.com/googleplay/android-developer/answer/10144311
+Play Console > Policy > App content. Checked against Play Help on 2026-10-28; recheck any question whose
+wording differs. Data safety: DATA-SAFETY.md. Declarations: PERMISSIONS-DECLARATIONS.md. App access:
+REVIEWER-ACCESS.md.
+
+## Content rating (IARC questionnaire)
+https://support.google.com/googleplay/android-developer/answer/9898843
+
+| Question | Answer |
+|---|---|
+| Email address (IARC certificate goes here) | Bill's developer email |
+| Category | **All Other App Types** / "Utility, Productivity, Communication, or Other" (wording varies) |
+| Violence (any kind, cartoon or realistic) | No |
+| Fear / horror content | No (a siren and a red alarm screen are not horror) |
+| Sexuality, nudity | No |
+| Language (profanity, crude humor) | No. The name "FAFO" is an acronym spelled out as "Free Advanced Features Offline"; no profanity appears in the app or listing |
+| Controlled substances (drugs, alcohol, tobacco) | No |
+| Gambling, simulated gambling | No |
+| Does the app allow users to interact or exchange content? | **Yes**: voice intercom and push-to-talk between the user's own paired devices on the local network or Bluetooth |
+| Does it share the user's current physical location with other users? | No |
+| Does it allow users to purchase digital goods? | No |
+| Unrestricted internet / web browser? | No |
+| Is it a web browser or search engine? | No |
+| Is it primarily a news or educational product? | No |
+
+Expected result: Everyone / PEGI 3 / USK 0 with the interactive element "Users Interact".
+If the result shows anything higher, re-read the answers before accepting it.
 
 ## Ads
 **No, my app does not contain ads.**
 
-## App access (sign-in details)
-No login exists, but the reviewer cannot exercise the alarm without setup, so give instructions.
-Choose "All or some functionality is restricted", Add new instructions:
-
-- Name: Reviewer setup (no account)
-- Username / password: Not required. The app has no account or login.
-- Any other instructions:
-
-> FAFO Security has no account. To test: 1) Set a screen lock (PIN) on the test phone; the app needs one to
-> arm. 2) Open the app, finish the Setup steps it shows (notifications, camera, full-screen alerts, battery).
-> 3) Plug in a charger, tap ARM and confirm with the screen lock. 4) Unplug: a 5 s countdown plays, then the
-> siren; trigger photos are saved under Incidents. Unlock the phone to stop it. 5) Trusted devices,
-> circles and intercom need a second phone with the app; pair them from Devices > Show this phone and
-> compare the six-digit code. 6) Photo email (Settings > Photo email): use any SMTP account, or
-> "Sign in with Google" (Gmail send permission only). Nothing is sent to the developer.
-
-## Content rating (IARC questionnaire)
-https://support.google.com/googleplay/android-developer/answer/9898843
-- Email for IARC certificate: Bill's developer email.
-- Category: **Utility, Productivity, Communication, or Other**.
-- Violence, fear, sexuality, language, controlled substances, crude humor, gambling: **No** to all.
-  (The siren and red alarm screen are not horror content.)
-- Does the app let users interact or exchange content? **Yes**: intercom/push-to-talk voice between
-  the user's own paired devices on the local network. Moderation: none needed; only devices paired with
-  both owners' screen locks can talk.
-- Shares the user's current physical location with other users? **No**.
-- Digital purchases? **No**. Unrestricted web access? **No**.
-- Expected result: Everyone / PEGI 3 / USK 0 with the interactive element "Users Interact".
-
 ## Target audience and content
 https://support.google.com/googleplay/android-developer/answer/9867159
-- Target age groups: **18 and over** (keeps the app out of Families policy; 13-17 can be added later
-  if Bill wants, which brings extra checks).
-- Appeals to children: **No** (no child-themed graphics; store copy is about protecting your own phone).
+- Target age groups: **18 and over** (keeps the app out of the Families policy; 13-17 can be added later,
+  which brings extra checks).
+- Could the app unintentionally appeal to children? **No** (no child-themed art; the listing is about
+  protecting your own phone).
+- Store listing shown to children: not applicable.
 
-## News app: No.  Government app: No.  Financial features: none.  Health: none.
-## COVID-19 contact tracing/status: No.
-## Data safety: see data-safety.md.
-## Permission declarations: see permission-declarations.md.
-## Account deletion: not applicable (no accounts).
+## Other declarations
+| Form | Answer |
+|---|---|
+| Privacy policy | URL of site/privacy-policy.html once hosted (PRIVACY-POLICY.md) |
+| News app | No |
+| Government app | No |
+| Financial features | My app doesn't provide any financial features |
+| Health apps | My app does not have any health features |
+| COVID-19 contact tracing and status | Not a publicly available COVID-19 contact tracing or status app |
+| Account deletion | Not applicable: the app has no accounts (Data safety: "no account creation") |
+| Advertising ID | No (manifest does not declare com.google.android.gms.permission.AD_ID; no ads SDK) |

@@ -8,12 +8,27 @@ expects. Apps that collect nothing still fill in the form and link a privacy pol
 
 Pick the column that matches the AAB you submit.
 
+## Form walk-through (both builds)
+
+| Step | Question | Answer |
+|---|---|---|
+| Overview | (read only) | Next |
+| Data collection and security | Does your app collect or share any of the required user data types? | A: **No** · B: **Yes** |
+| | Is all of the user data collected by your app encrypted in transit? (B only) | **Yes** only if SMTP refuses plaintext; see B |
+| | Which of the following methods of account creation does your app support? | **My app does not allow users to create an account** |
+| | Do you provide a way for users to request that their data is deleted? (B only) | **Yes** |
+| | Has your app successfully completed an independent security review? (if shown) | No |
+| Data types | see A / B | |
+| Data usage and handling | per data type, see B | |
+| Preview | check the summary matches A or B | Save, then submit with the release |
+
+
 ## A. Build WITHOUT photo email (round 2 / core)
 
 | Question | Answer | Why |
 |---|---|---|
 | Does your app collect or share any of the required user data types? | **No** | Photos, settings and keys stay on the phone. Alerts, commands and intercom audio go device-to-device on the local network or Bluetooth, end-to-end encrypted with the paired keys (E2E exemption). No analytics or crash SDKs. |
-| Privacy policy | site/privacy.html URL | Required even with no data. |
+| Privacy policy | site/privacy-policy.html URL | Required even with no data. |
 
 Play then shows "No data collected" and "No data shared with third parties".
 
@@ -48,6 +63,9 @@ message headers. They are not "the user's" email address; the form has no separa
 Mention them in the privacy policy (done) rather than in the form.
 
 Open Wi-Fi fallback: no extra data type, provided it does not request location. See
-permission-declarations.md (scan results on Android 11/12 need ACCESS_FINE_LOCATION; avoid).
+PERMISSIONS-DECLARATIONS.md. Scanning for networks needs ACCESS_FINE_LOCATION on every Android version
+(https://developer.android.com/develop/connectivity/wifi/wifi-permissions); if the Play build keeps a scanning
+fallback, Location > Approximate/Precise must be reconsidered (it stays on the phone, so likely still not
+"collected", but the permission and its declaration are needed). RELEASE-CHECKLIST.md decision 1.
 
 Re-check these answers against the live form at submission time; Play changes labels occasionally.

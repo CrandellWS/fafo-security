@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
 """Frame app screenshots for the Play listing (re-runnable).
 
-  python3 store/tools/make_screenshots.py [SOURCE_DIR]
+  python3 store/graphics/make_store_shots.py [SOURCE_DIR]
 
 SOURCE_DIR defaults to the round-3 shots if that folder exists, else round 2 (see R3/R2 below), or set
-FAFO_SHOTS. Reads store/screenshots/shots.json, writes store/screenshots/phone/NN-*.png at 1080x1920
-(9:16, 24-bit PNG, no alpha) and phone/SOURCES.txt naming the file used for each slot. Play allows at
+FAFO_SHOTS. Reads store/graphics/shots.json, writes store/graphics/phone/NN-*.png at 1080x1920
+(9:16, 24-bit PNG, no alpha) and phone/SOURCES.txt naming the file used for each slot. When more than 8
+shots match, the ones with the highest "rank" number are dropped first; Play order is the list order.
+Tablet sets are not generated: they are optional and the app is untested on tablets. Play allows at
 most 8 per device type and a long side no more than 2x the short side, so raw 1078x2338 captures
 (2.17:1) cannot be uploaded as they are: they are framed with a caption instead.
 Specs: https://support.google.com/googleplay/android-developer/answer/9866151
@@ -93,21 +95,27 @@ def main():
     if not src_dir.is_dir():
         sys.exit(f"no screenshot folder at {src_dir}")
     files = [p.name for p in src_dir.glob("*.png")]
-    cfg = json.loads((ROOT / "screenshots/shots.json").read_text())
-    out = ROOT / "screenshots/phone"
+    cfg = json.loads((ROOT / "graphics/shots.json").read_text())
+    out = ROOT / "graphics/phone"
     out.mkdir(parents=True, exist_ok=True)
     for old in out.glob("*.png"):
         old.unlink()
-    used, n = [], 0
-    for s in cfg["shots"]:
-        if n >= MAX_SHOTS:
-            break
-        if s.get("requires_r3") and label != "round 3" and "r3" not in str(src_dir):
+    is_r3 = label == "round 3" or "r3" in str(src_dir)
+    picked = []
+    for i, s in enumerate(cfg["shots"]):
+        if s.get("requires_r3") and not is_r3:
             continue
         hit = find(files, s["match"])
         if not hit:
             print(f"skip (no match): {s['caption']}")
             continue
+        picked.append((i, s, hit))
+    while len(picked) > MAX_SHOTS:
+        drop = max(picked, key=lambda t: (t[1].get("rank", 1), t[0]))
+        print(f"drop (over {MAX_SHOTS}): {drop[1]['caption']}")
+        picked.remove(drop)
+    used, n = [], 0
+    for _, s, hit in picked:
         n += 1
         slug = "".join(c if c.isalnum() else "-" for c in s["caption"].lower()).strip("-")[:40]
         dest = out / f"{n:02d}-{slug}.png"
