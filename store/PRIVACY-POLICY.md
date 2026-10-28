@@ -22,7 +22,7 @@ Two sentences depend on the round 3 build and must be checked before publishing:
 **App:** FAFO Security (Android, package ws.crandell.fafo). **Developer:** {{DEVELOPER_NAME}}.
 **Effective:** {{EFFECTIVE_DATE}}.
 
-FAFO Security is an anti-theft alarm for your own Android phone. It has no ads, no analytics, no account
+FAFO Security is an anti-theft alarm for your own Android phone. It has no ads, no analytics, no sign-up
 and no server run by the developer. The developer does not receive any of your data. This policy explains
 what the app accesses on your phone, what can leave your phone, and when.
 

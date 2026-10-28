@@ -1,4 +1,4 @@
-FAFO Security turns your own charging phone into an alarm. Arm it while it is plugged in. If someone unplugs it before you unlock it, a countdown starts, then a loud siren sounds until you unlock the phone. FAFO stands for Free Advanced Features Offline: no ads, no account, no analytics, and no server of ours.
+FAFO Security turns your own charging phone into an alarm. Arm it while it is plugged in. If someone unplugs it before you unlock it, a countdown starts, then a loud siren sounds until you unlock the phone. FAFO stands for Free Advanced Features Offline: no ads, no sign-up, no analytics, and no server run by the developer.
 
 HOW IT WORKS
 • Arm only while plugged in, with your fingerprint or screen lock.
@@ -18,7 +18,7 @@ TRIGGER PHOTOS
 TRUSTED DEVICES AND CIRCLES
 • Pair your own phones over Bluetooth. Both phones show a six-digit code to compare, and pairing needs your real screen lock.
 • Put devices in circles such as Home and Work, each with its own labels and permissions.
-• Nearby trusted devices on the same Wi-Fi or over Bluetooth get an alert when this phone's alarm goes off. A circle can be allowed to reset the alarm (siren off, stays armed) or to fully disarm it. New circles start with intercom only.
+• Trusted devices in a circle with Alerts turned on get an alert when this phone's alarm goes off, if they are on the same Wi-Fi or in Bluetooth range. A circle can be allowed to reset the alarm (siren off, stays armed) or to fully disarm it. New circles start with intercom only.
 • Messages between devices are end-to-end encrypted with the paired keys and stay on your local network or Bluetooth.
 
 INTERCOM AND PUSH-TO-TALK
@@ -26,7 +26,7 @@ INTERCOM AND PUSH-TO-TALK
 • Room mode lets the chosen circles listen and talk back. It is turned on only by the person at that phone, shows a notification naming who is listening and the system microphone indicator the whole time, and records nothing. It can never be started remotely, and it ends when an alarm starts.
 
 PRIVACY
-• No ads, no tracking, no account, no server.
+• No ads, no tracking, no sign-up, and no server run by the developer.
 • Your settings, devices and photos stay on your phone. Photos leave it only if you share them or turn on photo email to addresses you choose.
 • A notification shows whenever the app is armed, alarming, reachable by your devices or in room mode. FAFO protects the phone it runs on; it has no hidden mode.
 

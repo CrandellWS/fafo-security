@@ -75,8 +75,9 @@ packs. Sources were checked on 2026-10-28; recheck any form whose wording looks 
       permission and its declaration (PERMISSIONS-DECLARATIONS.md, "Round 3 watch-outs").
 - [ ] Round 3: confirm SMTP refuses plaintext (TLS or STARTTLS only), or the Data safety "encrypted in
       transit" answer must be No.
-- [ ] Developer verification: Play Console requires Play apps to be registered for Android developer
-      verification (Play policy deadline 2026-09-30). Check Play Console for the prompt when creating the app.
+- [ ] Developer verification: Android developer verification is rolling out for Play apps; check Play
+      Console for a verification prompt when creating the app and complete it if shown (dates vary by
+      region; not verified here).
       Same package `ws.crandell.fafo` is used by the oss/F-Droid APK; F-Droid signs with its own key.
       https://support.google.com/googleplay/android-developer/answer/12253906
 - [ ] Target API: new apps must target API 36 from 2026-08-31 (app targets 36).
@@ -94,7 +95,7 @@ metadata policy: https://support.google.com/googleplay/android-developer/answer/
 |---|---|---|
 | App name | max 30 chars; no emoji, no ranking/price/"new" words | listing/en-US/title.txt (28) |
 | Short description | max 80 | listing/en-US/short-description.txt (76) |
-| Full description | max 4000 | listing/en-US/full-description.txt (round 3, 3591) or full-description-core.txt (core, 2934) |
+| Full description | max 4000 | listing/en-US/full-description.txt (round 3, 3673) or full-description-core.txt (core, 3016) |
 | App icon | 512x512, 32-bit PNG with alpha, max 1024 KB; Play applies the mask | graphics/icon-512.png (99 KB) |
 | Feature graphic | 1024x500, JPEG or 24-bit PNG, no alpha | graphics/feature-graphic-1024x500.png |
 | Phone screenshots | min 2 (across device types), max 8 per type; 320-3840 px per side; long side at most 2x short side; JPEG or 24-bit PNG. 4+ at 1080 px or more for recommendation eligibility | graphics/phone/ (8 at 1080x1920) |
@@ -109,7 +110,10 @@ metadata policy: https://support.google.com/googleplay/android-developer/answer/
 - [ ] Regenerate icon/feature graphic: `python3 store/tools/make_graphics.py`.
 - [ ] Listing fields: LISTING.md. Category: **Tools**. Tags: pick only what applies (e.g. Security, Alarm). Contact email required;
       website = the homepage below.
-- [ ] Screenshots contain sample names ("Bill's Pixel", "Kitchen phone"); fine, or rename in the test data.
+- [ ] Screenshots contain the sample device name "Bill's Pixel" (Google's Pixel trademark plus a real first
+      name). Rename it in the screenshot test data to a generic label (e.g. "Bill's phone" or "Living room")
+      before the round 3 shots are taken, then regenerate. Shot 06 also shows "Room mode off" next to
+      "Bill's Pixel listening", which reads as a contradiction; use a fixture where the two agree.
 
 ## 2. Privacy policy and homepage hosting
 Play requirements: public, non-geofenced URL, not a PDF, names app/developer, has a contact, matches
@@ -139,7 +143,7 @@ All answers: CONTENT-RATING.md, REVIEWER-ACCESS.md, DATA-SAFETY.md, PERMISSIONS-
 - [ ] Data safety: column A (core) or B (photo email). https://support.google.com/googleplay/android-developer/answer/10787469
 - [ ] Foreground service types: specialUse, camera, microphone, connectedDevice, each with description,
       impact, use case and video. https://support.google.com/googleplay/android-developer/answer/13392821
-- [ ] Full-screen intent declaration (alarm). Same page.
+- [ ] Full-screen intent declaration: security alarm, not an alarm clock; do not claim the alarm-clock use case (PERMISSIONS-DECLARATIONS.md). Same page.
 - [ ] Battery optimization exemption: justification ready ("Safety app" case); no Console form found.
       https://developer.android.com/training/monitoring-device-state/doze-standby#exemption-cases
 - [ ] News / Government / Financial / Health / COVID: No / none.

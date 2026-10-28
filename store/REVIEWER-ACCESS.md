@@ -14,12 +14,12 @@ FAFO Security has no account or login and talks to no server.
 
 Core alarm (one phone or an emulator, no special hardware):
 1. Set a screen lock (PIN) on the device. The app needs one to arm.
-2. Open the app and finish the Setup tab (notifications, camera, full-screen alerts, battery). Setup > Self-test plays a 1 s chirp and siren and takes a test photo without arming.
+2. Open the app and finish the Setup screen (notifications, camera, full-screen alerts, battery). Setup > Self-test plays a 1 s chirp and siren and takes a test photo without arming.
 3. Connect a charger (any USB cable). On an emulator: Extended controls > Battery > Charger connection: AC charger.
 4. Home > ARM, confirm with the PIN or fingerprint. An "Armed" notification appears.
 5. Unplug the charger (emulator: Charger connection: None, or adb emu power ac off). A 5 second countdown beeps, then the siren plays at alarm volume and the red alarm screen shows over the lock screen.
 6. Unlock the device to stop it. Trigger photos are listed under Home > Incidents (an emulator uses its virtual camera).
-7. Optional: Settings > countdown can be set to 0-60 s; motion bumps chirp (emulator: Virtual sensors > Accelerometer).
+7. Optional: Settings > Pre-alarm sets the countdown (0, 1, 5, 10, 30 or 60 s); motion bumps chirp (emulator: Virtual sensors > Accelerometer).
 
 Trusted devices and intercom (optional, two phones on the same Wi-Fi with the app installed):
 Devices > Add paired device, then tap Show this phone on one and Find the other phone on the other, hold them close, compare the six-digit code on both, confirm with the screen lock. Then Intercom > hold to talk. Trigger the alarm on one phone to see the alert on the other. These features use only the local network or Bluetooth, so they cannot be shown across the internet; two emulators on one computer usually cannot see each other.

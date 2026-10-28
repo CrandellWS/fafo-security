@@ -1,9 +1,9 @@
 source: /tmp/claude-1000/-home-crandellws/f7afe390-9ed8-4ba7-aebc-37c96a60172c/scratchpad/fafo-ui/shots (round 2)
 01-arm-it-while-it-charges.png	<- 07_home_armed.png
-02-unplugged--a-countdown-starts.png	<- 11_alarm_prealarm_5s.png
+02-unplugged-a-countdown-starts.png	<- 11_alarm_prealarm_5s.png
 03-then-a-loud-siren-until-you-unlock.png	<- 13_alarm_triggered.png
 04-pair-your-own-phones-with-a-code-check.png	<- 29_pairing_code.png
 05-circles-decide-who-can-reset-or-disarm.png	<- 25_devices_circles.png
 06-push-to-talk-on-your-own-wi-fi.png	<- 33_intercom_talking.png
 07-trigger-photos-stay-on-your-phone.png	<- 36_incidents_list.png
-08-setup-walks-you-through-each-phone-setti.png	<- 20_setup_partial.png
+08-setup-walks-you-through-each-phone.png	<- 20_setup_partial.png

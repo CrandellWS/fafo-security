@@ -11,8 +11,8 @@ Upload the description that matches the AAB you submit. Never list a feature the
 |---|---|---|
 | App name | `FAFO Security: Charger Alarm` (listing/en-US/title.txt) | 28 / 30 |
 | Short description | `Unplug alarm, trigger photos and trusted devices for your own phone. No ads.` | 76 / 80 |
-| Full description, core build (round 2) | listing/en-US/full-description-core.txt | 2934 / 4000 |
-| Full description, round 3 build (photo email, flash, status light, Gmail note) | listing/en-US/full-description.txt | 3591 / 4000 |
+| Full description, core build (round 2) | listing/en-US/full-description-core.txt | 3016 / 4000 |
+| Full description, round 3 build (photo email, flash, status light, Gmail note) | listing/en-US/full-description.txt | 3673 / 4000 |
 | Release notes (first release) | listing/en-US/release-notes.txt | 125 / 500 |
 | App category | **Tools** (Application > Tools) | |
 | Tags | Up to 5 from the list the Console offers. Choose only ones that describe the app, e.g. the security or alarm tags if offered. Do not pick tags for features it lacks (no tracking, no locator). | 5 |

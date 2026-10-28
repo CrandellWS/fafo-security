@@ -43,8 +43,10 @@ def find(files, patterns):
 
 
 def wrap(draw, text, fnt, width):
+    """Fewest lines that fit, then the break that evens out line widths (no one-word orphan line)."""
+    words = text.split()
     lines, cur = [], ""
-    for word in text.split():
+    for word in words:
         trial = (cur + " " + word).strip()
         if draw.textlength(trial, font=fnt) <= width or not cur:
             cur = trial
@@ -52,6 +54,15 @@ def wrap(draw, text, fnt, width):
             lines.append(cur)
             cur = word
     lines.append(cur)
+    if len(lines) == 2:
+        best = None
+        for k in range(1, len(words)):
+            a, b = " ".join(words[:k]), " ".join(words[k:])
+            wa, wb = draw.textlength(a, font=fnt), draw.textlength(b, font=fnt)
+            if max(wa, wb) <= width and (best is None or max(wa, wb) < best[0]):
+                best = (max(wa, wb), [a, b])
+        if best:
+            lines = best[1]
     return lines
 
 
@@ -65,10 +76,9 @@ def frame(src, caption, accent):
     for line in lines:
         x = (W - d.textlength(line, font=fnt)) / 2
         # one accent word in red, the rest white
-        for i, word in enumerate(line.split()):
-            col = RED if accent and word.strip(".,?!").lower() == accent.split()[0].lower() else WHITE
-            if accent and " " not in accent and accent.lower() in word.lower():
-                col = RED
+        for word in line.split():
+            # exact word match only, so accent "Arm" never colours "disarm"
+            col = RED if accent and word.strip(".,?!").lower() == accent.lower() else WHITE
             d.text((x, y), word, font=fnt, fill=col)
             x += d.textlength(word + " ", font=fnt)
         y += 104
@@ -100,7 +110,7 @@ def main():
     out.mkdir(parents=True, exist_ok=True)
     for old in out.glob("*.png"):
         old.unlink()
-    is_r3 = label == "round 3" or "r3" in str(src_dir)
+    is_r3 = label == "round 3" or src_dir.resolve() == R3.resolve() or "fafo-r3" in src_dir.parts
     picked = []
     for i, s in enumerate(cfg["shots"]):
         if s.get("requires_r3") and not is_r3:
@@ -117,7 +127,9 @@ def main():
     used, n = [], 0
     for _, s, hit in picked:
         n += 1
-        slug = "".join(c if c.isalnum() else "-" for c in s["caption"].lower()).strip("-")[:40]
+        slug = "-".join(filter(None, "".join(c if c.isalnum() else " " for c in s["caption"].lower()).split()))
+        while len(slug) > 40 and "-" in slug:  # cut at a word boundary, never mid-word
+            slug = slug.rsplit("-", 1)[0]
         dest = out / f"{n:02d}-{slug}.png"
         frame(src_dir / hit, s["caption"], s.get("accent", "")).save(dest, optimize=True)
         used.append(f"{dest.name}\t<- {hit}")

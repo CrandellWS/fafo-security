@@ -50,8 +50,8 @@ Data types to tick:
 
 | Data type | Collected | Shared | Ephemeral | Required/optional | Purposes |
 |---|---|---|---|---|---|
-| Photos and videos > **Photos** | Yes | **No** (user-directed send to addresses the user chose; user-initiated transfer exclusion) | No | **Optional** (photo email is off until the user turns it on) | App functionality |
-| Personal info > **Email address** | Yes (the sending account address and login go to the user's mail server; Gmail sign-in returns the account email) | No | No | Optional | App functionality |
+| Photos and videos > **Photos** | Yes | **No** (user-directed send to addresses the user chose; user-initiated transfer exclusion). The sends are automatic once set up, so if in doubt tick **Shared: Yes** (purpose App functionality): over-declaring is allowed, under-declaring is a violation | No | **Optional** (photo email is off until the user turns it on) | App functionality |
+| Personal info > **Email address** | Yes (the sending account address and login go to the user's mail server and appear in the From header of every photo email) | No | No | Optional | App functionality |
 
 Do NOT tick: Audio (intercom is E2E device-to-device and never stored), Location (none), Device or other
 IDs (none), App activity, App info and performance (no crash reporter; Play's own vitals are Google's),

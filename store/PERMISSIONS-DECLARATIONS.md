@@ -25,10 +25,12 @@ each time (the persistent notification is the evidence that the user sees the se
   countdown > siren > unlock stops it. Then restart during an alarm and show the siren resuming.
 
 ## FGS `camera` (same ArmService)
-- Use case: **Background Camera Streaming** (closest listed). If the form allows text, add: "photos
-  only during an alarm".
-- Description: "When the alarm goes off, the service takes a photo with the front camera, then one every
-  5 to 30 seconds (user setting) until the owner unlocks. Photos are saved on the phone. The camera type is
+- Use case: pick the closest listed camera use case; nothing is streamed, so avoid a streaming option if
+  another fits, else choose Other and type: "Still photos only while the theft alarm sounds; nothing is
+  streamed or recorded as video."
+- Description: "When the alarm goes off, the service takes a photo with the camera the user chose (front by default), then one
+  every 5 to 30 seconds (user setting) until the owner unlocks. Photos are saved on the phone (and, in
+  builds with photo email, emailed only if the user turned that on). The camera type is
   added only when the user arms from the visible app or taps the alarm notification; it is never started
   from boot."
 - Impact: "No photos of the person who took the phone."
@@ -60,9 +62,14 @@ each time (the persistent notification is the evidence that the user sees the se
 - Known risk: idle hours on connectedDevice; fallback drops ReachableService (BLE scan alerts remain).
 
 ## USE_FULL_SCREEN_INTENT
-- Form question: is the core functionality calling or alarm (default-granted)? Answer honestly:
-  "**Yes, alarm**: a security alarm that must show its stop screen over the lock screen when it sounds."
-  Play may decide it is not an "alarm clock" alarm; the app already routes the user to grant "Full screen
+- Form question: is the core functionality calling or alarm (default-granted)? Play's "alarm" use case
+  means alarm clocks and timers set by the user. FAFO is a security alarm, not an alarm clock, so do not
+  pick the alarm-clock option to get the default grant: that is a misdeclaration risk. Pick the option
+  for other use (wording varies, e.g. "None of the above" / "Other") and describe it as: "Security alarm
+  on the user's own phone: when the armed phone is unplugged, the alarm screen with the stop control must
+  show over the lock screen. The user grants Full screen notifications in Setup; without it the app shows a
+  heads-up notification instead." If the form lists a security or safety alert use case, pick that.
+  Play may still decide FAFO does not qualify for the default grant; the app already routes the user to grant "Full screen
   notifications" in Setup and degrades to a heads-up notification if declined (required for apps
   without the default grant). Deadline history: declaration required since 2024-05-31; default grant
   limited to calling/alarm apps since 2025-01-22.
