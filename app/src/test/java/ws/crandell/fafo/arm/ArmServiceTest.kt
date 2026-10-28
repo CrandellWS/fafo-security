@@ -169,14 +169,13 @@ class ArmServiceTest {
         app.sendBroadcast(Intent(Intent.ACTION_POWER_DISCONNECTED))
         ServiceTestSupport.idleUntil { (svc.state as? AlarmState.Armed)?.unplugPendingSince != null }
         ServiceTestSupport.advance(150)
-        ServiceTestSupport.idleUntil { svc.state is AlarmState.Triggered }
+        ServiceTestSupport.idleUntil { svc.state is AlarmState.Triggered && network.alertInfo != null }
         val info = network.alertInfo!!.invoke()!!
         assertThat(info.state).isEqualTo("TRIGGERED")
         assertThat(network.target!!.currentIncident()).isEqualTo(info.incidentId)
         runBlocking { network.target!!.apply(ws.crandell.fafo.net.Command.RESET, "Register", "home") }
-        ServiceTestSupport.idleUntil { svc.state == AlarmState.Armed(awaitingPower = true) }
-        assertThat(sound.calls).contains("chirp:REMOTE")
-        assertThat(network.alertInfo).isNull()
+        ServiceTestSupport.idleUntil { svc.state == AlarmState.Armed(awaitingPower = true) && network.alertInfo == null }
+        ServiceTestSupport.idleUntil { "chirp:REMOTE" in sound.calls }
         ServiceTestSupport.idleUntil { runBlocking { dp.readState().let { it.armed && it.awaitingPower && !it.incidentActive } } }
     }
 

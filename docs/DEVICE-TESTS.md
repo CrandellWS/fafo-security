@@ -69,6 +69,28 @@ exact steps, and the next build session fixes it.
 - [ ] Remove a trusted device: asks for the PIN; the device disappears.
 - [ ] Bluetooth off: "Turn on Bluetooth first".
 
+## M10 Circles, Wi-Fi, remote reset / disarm (two phones on the same home Wi-Fi)
+
+- [ ] Pair A and B starting from Circles > Home > "Add trusted device" on A. After the codes match and
+      both PINs, B shows "A invites you to Home" with four switches (alerts, reset, disarm, push-to-talk).
+      Accept on B (asks B's PIN because Reset/Disarm are on). Both Circles screens list the other phone.
+- [ ] Circles: rename "This device is called" on B; rename B's label on A ("Register"): A keeps its own label.
+- [ ] Create "Work" on A (Intercom + Reset preselected; Reset asks the PIN). "Add paired device" > B:
+      B gets the invite notification and the accept screen. Turn Reset off before accepting: A cannot reset B
+      under Work.
+- [ ] Remove a member (asks PIN); remove a circle (asks PIN); toggling a power off asks nothing.
+- [ ] Arm B (plugged, locked). Keep FAFO open on A (or A armed). Unplug B: within a few seconds A shows
+      "B: ALARM (unplugged hh:mm)" (or "pre-alarm") with Reset and Disarm buttons.
+- [ ] Tap Reset on A: A asks A's PIN/fingerprint, then "B was reset. It stays armed." B's siren stops,
+      B chirps once, B shows "Armed, waiting for power"; plug B in and unplug again while locked: alarm again.
+- [ ] Repeat and tap Disarm: B's siren stops and B is disarmed. B's incident shows "disarmed by A".
+- [ ] Cancel the PIN prompt on A: nothing happens on B.
+- [ ] A in Work only (Reset): no Disarm button; Reset works.
+- [ ] Wi-Fi with client isolation (guest network): no alert over Wi-Fi (expected until Bluetooth, M11).
+- [ ] Android 16 local network protection: `adb shell am compat enable RESTRICT_LOCAL_NETWORK ws.crandell.fafo`,
+      reboot. With "Nearby devices" denied: no discovery. Grant it: alerts and reset work again.
+- [ ] Remove B on A's Trusted devices (PIN): B disappears from every circle on A.
+
 ## Results
 
 (Bill: write findings here, newest first.)
