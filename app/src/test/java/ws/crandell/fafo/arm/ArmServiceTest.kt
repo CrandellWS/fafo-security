@@ -182,4 +182,26 @@ class ArmServiceTest {
         assertThat(sound.calls.last()).isEqualTo("stop")
         ServiceTestSupport.idleUntil { runBlocking { !dp.readState().incidentActive && !dp.readState().armed } }
     }
+
+    @Test fun motionListensOnlyWhileArmed() {
+        val sm = app.getSystemService(android.hardware.SensorManager::class.java)
+        shadowOf(sm).addSensor(org.robolectric.shadows.ShadowSensor.newInstance(android.hardware.Sensor.TYPE_ACCELEROMETER))
+        runBlocking { dp.update { it.copy(preAlarmS = 0, sensitivityMs = 100) } }
+        val svc = startArm()
+        ServiceTestSupport.idleUntil { svc.motionRunning }
+        ServiceTestSupport.setPlugged(app, false)
+        app.sendBroadcast(Intent(Intent.ACTION_POWER_DISCONNECTED))
+        ServiceTestSupport.idleUntil { (svc.state as? AlarmState.Armed)?.unplugPendingSince != null }
+        ServiceTestSupport.advance(150)
+        ServiceTestSupport.idleUntil { svc.state is AlarmState.Triggered && !svc.motionRunning }
+    }
+
+    @Test fun motionOffSettingDoesNotListen() {
+        val sm = app.getSystemService(android.hardware.SensorManager::class.java)
+        shadowOf(sm).addSensor(org.robolectric.shadows.ShadowSensor.newInstance(android.hardware.Sensor.TYPE_ACCELEROMETER))
+        runBlocking { dp.update { it.copy(motion = "OFF") } }
+        val svc = startArm()
+        ServiceTestSupport.advance(50)
+        assertThat(svc.motionRunning).isFalse()
+    }
 }

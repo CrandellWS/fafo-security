@@ -22,6 +22,8 @@ import ws.crandell.fafo.core.AlarmEvent
 import ws.crandell.fafo.core.AlarmState
 import ws.crandell.fafo.core.AlarmStateMachine
 import ws.crandell.fafo.core.AlarmStatusBus
+import ws.crandell.fafo.motion.MotionMonitor
+import ws.crandell.fafo.motion.MotionSensitivity
 import ws.crandell.fafo.storage.DpSettings
 import ws.crandell.fafo.storage.DpStore
 import ws.crandell.fafo.system.DeviceStatus
@@ -37,6 +39,7 @@ class ArmService : LifecycleService() {
     private lateinit var sound: AlarmSound
     private lateinit var machine: AlarmStateMachine
     private var dpSettings: DpSettings? = null
+    private lateinit var motion: MotionMonitor
     private val events = Channel<AlarmEvent>(Channel.UNLIMITED)
 
     private var windowJob: Job? = null
@@ -75,8 +78,14 @@ class ArmService : LifecycleService() {
         Notifications.ensureChannels(this)
         dp = ArmDeps.dpStore(this)
         sound = ArmDeps.sound(this, lifecycleScope) { dpSettings ?: DpSettings() }
+        motion = MotionMonitor(this, sound) { ArmDeps.clock.now() }
         machine = AlarmStateMachine(ArmDeps.clock, { (dpSettings ?: DpSettings()).alarmConfig() })
-        lifecycleScope.launch { dp.settings.collect { dpSettings = it } }
+        lifecycleScope.launch {
+            dp.settings.collect {
+                dpSettings = it
+                if (::machine.isInitialized) updateMotion()
+            }
+        }
         lifecycleScope.launch { for (e in events) process(e) }
     }
 
@@ -180,6 +189,7 @@ class ArmService : LifecycleService() {
         AlarmStatusBus.publish(s)
         if (s != AlarmState.Disarmed) registerReceivers()
         updateWakeLock()
+        updateMotion()
         if (stop || s == AlarmState.Disarmed) {
             shutdown()
         } else {
@@ -248,6 +258,15 @@ class ArmService : LifecycleService() {
         receiverRegistered = true
     }
 
+    /** AC4.1: accelerometer only while ARMED (never in PRE_ALARM / TRIGGERED), unless motion is Off. */
+    private fun updateMotion() {
+        val armed = machine.state is AlarmState.Armed
+        motion.update(if (armed) MotionSensitivity.fromSetting((dpSettings ?: DpSettings()).motion) else null)
+    }
+
+    /** True while the accelerometer listener is registered (tests). */
+    val motionRunning: Boolean get() = motion.running
+
     /** Partial wake lock only during the sensitivity window, PreAlarm and Triggered. */
     private fun updateWakeLock() {
         val s = machine.state
@@ -294,6 +313,7 @@ class ArmService : LifecycleService() {
     }
 
     private fun shutdown() {
+        motion.stop()
         windowJob?.cancel()
         preAlarmJob?.cancel()
         sound.stop()
@@ -304,6 +324,7 @@ class ArmService : LifecycleService() {
     }
 
     override fun onDestroy() {
+        if (::motion.isInitialized) motion.stop()
         if (receiverRegistered) unregisterReceiver(systemReceiver)
         receiverRegistered = false
         wakeLock?.let { if (it.isHeld) it.release() }

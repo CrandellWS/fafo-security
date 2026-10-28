@@ -36,6 +36,15 @@ exact steps, and the next build session fixes it.
 - [ ] Alarm running, then the system kills the app (or `adb shell am kill ws.crandell.fafo`): siren
       resumes; tapping the alarm notification / alarm screen resumes photos.
 
+## M7 Motion chirps
+
+- [ ] Armed on a table (Medium): tap the table firmly: one short chirp. Pick the phone up: a louder
+      triple chirp. Chirps never come faster than one per 1.5 s.
+- [ ] Phone on a table next to a buzzing phone / running washer: no chirps (note any false chirps and
+      which sensitivity).
+- [ ] Low / High feel right (High catches light taps, Low needs a real knock). Off: no chirps.
+- [ ] Motion never starts the siren; during the alarm there are no chirps.
+
 ## Results
 
 (Bill: write findings here, newest first.)
