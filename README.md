@@ -2,7 +2,8 @@
 
 **Free Advanced Features Offline.** An Android anti-theft app for your own phone.
 
-Arm it while the phone is charging. If someone unplugs it before you unlock, a siren goes off and
+Arm it while the phone is charging. If someone unplugs it before you unlock, a short warning countdown
+plays (plug it back in to cancel), then a siren goes off and
 keeps going until you unlock, even after a reboot. Bumps and pick-ups chirp, the front camera takes
 photos while the alarm is active, and only devices you paired with your real screen lock count as trusted.
 

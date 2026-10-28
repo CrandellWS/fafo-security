@@ -57,6 +57,12 @@ jobs:
           chmod +x ./gradlew
           ./gradlew --no-daemon assembleDebug test
 
+      - name: Lint
+        if: steps.wrapper.outputs.present == 'true'
+        # Advisory until M10; the M10 commit removes continue-on-error so lint errors fail CI.
+        continue-on-error: true
+        run: ./gradlew --no-daemon lintDebug
+
       - name: Upload debug APK
         if: steps.wrapper.outputs.present == 'true'
         uses: actions/upload-artifact@v4
@@ -70,5 +76,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: test-reports
-          path: '**/build/reports/tests/'
+          path: |
+            **/build/reports/tests/
+            **/build/reports/lint-results-*.html
           if-no-files-found: ignore

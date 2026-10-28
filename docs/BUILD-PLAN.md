@@ -9,8 +9,13 @@ previous one's checks pass.
 The cloud container has no Android SDK by default. Install it once per session (cache the dir if the
 environment allows):
 
+Network: the build downloads from `dl.google.com`, `maven.google.com`, `services.gradle.org`,
+`plugins.gradle.org` and `repo.maven.apache.org` (Robolectric also fetches its `android-all` jars from
+Maven Central at test time). If the cloud environment's network access is limited and these fail, stop
+and tell Bill to allow them in the environment settings; do not work around it.
+
 ```bash
-# JDK 17 (check first: java -version)
+# JDK 17 (check first: java -version). Use sudo only if not already root.
 sudo apt-get update && sudo apt-get install -y openjdk-17-jdk-headless unzip curl
 
 export ANDROID_HOME="$HOME/android-sdk"
@@ -30,6 +35,16 @@ echo "sdk.dir=$ANDROID_HOME" > local.properties   # local.properties is gitignor
 If the zip URL 404s, read the current file name from the Android Studio download page. No emulator
 in the cloud session: there is no KVM. Device behavior is verified by Bill on the A17 using the CI APK.
 
+Gradle wrapper bootstrap (needed once, for M1, since no `gradlew` exists yet):
+
+```bash
+GRADLE_VERSION=8.14.3   # use the version the chosen AGP requires
+curl -fsSLo /tmp/gradle.zip "https://services.gradle.org/distributions/gradle-${GRADLE_VERSION}-bin.zip"
+unzip -q /tmp/gradle.zip -d /tmp/gradle-dist
+# after settings.gradle.kts exists, in the repo root:
+/tmp/gradle-dist/gradle-${GRADLE_VERSION}/bin/gradle wrapper --gradle-version "$GRADLE_VERSION"
+```
+
 Done-checks: `sdkmanager --list_installed` shows `platforms;android-36` and `build-tools;36.0.0`;
 `java -version` reports 17.
 
@@ -42,7 +57,8 @@ Done-checks: `sdkmanager --list_installed` shows `platforms;android-36` and `bui
 - Dependencies (pin exact stable versions in the catalog): Compose BOM + Material 3, Activity Compose,
   Lifecycle (runtime, service, viewmodel-compose), DataStore Preferences, CameraX (core, camera2,
   lifecycle), AndroidX Biometric, Kotlin coroutines. Test: JUnit 4, Robolectric, kotlinx-coroutines-test,
-  Truth or kotlin.test, Compose ui-test-junit4 (Robolectric).
+  Truth or kotlin.test, Compose ui-test-junit4 (Robolectric). Use a Robolectric release that supports
+  SDK 36; if it does not, pin tests with `@Config(sdk = [35])` and note it in the commit.
 - No network or analytics libraries. No Firebase, no Crashlytics, no Play Services.
 - Manifest: `android:allowBackup="false"`, `dataExtractionRules` excluding everything, no `INTERNET`.
 - Empty Compose `MainActivity` with Home screen placeholder, edge-to-edge (Android 16 forces it),
@@ -54,16 +70,20 @@ CI workflow goes green on push (once Bill pushes). Commit: `M1: Gradle + Compose
 
 ## M2. State model and storage
 
-- `AlarmState` sealed type: Disarmed, Armed, Triggered, IncidentPersisted (spec section 2).
-- Pure Kotlin `AlarmStateMachine` with events (ArmRequested(plugged), PowerDisconnected(t),
-  PowerConnected(t), WindowElapsed, UserPresent, DisarmTapped, BootCompleted(incidentActive),
-  NotificationTapped). No Android types inside, so it is fully unit-testable.
+- `AlarmState` sealed type: Disarmed, Armed, PreAlarm(endsAt), Triggered, IncidentPersisted (spec section 2).
+- Pure Kotlin `AlarmStateMachine` with events (ArmRequested(plugged, secureLock), PowerDisconnected(t),
+  PowerConnected(t), WindowElapsed(locked), PreAlarmElapsed, UserPresent, DisarmTapped,
+  BootCompleted(armed, incidentActive, plugged, locked), NotificationTapped(ceUnlocked)). No Android
+  types inside, so it is fully unit-testable. Inject a clock.
+- `PreAlarmSchedule` (pure Kotlin): beep times for a given duration, interval non-increasing.
 - `DpStore` (device-protected DataStore via `createDeviceProtectedStorageContext()`) for armed,
   incident flags and DP settings; `CeStore` for the rest. Settings defaults exactly per spec section 4.
-- Write `incident_active=true` before any siren call.
+- Write `incident_active=true` on entering PreAlarm (or Triggered when pre-alarm is 0 s), before any sound.
 
-Done-checks: unit tests cover every transition in the spec table, including refused arm when unplugged,
-reconnect inside the window, and boot with/without an active incident. Robolectric test that DpStore
+Done-checks: unit tests cover every transition in the spec table, including refused arm when unplugged
+or with no secure lock, reconnect inside the window, reconnect during PreAlarm (back to Armed) vs during
+Triggered (siren continues), pre-alarm 0 s, boot with/without an active incident, and boot while armed
+and unplugged. Robolectric test that DpStore
 reads back from the device-protected context. Commit: `M2: state machine and DP/CE storage`.
 
 ## M3. Compose UI and onboarding
@@ -75,7 +95,8 @@ reads back from the device-protected context. Commit: `M2: state machine and DP/
 - Onboarding deep links: notification permission, camera, full-screen intent
   (`canUseFullScreenIntent()` + `ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT`), DND access
   (`ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS`), battery optimization, Samsung battery steps (text +
-  `ACTION_APPLICATION_DETAILS_SETTINGS`), built-in theft protection info.
+  `ACTION_APPLICATION_DETAILS_SETTINGS`), built-in theft protection info, secure-lock check
+  (`ACTION_SECURITY_SETTINGS`) and the Smart Lock / Extend Unlock warning.
 
 Done-checks: Robolectric Compose tests: Arm disabled when unplugged and enabled when plugged; settings
 show spec defaults; onboarding checklist reflects granted/missing permissions. Commit: `M3: UI and onboarding`.
@@ -88,12 +109,15 @@ show spec defaults; onboarding checklist reflects granted/missing permissions. C
   `startForeground(id, notification, SPECIAL_USE or CAMERA)` within 5 s. If camera permission is missing,
   start with `SPECIAL_USE` only.
 - Ongoing notification on a high-importance channel with Disarm action
-  (`setAuthenticationRequired(true)` so it needs unlock). `START_STICKY`.
+  (`setAuthenticationRequired(true)` on API 31+ so it needs unlock; on API 30 the action opens the app,
+  which needs unlock). Delete intent re-posts the notification if the user swipes it (Android 14+ allows
+  that while unlocked). `START_STICKY`; a sticky restart uses `SPECIAL_USE` only.
+- Arm refused unless plugged and `KeyguardManager.isDeviceSecure()`.
 - Registers `ACTION_POWER_DISCONNECTED`/`ACTION_POWER_CONNECTED` at runtime; sensitivity timer via
   coroutine `delay` in the service (no AlarmManager); re-check plugged state from sticky
   `ACTION_BATTERY_CHANGED` and keyguard via `KeyguardManager.isDeviceLocked`.
 - Registers `ACTION_USER_PRESENT` for owner unlock.
-- Partial wake lock only during the sensitivity window and while triggered.
+- Partial wake lock only during the sensitivity window, PreAlarm and Triggered.
 
 Done-checks: Robolectric: service starts foreground with correct types; receivers registered; simulated
 disconnect + elapsed window + locked keyguard drives the state machine to Triggered; reconnect inside the
@@ -105,6 +129,8 @@ permissions. Commit: `M4: armed foreground service and unplug detection`.
 - `Siren` wrapper around `MediaPlayer` or `AudioTrack` with `AudioAttributes.USAGE_ALARM`,
   `CONTENT_TYPE_SONIFICATION`, looping, bundled asset in `res/raw` (generate a royalty-free tone in code or
   ship an original sound; no third-party audio without a license).
+- Pre-alarm warning: same `USAGE_ALARM` path at lower gain, beeps on the `PreAlarmSchedule`,
+  notification shows the countdown; cancelled by PowerConnected or UserPresent.
 - Request audio focus `AUDIOFOCUS_GAIN` (works because a FGS is running). Set `STREAM_ALARM` to max when
   "Force max alarm volume" is on; catch `SecurityException` under DND without policy access and surface
   it in the onboarding checklist. Volume watchdog restores alarm volume while triggered.
@@ -112,7 +138,8 @@ permissions. Commit: `M4: armed foreground service and unplug detection`.
 - Full-screen alarm activity (`showWhenLocked`, `turnScreenOn`) posted via full-screen intent when allowed.
 
 Done-checks: unit tests on Siren with a fake audio backend (starts on trigger, stops on UserPresent,
-ignores notification dismiss); Robolectric test that audio attributes usage is `USAGE_ALARM`.
+ignores notification dismiss; pre-alarm beeps follow the schedule and stop on PowerConnected);
+Robolectric test that audio attributes usage is `USAGE_ALARM`.
 Manual on A17 (Bill, from CI APK): siren in silent mode, screen off. Commit: `M5: siren`.
 
 ## M6. Persistence across reboot
@@ -121,10 +148,16 @@ Manual on A17 (Bill, from CI APK): siren in silent mode, screen off. Commit: `M5
   intent filters for `LOCKED_BOOT_COMPLETED` and `BOOT_COMPLETED`. `ArmService` and the siren code path
   are also `directBootAware`.
 - On boot: read `incident_active` from DpStore. If true, start `ArmService` with `SPECIAL_USE` only and
-  resume the siren (state IncidentPersisted). If only `armed` is true and not triggered: start as armed
-  (`SPECIAL_USE` only, no camera) and show "Armed after reboot, tap to enable photos".
-- Tapping the alarm notification opens the activity, which restarts the service with `SPECIAL_USE|CAMERA`.
-- Nothing in the boot path touches CE storage or Keystore.
+  resume the full siren (state IncidentPersisted, no countdown). If only `armed` is true: start as armed
+  (`SPECIAL_USE` only, no camera); if the phone is unplugged and locked, feed PowerDisconnected so the
+  normal window + pre-alarm runs. Show "Armed after reboot, open the app to enable photos".
+- Idempotent: `BOOT_COMPLETED` after the first unlock re-reads the flags and does nothing if the service
+  is running or nothing is set.
+- The alarm activity is `directBootAware`, `showWhenLocked`, `turnScreenOn`. A tap on it or on the alarm
+  notification re-adds the camera type only when CE storage is unlocked (`UserManager.isUserUnlocked()`),
+  that is after a process death, never in direct boot.
+- Nothing in the boot path touches CE storage or Keystore, including the `Application` class and
+  `androidx.startup` initializers. No WorkManager dependency.
 
 Done-checks: Robolectric: boot broadcast with incident flag starts the service with SPECIAL_USE only and
 Siren started; without the flag, nothing starts; boot path code does not reference CeStore (test with a
@@ -161,13 +194,15 @@ closed incident first, thins current incident); low-storage stops photos but not
   `BiometricManager.canAuthenticate(DEVICE_CREDENTIAL)` first.
 - `IdentityKeys`: Keystore keypair (EC P-256 signing key, non-exportable), public key export.
 - BLE: one side advertises a FAFO service UUID (`BLUETOOTH_ADVERTISE`), the other scans
-  (`BLUETOOTH_SCAN` with `neverForLocation`) and connects (`BLUETOOTH_CONNECT`); exchange public key +
-  random nonce via GATT; `PairingCode.derive(pkA, pkB, nA, nB)` = 6 digits from SHA-256 of the sorted
+  (`BLUETOOTH_SCAN` with `neverForLocation` on API 31+; `CompanionDeviceManager` on API 30, which would
+  otherwise need location) and connects (`BLUETOOTH_CONNECT`). Exchange via GATT with commit-then-reveal
+  (spec AC6.2): responder sends `SHA-256(pkB || nB)`, initiator sends `pkA || nA`, responder reveals,
+  initiator verifies. `PairingCode.derive(pkA, pkB, nA, nB)` = 6 digits from SHA-256 of the role-ordered
   inputs; both users confirm; both sides pass CredentialGate; store peer public key + name + fingerprint in CE storage.
 - Remove device also behind CredentialGate.
 
-Done-checks: unit tests: PairingCode is symmetric, 6 digits, changes when any input changes; pairing
-flow refuses to persist without a credential success (fake gate); manifest has `neverForLocation`
+Done-checks: unit tests: PairingCode is symmetric, 6 digits, changes when any input changes; a reveal
+that does not match the commitment aborts; pairing flow refuses to persist without a credential success (fake gate); manifest has `neverForLocation`
 and legacy BT permissions capped at `maxSdkVersion=30`, and no location permissions. Manual on two
 phones (Bill). Commit: `M9: trusted-device pairing`.
 
@@ -196,4 +231,6 @@ from the Actions run. Commit: `M10: v1 release candidate`.
 
 `.github/workflows/android.yml` sets up JDK 17 and the Android SDK, and runs
 `./gradlew assembleDebug test` when `gradlew` exists, uploading `app-debug.apk` as the `fafo-debug-apk`
-artifact. Before M1 it skips cleanly.
+artifact, then `./gradlew lintDebug` (reported, and blocking from M10 on: remove `continue-on-error` from
+the lint step in the M10 commit). Before M1 it skips cleanly. The repo has no remote yet; CI runs once
+Bill pushes it to GitHub.

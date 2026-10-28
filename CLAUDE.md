@@ -51,7 +51,12 @@ checked by Bill on his Samsung Galaxy A17 (Android 16) using the APK from CI
 
 ## Android gotchas that shape the design
 
-- Camera FGS can only start while the app is visible (arm tap) or from a notification tap; never from boot.
+- Camera FGS can only start while the app is visible (arm tap) or from a notification tap; never from boot,
+  never from a `START_STICKY` restart, and never before first unlock (CE storage is locked anyway).
+- Direct boot: the `Application` class and every startup initializer must not touch CE storage or
+  Keystore. No WorkManager.
+- v1 has a pre-alarm countdown (0-60 s, default 5 s) between unplug and the full siren; see spec F2.
+- Pairing uses commit-then-reveal before showing the 6-digit code (spec AC6.2).
 - `ACTION_POWER_DISCONNECTED` must be registered at runtime inside the armed service.
 - Boot path is `directBootAware` and reads only device-protected storage.
 - Siren uses `AudioAttributes.USAGE_ALARM`; timers run inside the service (no exact alarms, no WorkManager while armed).
