@@ -25,6 +25,9 @@ class IntercomServiceTest {
     @Before fun setUp() {
         shadowOf(app).grantPermissions(android.Manifest.permission.POST_NOTIFICATIONS, android.Manifest.permission.RECORD_AUDIO)
         homeId = TrustGraph.circles(app).all().first().id
+        // Singletons outlive a test class in the Robolectric sandbox: start from "no incident".
+        ws.crandell.fafo.core.AlarmStatusBus.publish(ws.crandell.fafo.core.AlarmState.Disarmed)
+        Intercom.onIncident(false)
     }
 
     @After fun tearDown() {
