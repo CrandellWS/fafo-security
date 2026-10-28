@@ -3,6 +3,8 @@ plugins {
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.serialization)
+    // Screenshot tests (test classpath only): `./gradlew recordRoborazziDebug` writes the PNGs Bill reviews.
+    alias(libs.plugins.roborazzi)
 }
 
 android {
@@ -91,6 +93,9 @@ dependencies {
     testImplementation(libs.androidx.test.ext.junit)
     testImplementation(platform(libs.androidx.compose.bom))
     testImplementation(libs.androidx.compose.ui.test.junit4)
+    testImplementation(libs.roborazzi)
+    testImplementation(libs.roborazzi.compose)
+    testImplementation(libs.roborazzi.junit.rule)
 }
 
 // Spec section 6: no network or analytics libraries on the runtime classpath. A JVM test cannot see the
