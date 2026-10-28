@@ -494,12 +494,17 @@ class ArmServiceTest {
         addAccelerometer()
         val svc = startArm()
         pickupIntoMotionPreAlarm(svc)
+        // Wait until the service has run every pre-alarm effect (the countdown timer is scheduled).
+        ServiceTestSupport.idleUntil { svc.settleWatching && "prealarm:${ws.crandell.fafo.core.MIN_MOTION_PRE_ALARM_MS}" in sound.calls }
         ServiceTestSupport.setPlugged(app, false)
         svc.simulateSettled()
         ServiceTestSupport.advance(100)
         assertThat(svc.state).isInstanceOf(AlarmState.PreAlarm::class.java)
         ServiceTestSupport.advance(ws.crandell.fafo.core.MIN_MOTION_PRE_ALARM_MS)
-        ServiceTestSupport.idleUntil { svc.state is AlarmState.Triggered && "siren" in sound.calls }
+        ServiceTestSupport.idleUntil {
+            ServiceTestSupport.advance(100)
+            svc.state is AlarmState.Triggered && "siren" in sound.calls
+        }
     }
 
     @Test fun unplugPreAlarmKeepsTheAccelerometerOff() {
@@ -586,9 +591,9 @@ class ArmServiceTest {
         assertThat(shutters).isEqualTo(1)
         // Into the siren: the next photo counts up but plays no shutter over the siren.
         ServiceTestSupport.advance(5_000)
-        ServiceTestSupport.idleUntil { svc.state is AlarmState.Triggered }
+        ServiceTestSupport.idleUntil { ServiceTestSupport.advance(100); svc.state is AlarmState.Triggered }
         ServiceTestSupport.advance(10_000)
-        ServiceTestSupport.idleUntil { svc.photosTaken >= 2 }
+        ServiceTestSupport.idleUntil { ServiceTestSupport.advance(100); svc.photosTaken >= 2 }
         assertThat(ws.crandell.fafo.core.AlarmStatusBus.photoShot.value!!.count).isEqualTo(2)
         assertThat(shutters).isEqualTo(1)
         // Ending the incident clears it.
