@@ -39,6 +39,14 @@ android {
     }
 }
 
+// Unit tests run on the debug variant only: Compose UI tests need ui-test-manifest, which is debug-only.
+androidComponents {
+    beforeVariants(selector().withBuildType("release")) {
+        (it as com.android.build.api.variant.HasHostTestsBuilder)
+            .hostTests[com.android.build.api.variant.HostTestBuilder.UNIT_TEST_TYPE]?.enable = false
+    }
+}
+
 kotlin {
     compilerOptions {
         jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
@@ -78,3 +86,36 @@ dependencies {
     testImplementation(platform(libs.androidx.compose.bom))
     testImplementation(libs.androidx.compose.ui.test.junit4)
 }
+
+// Spec section 6: no network or analytics libraries on the runtime classpath. A JVM test cannot see the
+// Gradle classpath, so this is a verification task wired into `check` and run by CI.
+val deniedGroups = listOf(
+    "com.squareup.okhttp", "com.squareup.okhttp3", "com.squareup.retrofit2", "io.ktor", "org.chromium.net",
+    "com.google.firebase", "com.google.android.gms", "com.crashlytics", "io.fabric", "io.sentry",
+    "com.google.android.ads", "com.google.ads", "com.facebook.android", "com.facebook.audience",
+    "com.applovin", "com.unity3d.ads", "com.ironsource", "com.mopub", "com.chartboost", "com.vungle",
+    "com.inmobi", "com.adcolony", "com.flurry", "com.amplitude", "com.mixpanel", "com.segment",
+    "io.branch", "com.appsflyer", "com.adjust", "com.bugsnag", "com.datadoghq", "com.newrelic", "com.instabug",
+)
+
+val checkNoRemoteDeps by tasks.registering {
+    group = "verification"
+    description = "Fails if a network or analytics library is on the runtime classpath (spec section 6)."
+    doLast {
+        val bad = mutableListOf<String>()
+        listOf("debugRuntimeClasspath", "releaseRuntimeClasspath").forEach { name ->
+            project.configurations.getByName(name).incoming.resolutionResult.allComponents.forEach { c ->
+                val id = c.moduleVersion
+                if (id != null && deniedGroups.any { id.group == it || id.group.startsWith("$it.") }) {
+                    bad += "$name: ${id.group}:${id.name}:${id.version}"
+                }
+            }
+        }
+        if (bad.isNotEmpty()) {
+            throw GradleException("Denied network/analytics dependencies found:\n" + bad.joinToString("\n"))
+        }
+        println("checkNoRemoteDeps: no denied groups on debug/release runtime classpaths")
+    }
+}
+
+tasks.named("check") { dependsOn(checkNoRemoteDeps) }

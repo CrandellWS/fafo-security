@@ -1,0 +1,185 @@
+package ws.crandell.fafo.arm
+
+import android.app.Application
+import android.app.KeyguardManager
+import android.content.Intent
+import android.content.pm.ServiceInfo
+import android.os.BatteryManager
+import android.os.Looper
+import androidx.test.core.app.ApplicationProvider
+import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.google.common.truth.Truth.assertThat
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.runBlocking
+import org.junit.After
+import org.junit.Before
+import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.Robolectric
+import org.robolectric.Shadows.shadowOf
+import org.robolectric.android.controller.ServiceController
+import ws.crandell.fafo.core.AlarmState
+import ws.crandell.fafo.storage.DpStore
+import java.util.concurrent.TimeUnit
+
+class RecordingSound : AlarmSound {
+    val calls = mutableListOf<String>()
+    override fun startPreAlarm(durationMs: Long) { calls += "prealarm:$durationMs" }
+    override fun startSiren() { calls += "siren" }
+    override fun stop() { calls += "stop" }
+    override fun chirp(kind: ChirpKind) { calls += "chirp:$kind" }
+}
+
+/** Shared helpers for service tests under Robolectric's paused main looper. */
+object ServiceTestSupport {
+    fun setPlugged(app: Application, plugged: Boolean) {
+        @Suppress("DEPRECATION")
+        app.sendStickyBroadcast(
+            Intent(Intent.ACTION_BATTERY_CHANGED).putExtra(BatteryManager.EXTRA_PLUGGED, if (plugged) BatteryManager.BATTERY_PLUGGED_AC else 0),
+        )
+    }
+
+    fun setKeyguard(app: Application, secure: Boolean, locked: Boolean) {
+        val km = app.getSystemService(KeyguardManager::class.java)
+        shadowOf(km).setIsDeviceSecure(secure)
+        shadowOf(km).setIsDeviceLocked(locked)
+    }
+
+    /** Run the main looper (with real time for DataStore IO) until [cond] holds. */
+    fun idleUntil(timeoutMs: Long = 5000, cond: () -> Boolean) {
+        val end = System.currentTimeMillis() + timeoutMs
+        while (System.currentTimeMillis() < end) {
+            shadowOf(Looper.getMainLooper()).idle()
+            if (cond()) return
+            Thread.sleep(10)
+        }
+        shadowOf(Looper.getMainLooper()).idle()
+        check(cond()) { "condition not reached within $timeoutMs ms" }
+    }
+
+    fun advance(ms: Long) = shadowOf(Looper.getMainLooper()).idleFor(ms, TimeUnit.MILLISECONDS)
+}
+
+@RunWith(AndroidJUnit4::class)
+class ArmServiceTest {
+    private val app: Application = ApplicationProvider.getApplicationContext()
+    private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    private lateinit var dp: DpStore
+    private val sound = RecordingSound()
+    private var controller: ServiceController<ArmService>? = null
+
+    @Before fun setUp() {
+        dp = DpStore.create(app, scope)
+        ArmDeps.dpStore = { dp }
+        ArmDeps.sound = { sound }
+        ArmDeps.clock = ws.crandell.fafo.core.Clock { android.os.SystemClock.uptimeMillis() }
+        shadowOf(app).grantPermissions(android.Manifest.permission.POST_NOTIFICATIONS, android.Manifest.permission.CAMERA)
+        ServiceTestSupport.setPlugged(app, true)
+        ServiceTestSupport.setKeyguard(app, secure = true, locked = true)
+    }
+
+    @After fun tearDown() {
+        controller?.destroy()
+        ArmDeps.reset()
+        scope.cancel()
+    }
+
+    private fun startArm(): ArmService {
+        val c = Robolectric.buildService(ArmService::class.java, Intent(app, ArmService::class.java).setAction(ArmService.ACTION_ARM))
+        controller = c
+        val svc = c.create().startCommand(0, 1).get()
+        ServiceTestSupport.idleUntil { svc.state is AlarmState.Armed && svc.isListening }
+        return svc
+    }
+
+    @Test fun armStartsForegroundWithSpecialUseAndCamera() {
+        val svc = startArm()
+        assertThat(svc.currentFgsType).isEqualTo(
+            ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE or ServiceInfo.FOREGROUND_SERVICE_TYPE_CAMERA,
+        )
+        val n = shadowOf(svc).lastForegroundNotification
+        assertThat(n).isNotNull()
+        assertThat(n.extras.getString("android.title")).isEqualTo("FAFO Security is armed")
+        assertThat(n.actions.map { it.title.toString() }).contains("Disarm")
+        assertThat(n.deleteIntent).isNotNull()
+        ServiceTestSupport.idleUntil { runBlocking { dp.readState().armed } }
+    }
+
+    @Test fun armWithoutCameraPermissionUsesSpecialUseOnly() {
+        shadowOf(app).denyPermissions(android.Manifest.permission.CAMERA)
+        val svc = startArm()
+        assertThat(svc.currentFgsType).isEqualTo(ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE)
+    }
+
+    @Test fun armRefusedWhenUnpluggedStopsService() {
+        ServiceTestSupport.setPlugged(app, false)
+        val c = Robolectric.buildService(ArmService::class.java, Intent(app, ArmService::class.java).setAction(ArmService.ACTION_ARM))
+        controller = c
+        val svc = c.create().startCommand(0, 1).get()
+        ServiceTestSupport.idleUntil { shadowOf(svc).isStoppedBySelf }
+        assertThat(svc.state).isEqualTo(AlarmState.Disarmed)
+    }
+
+    @Test fun receiversRegisteredWhenArmed() {
+        startArm()
+        val actions = shadowOf(app).registeredReceivers.flatMap { w -> w.intentFilter.actionsIterator().asSequence().toList() }
+        assertThat(actions).containsAtLeast(
+            Intent.ACTION_POWER_DISCONNECTED, Intent.ACTION_POWER_CONNECTED, Intent.ACTION_USER_PRESENT,
+        )
+    }
+
+    @Test fun disconnectThenWindowWhileLockedTriggers() {
+        runBlocking { dp.update { it.copy(preAlarmS = 0, sensitivityMs = 500) } }
+        val svc = startArm()
+        ServiceTestSupport.setPlugged(app, false)
+        app.sendBroadcast(Intent(Intent.ACTION_POWER_DISCONNECTED))
+        ServiceTestSupport.idleUntil { (svc.state as? AlarmState.Armed)?.unplugPendingSince != null }
+        ServiceTestSupport.advance(600)
+        ServiceTestSupport.idleUntil { svc.state is AlarmState.Triggered && "siren" in sound.calls }
+        ServiceTestSupport.idleUntil { runBlocking { dp.readState().incidentActive } }
+    }
+
+    @Test fun preAlarmThenTriggered() {
+        runBlocking { dp.update { it.copy(preAlarmS = 1, sensitivityMs = 100) } }
+        val svc = startArm()
+        ServiceTestSupport.setPlugged(app, false)
+        app.sendBroadcast(Intent(Intent.ACTION_POWER_DISCONNECTED))
+        ServiceTestSupport.idleUntil { (svc.state as? AlarmState.Armed)?.unplugPendingSince != null }
+        ServiceTestSupport.advance(150)
+        ServiceTestSupport.idleUntil { svc.state is AlarmState.PreAlarm && "prealarm:1000" in sound.calls }
+        ServiceTestSupport.advance(1100)
+        ServiceTestSupport.idleUntil { svc.state is AlarmState.Triggered }
+    }
+
+    @Test fun reconnectInsideWindowDoesNotTrigger() {
+        runBlocking { dp.update { it.copy(sensitivityMs = 2000) } }
+        val svc = startArm()
+        ServiceTestSupport.setPlugged(app, false)
+        app.sendBroadcast(Intent(Intent.ACTION_POWER_DISCONNECTED))
+        ServiceTestSupport.idleUntil { (svc.state as? AlarmState.Armed)?.unplugPendingSince != null }
+        ServiceTestSupport.advance(500)
+        ServiceTestSupport.setPlugged(app, true)
+        app.sendBroadcast(Intent(Intent.ACTION_POWER_CONNECTED))
+        ServiceTestSupport.idleUntil { (svc.state as? AlarmState.Armed)?.unplugPendingSince == null }
+        ServiceTestSupport.advance(3000)
+        assertThat(svc.state).isEqualTo(AlarmState.Armed())
+        assertThat(sound.calls).doesNotContain("siren")
+    }
+
+    @Test fun unlockStopsAlarm() {
+        runBlocking { dp.update { it.copy(preAlarmS = 0, sensitivityMs = 100) } }
+        val svc = startArm()
+        ServiceTestSupport.setPlugged(app, false)
+        app.sendBroadcast(Intent(Intent.ACTION_POWER_DISCONNECTED))
+        ServiceTestSupport.idleUntil { (svc.state as? AlarmState.Armed)?.unplugPendingSince != null }
+        ServiceTestSupport.advance(150)
+        ServiceTestSupport.idleUntil { svc.state is AlarmState.Triggered }
+        app.sendBroadcast(Intent(Intent.ACTION_USER_PRESENT))
+        ServiceTestSupport.idleUntil { svc.state == AlarmState.Disarmed }
+        assertThat(sound.calls.last()).isEqualTo("stop")
+        ServiceTestSupport.idleUntil { runBlocking { !dp.readState().incidentActive && !dp.readState().armed } }
+    }
+}

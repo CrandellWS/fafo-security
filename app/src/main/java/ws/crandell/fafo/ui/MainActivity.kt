@@ -5,6 +5,7 @@ import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.os.Build
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -24,7 +25,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import ws.crandell.fafo.arm.ArmService
 import ws.crandell.fafo.storage.CeStore
+import ws.crandell.fafo.system.DeviceStatus
 import ws.crandell.fafo.ui.screens.HomeScreen
 import ws.crandell.fafo.ui.screens.OnboardingScreen
 import ws.crandell.fafo.ui.screens.PlaceholderScreen
@@ -37,7 +40,10 @@ class MainActivity : FragmentActivity() {
     private val vm: AppViewModel by viewModels()
 
     private val permissionLauncher =
-        registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { vm.refresh() }
+        registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
+            vm.refresh()
+            if (armAfterPermissions) onArm()
+        }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
@@ -84,8 +90,31 @@ class MainActivity : FragmentActivity() {
         vm.markOnboarding(CeStore.FLAG_SELF_TEST)
     }
 
-    fun onArm() {}
-    fun onDisarm() {}
+    private var armAfterPermissions = false
+
+    /** AC1.3: ask for notifications and camera first; arming without camera is allowed ("Photos off"). */
+    fun onArm() {
+        val missing = buildList {
+            if (Build.VERSION.SDK_INT >= 33 && !DeviceStatus.hasNotificationPermission(this@MainActivity)) {
+                add(Manifest.permission.POST_NOTIFICATIONS)
+            }
+            if (!DeviceStatus.hasCamera(this@MainActivity)) add(Manifest.permission.CAMERA)
+        }
+        if (missing.isNotEmpty() && !armAfterPermissions) {
+            armAfterPermissions = true
+            requestPermissions(*missing.toTypedArray())
+            return
+        }
+        armAfterPermissions = false
+        if (!DeviceStatus.hasNotificationPermission(this) || !DeviceStatus.notificationsEnabled(this)) {
+            Toast.makeText(this, "Allow notifications to arm: FAFO always shows one while armed.", Toast.LENGTH_LONG).show()
+            return
+        }
+        if (!DeviceStatus.isPlugged(this) || !DeviceStatus.isDeviceSecure(this)) return
+        ArmService.arm(this)
+    }
+
+    fun onDisarm() = ArmService.disarm(this)
 
     @Composable
     private fun AppRoot() {
