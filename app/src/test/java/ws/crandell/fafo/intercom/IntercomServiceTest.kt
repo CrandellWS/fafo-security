@@ -67,6 +67,15 @@ class IntercomServiceTest {
         assertThat(Intercom.ui.value.roomCircles).isNull()
     }
 
+    @Test fun stopsWhenNotificationsBlockedWhileRunning() {
+        val svc = start(startIntent())
+        assertThat(Intercom.ui.value.roomCircles).isNotNull()
+        shadowOf(app.getSystemService(NotificationManager::class.java)).setNotificationsEnabled(false)
+        shadowOf(android.os.Looper.getMainLooper()).idleFor(java.time.Duration.ofSeconds(4))
+        assertThat(Intercom.ui.value.roomCircles).isNull()
+        assertThat(shadowOf(svc).isStoppedBySelf).isTrue()
+    }
+
     @Test fun alarmEndsRoomMode() {
         start(startIntent())
         assertThat(Intercom.ui.value.roomCircles).isNotNull()
