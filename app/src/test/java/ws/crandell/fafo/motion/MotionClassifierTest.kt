@@ -88,6 +88,61 @@ class MotionClassifierTest {
         MotionSensitivity.entries.forEach { assertThat(run(it, vibrating)).isEmpty() }
     }
 
+    /**
+     * Device feedback 2026-10-28, Bill's case: picked up at 2 s, held (hand shake) until 4 s, set back down flat
+     * by 4.5 s, then left alone. The phone is not "still" while in hand, and the settle watch begun at the
+     * first pickup fires within a few seconds of the set-down.
+     */
+    private val pickUpThenSetDown = trace(12_000) { t ->
+        val up = ((t - 2000).coerceIn(0, 600)) / 600.0
+        val down = ((t - 4000).coerceIn(0, 500)) / 500.0
+        val a = (up - down).coerceAtLeast(0.0) * PI / 3
+        val shake = if (t in 2000L until 4500L) 0.8 * sin(2 * PI * 6 * t / 1000.0) else 0.0
+        Triple(shake, G * sin(a), G * cos(a))
+    }
+
+    private fun settleTime(sens: MotionSensitivity, tr: List<S>): Long? {
+        val c = MotionClassifier(sens)
+        val w = ws.crandell.fafo.core.SettleWatch()
+        var settledAt: Long? = null
+        for (s in tr) {
+            val ev = c.add(s.t, s.x, s.y, s.z)
+            if (ev == MotionEvent.PICKUP && !w.watching && settledAt == null) w.begin()
+            if (s.t in 2200L until 4400L) assertThat(c.still).isFalse()
+            if (w.onSample(s.t, c.still) && settledAt == null) settledAt = s.t
+        }
+        return settledAt
+    }
+
+    @Test fun pickUpSetDownAndLeftAloneSettles() {
+        MotionSensitivity.entries.forEach {
+            val at = settleTime(it, pickUpThenSetDown)
+            assertThat(at).isNotNull()
+            assertThat(at!!).isAtLeast(4500L + ws.crandell.fafo.core.SettleWatch.SETTLE_MS)
+            // About 1 s for the gravity filter to catch up after the set-down, then the settle window.
+            assertThat(at).isAtMost(7_000L)
+        }
+    }
+
+    @Test fun carriedAwayNeverSettles() {
+        val walkingLong = trace(12_000) { t ->
+            val s = t / 1000.0
+            Triple(1.0 * sin(2 * PI * 1 * s), 2.0 + 0.5 * sin(2 * PI * 2 * s), G + 4.0 * sin(2 * PI * 2 * s))
+        }
+        MotionSensitivity.entries.forEach {
+            val c = MotionClassifier(it)
+            val w = ws.crandell.fafo.core.SettleWatch()
+            w.begin()
+            assertThat(walkingLong.any { s -> c.add(s.t, s.x, s.y, s.z); w.onSample(s.t, c.still) }).isFalse()
+        }
+    }
+
+    @Test fun restingIsStill() {
+        val c = MotionClassifier(MotionSensitivity.MEDIUM)
+        rest.forEach { c.add(it.t, it.x, it.y, it.z) }
+        assertThat(c.still).isTrue()
+    }
+
     @Test fun settingMapping() {
         assertThat(MotionSensitivity.fromSetting("OFF")).isNull()
         assertThat(MotionSensitivity.fromSetting("MEDIUM")).isEqualTo(MotionSensitivity.MEDIUM)

@@ -106,7 +106,29 @@ object HelpContent {
                 HelpSection(text = "While armed, a bump gives one short chirp and turns the status yellow; repeated bumps or a pick-up give three louder ones and turn it orange. While locked, continued handling can start the countdown (Settings > Motion can sound the alarm)."),
                 HelpSection("Sensitivity", "Settings > Motion chirps: Off, Low, Medium (default) or High."),
                 HelpSection("Bump reset time", "Settings > Bump reset time: how long after the last bump the status stays yellow or orange before going back to green. 10, 15 (default), 30 or 60 s."),
+                HelpSection(
+                    "Put it down and it calms down",
+                    "If handling started the countdown, putting the phone down and leaving it still for about 2 seconds cancels it, as long as it is still plugged in. " +
+                        "The status stays orange until the bump reset time runs out, so picking it up again starts a new countdown. " +
+                        "Walking off with it, or unplugging it, still sets off the alarm. The countdown is your Pre-alarm setting (at least 5 s for handling).",
+                ),
             ),
+        ),
+        HelpTopic(
+            "handsoff", "HANDS OFF screen", "The warning that wakes up when someone touches the armed phone", HelpIcon.MOTION,
+            listOf(
+                HelpSection(
+                    text = "While FAFO is armed and the screen is off or locked, a bump or a pick-up turns the screen on over the lock screen " +
+                        "with a big HANDS OFF warning: yellow for a bump, orange for a pick-up, red with the countdown if the alarm is about to sound.",
+                ),
+                HelpSection("It goes away by itself", "Left alone, the warning closes after the bump reset time and the screen goes dark again. Unlocking the phone closes it too."),
+                HelpSection("Nobody else can stop it", "The Disarm button on it asks for your PIN, pattern, password or fingerprint first, the same as everywhere else."),
+                HelpSection(
+                    "Full-screen permission",
+                    "The warning uses the same full-screen permission as the alarm screen. Without it you get a HANDS OFF pop-up notification instead, and the screen does not turn on.",
+                ),
+            ),
+            links = listOf(HelpLink.FULL_SCREEN),
         ),
         HelpTopic(
             "photos", "Photos and incidents", "Who unplugged it, kept on this phone", HelpIcon.CAMERA,
@@ -114,6 +136,12 @@ object HelpContent {
                 HelpSection(
                     text = "When the countdown starts, FAFO takes a photo, then one every 10 s (5 to 30 s in Settings) with the front, back or both cameras. " +
                         "Each alarm is saved as an incident under Home > Incidents.",
+                ),
+                HelpSection(
+                    "PHOTO TAKEN",
+                    "Each photo is shown on the alarm and HANDS OFF screens: a white flash, PHOTO TAKEN with the photo for about 2 seconds, and a count (\"3 photos taken\"). " +
+                        "Before the siren starts a camera shutter click plays too; once the siren is going it stays silent so nothing interrupts the siren. " +
+                        "With Remove animations on (Android accessibility settings) there is no flash, just the label.",
                 ),
                 HelpSection("Kept on this phone", "Photos are never sent anywhere. You can share one yourself from the photo viewer, or delete it."),
                 HelpSection("Storage", "Photos stop at the storage cap (100 MB by default) and pause when less than 500 MB is free. The siren keeps going."),

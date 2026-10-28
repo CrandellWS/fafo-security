@@ -91,6 +91,7 @@ class ArmServiceTest {
         ArmDeps.sound = { _, _, _ -> sound }
         ArmDeps.capturer = { _, _ -> fakeCapturer }
         ArmDeps.freeBytes = { Long.MAX_VALUE }
+        ArmDeps.shutter = {}
         ws.crandell.fafo.storage.CeStore.override = ws.crandell.fafo.storage.CeStore.create(app, scope)
         ArmDeps.clock = ws.crandell.fafo.core.Clock { android.os.SystemClock.uptimeMillis() }
         shadowOf(app).grantPermissions(android.Manifest.permission.POST_NOTIFICATIONS, android.Manifest.permission.CAMERA)
@@ -451,5 +452,147 @@ class ArmServiceTest {
         nm().cancel(Notifications.ID_ALARM)
         controller!!.withIntent(Intent(app, ArmService::class.java).setAction(ArmService.ACTION_REPOST_ALARM)).startCommand(0, 2)
         ServiceTestSupport.idleUntil { posted(Notifications.ID_ALARM)?.fullScreenIntent != null }
+    }
+
+    // --- Device feedback 2026-10-28: settle, HANDS OFF, PHOTO TAKEN ---
+
+    private fun addAccelerometer() {
+        val sm = app.getSystemService(android.hardware.SensorManager::class.java)
+        shadowOf(sm).addSensor(org.robolectric.shadows.ShadowSensor.newInstance(android.hardware.Sensor.TYPE_ACCELEROMETER))
+    }
+
+    private fun pickupIntoMotionPreAlarm(svc: ArmService) {
+        svc.simulateMotion(ws.crandell.fafo.core.Motion.PICKUP)
+        ServiceTestSupport.idleUntil { (svc.state as? AlarmState.PreAlarm)?.cause == ws.crandell.fafo.core.IncidentCause.MOTION }
+    }
+
+    @Test fun motionPreAlarmSettledWhilePluggedGoesBackToArmedOrange() {
+        addAccelerometer()
+        runBlocking { dp.update { it.copy(preAlarmS = 10) } }
+        val svc = startArm()
+        pickupIntoMotionPreAlarm(svc)
+        val pre = svc.state as AlarmState.PreAlarm
+        assertThat(pre.endsAt - pre.startedAt).isEqualTo(10_000)
+        // The accelerometer stays on in a motion pre-alarm to see the phone settle.
+        ServiceTestSupport.idleUntil { svc.motionRunning && svc.settleWatching }
+        svc.simulateSettled()
+        ServiceTestSupport.idleUntil { svc.state == AlarmState.Armed() }
+        ServiceTestSupport.idleUntil { !svc.settleWatching }
+        assertThat(svc.threat).isEqualTo(ws.crandell.fafo.core.ThreatLevel.ORANGE)
+        assertThat(sound.calls).contains("stop")
+        assertThat(sound.calls).doesNotContain("siren")
+        ServiceTestSupport.idleUntil { runBlocking { !dp.readState().incidentActive && dp.readState().armed } }
+        val dir = java.io.File(app.filesDir, "incidents/${pre.incidentId}")
+        ServiceTestSupport.idleUntil { java.io.File(dir, "incident.json").let { it.exists() && it.readText().contains("SETTLED") } }
+        // Ten more seconds: no siren.
+        ServiceTestSupport.advance(10_000)
+        assertThat(svc.state).isInstanceOf(AlarmState.Armed::class.java)
+        assertThat(sound.calls).doesNotContain("siren")
+    }
+
+    @Test fun motionPreAlarmSettledWhileUnpluggedStillAlarms() {
+        addAccelerometer()
+        val svc = startArm()
+        pickupIntoMotionPreAlarm(svc)
+        ServiceTestSupport.setPlugged(app, false)
+        svc.simulateSettled()
+        ServiceTestSupport.advance(100)
+        assertThat(svc.state).isInstanceOf(AlarmState.PreAlarm::class.java)
+        ServiceTestSupport.advance(ws.crandell.fafo.core.MIN_MOTION_PRE_ALARM_MS)
+        ServiceTestSupport.idleUntil { svc.state is AlarmState.Triggered && "siren" in sound.calls }
+    }
+
+    @Test fun unplugPreAlarmKeepsTheAccelerometerOff() {
+        addAccelerometer()
+        runBlocking { dp.update { it.copy(preAlarmS = 5, sensitivityMs = 100) } }
+        val svc = startArm()
+        ServiceTestSupport.setPlugged(app, false)
+        app.sendBroadcast(Intent(Intent.ACTION_POWER_DISCONNECTED))
+        ServiceTestSupport.idleUntil { (svc.state as? AlarmState.Armed)?.unplugPendingSince != null }
+        ServiceTestSupport.advance(150)
+        ServiceTestSupport.idleUntil { svc.state is AlarmState.PreAlarm && !svc.motionRunning }
+        assertThat(svc.settleWatching).isFalse()
+    }
+
+    private fun setInteractive(on: Boolean) {
+        shadowOf(app.getSystemService(android.os.PowerManager::class.java)).setIsInteractive(on)
+    }
+
+    @Test fun bumpWithTheScreenOffPostsTheHandsOffScreen() {
+        setInteractive(false)
+        var fsiSeen: Boolean? = null
+        val svc = startArm()
+        svc.addHook(object : ArmService.EffectHook {
+            override fun onEffect(fx: ws.crandell.fafo.core.AlarmEffect) {}
+            override fun onHandsOff(fullScreen: Boolean) { fsiSeen = fullScreen }
+        })
+        svc.simulateMotion(ws.crandell.fafo.core.Motion.BUMP)
+        ServiceTestSupport.idleUntil { posted(Notifications.ID_HANDS_OFF) != null }
+        val n = posted(Notifications.ID_HANDS_OFF)!!
+        assertThat(n.channelId).isEqualTo(Notifications.CH_HANDS_OFF)
+        assertThat(n.extras.getString("android.title")).isEqualTo("HANDS OFF")
+        assertThat(n.visibility).isEqualTo(android.app.Notification.VISIBILITY_PUBLIC)
+        // Full-screen when allowed, otherwise a heads-up (no full-screen intent).
+        assertThat(n.fullScreenIntent != null).isEqualTo(fsiSeen)
+        assertThat(n.contentIntent).isNotNull()
+        // No Disarm button: the screen asks for the screen lock first.
+        assertThat(n.actions).isNull()
+        assertThat(svc.threat).isEqualTo(ws.crandell.fafo.core.ThreatLevel.YELLOW)
+        assertThat(nm().getNotificationChannel(Notifications.CH_HANDS_OFF).importance)
+            .isEqualTo(android.app.NotificationManager.IMPORTANCE_HIGH)
+    }
+
+    @Test fun handsOffGoesAwayAfterTheBumpResetTime() {
+        setInteractive(false)
+        runBlocking { dp.update { it.copy(bumpResetS = 10) } }
+        val svc = startArm()
+        svc.simulateMotion(ws.crandell.fafo.core.Motion.BUMP)
+        ServiceTestSupport.idleUntil { posted(Notifications.ID_HANDS_OFF) != null }
+        ServiceTestSupport.advance(10_000)
+        ServiceTestSupport.idleUntil { svc.threat == ws.crandell.fafo.core.ThreatLevel.GREEN && posted(Notifications.ID_HANDS_OFF) == null }
+    }
+
+    @Test fun ownerUsingTheUnlockedPhoneGetsNoHandsOff() {
+        setInteractive(true)
+        val svc = startArm()
+        ServiceTestSupport.setKeyguard(app, secure = true, locked = false)
+        svc.simulateMotion(ws.crandell.fafo.core.Motion.BUMP)
+        ServiceTestSupport.idleUntil { svc.threat == ws.crandell.fafo.core.ThreatLevel.YELLOW }
+        ServiceTestSupport.advance(50)
+        assertThat(posted(Notifications.ID_HANDS_OFF)).isNull()
+    }
+
+    @Test fun motionPreAlarmNotificationSaysHandsOff() {
+        val svc = startArm()
+        pickupIntoMotionPreAlarm(svc)
+        ServiceTestSupport.idleUntil { posted(Notifications.ID_ARMED)?.extras?.getString("android.title") == "Hands off" }
+    }
+
+    @Test fun photoTakenIsPublishedWithAShutterOnlyBeforeTheSiren() {
+        var shutters = 0
+        ArmDeps.shutter = { shutters++ }
+        runBlocking { dp.update { it.copy(preAlarmS = 5, sensitivityMs = 100) } }
+        ws.crandell.fafo.core.AlarmStatusBus.setPhotoShot(null)
+        val svc = startArm()
+        ServiceTestSupport.setPlugged(app, false)
+        app.sendBroadcast(Intent(Intent.ACTION_POWER_DISCONNECTED))
+        ServiceTestSupport.idleUntil { (svc.state as? AlarmState.Armed)?.unplugPendingSince != null }
+        ServiceTestSupport.advance(150)
+        ServiceTestSupport.idleUntil { svc.state is AlarmState.PreAlarm && svc.photosTaken >= 1 }
+        val shot = ws.crandell.fafo.core.AlarmStatusBus.photoShot.value!!
+        assertThat(shot.count).isEqualTo(1)
+        assertThat(shot.incidentId).isEqualTo((svc.state as AlarmState.PreAlarm).incidentId)
+        assertThat(java.io.File(shot.path).exists()).isTrue()
+        assertThat(shutters).isEqualTo(1)
+        // Into the siren: the next photo counts up but plays no shutter over the siren.
+        ServiceTestSupport.advance(5_000)
+        ServiceTestSupport.idleUntil { svc.state is AlarmState.Triggered }
+        ServiceTestSupport.advance(10_000)
+        ServiceTestSupport.idleUntil { svc.photosTaken >= 2 }
+        assertThat(ws.crandell.fafo.core.AlarmStatusBus.photoShot.value!!.count).isEqualTo(2)
+        assertThat(shutters).isEqualTo(1)
+        // Ending the incident clears it.
+        app.sendBroadcast(Intent(Intent.ACTION_USER_PRESENT))
+        ServiceTestSupport.idleUntil { svc.state == AlarmState.Disarmed && ws.crandell.fafo.core.AlarmStatusBus.photoShot.value == null }
     }
 }

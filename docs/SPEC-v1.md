@@ -209,8 +209,8 @@ over Bluetooth, end-to-end encrypted with the paired keys.
 
 ### F4. Motion chirps and the bump ladder (ARMED only)
 
-- AC4.1 While ARMED (not PRE_ALARM or TRIGGERED), the service listens to the accelerometer (`SENSOR_DELAY_UI` or a batched
-  equivalent) and classifies:
+- AC4.1 While ARMED, and during a MOTION pre-alarm (to see the phone settle, AC4.7), the service listens to the
+  accelerometer (`SENSOR_DELAY_UI` or a batched equivalent); never in an unplug pre-alarm or TRIGGERED. It classifies:
   - **Bump:** short spike above the bump threshold, phone stays roughly in place → one short chirp.
   - **Pick-up:** sustained change in orientation/gravity vector or displacement over ~0.5 s → louder,
     longer chirp (3 pulses).
@@ -220,8 +220,28 @@ over Bluetooth, end-to-end encrypted with the paired keys.
   pre-alarm, but only while the phone is locked and the setting "Motion can sound the alarm" is on
   (default on). Unlocked, or with the setting off, the ladder stops at ORANGE (chirps only). Left untouched
   for the "Bump reset time" (10, 15, 30 or 60 s; default 15 s; Bill 2026-10-28, was a fixed 60 s) the ladder
-  cools back to GREEN. A MOTION pre-alarm lasts at least 5 s whatever the pre-alarm
-  setting, and plugging in does not cancel it (unlock or Disarm does). Motion Off disables the ladder.
+  cools back to GREEN. A MOTION pre-alarm lasts the pre-alarm setting, but at least 5 s, and plugging in
+  does not cancel it (unlock, Disarm or settling, AC4.7, does). Motion Off disables the ladder.
+- AC4.7 **Added 2026-10-28 (device feedback: picked up, set down and left alone, the alarm still fired about
+  3 s later).** During a MOTION pre-alarm the accelerometer keeps running. Once the phone has been still
+  (linear RMS under 0.2 m/s^2, no bump pending; orientation does not matter) for the settle window (1.5 s,
+  after about 1 s for the gravity filter to catch up with a set-down) **and** it is still plugged in, the
+  pre-alarm cancels back to ARMED: sound, photos and alerts stop, the incident closes as `SETTLED`
+  ("Cancelled (put down and left still)"), and the ladder stays ORANGE until the bump reset time cools it, so
+  more handling starts a new pre-alarm. A pickup that keeps moving never settles; unplugged, settling changes
+  nothing (the owner can still plug back in and leave it, which then settles). An unplug pre-alarm is not
+  affected. Pure logic in `SettleWatch` and `AlarmStateMachine`, unit tested with synthetic traces.
+- AC4.8 **HANDS OFF (added 2026-10-28, Bill: "that's what I want").** While ARMED with the screen off or the
+  phone locked, a bump or a pickup (and the start of any pre-alarm) posts a fresh notification on the silent
+  HIGH channel "Hands off warning" whose full-screen intent opens `HandsOffActivity` (showWhenLocked,
+  turnScreenOn, keep screen on): a big HANDS OFF in the traffic-light colors (YELLOW bump, ORANGE pickup or
+  repeated bumps, RED stripes without flashing plus the countdown during the pre-alarm; the siren looks like
+  the alarm screen), with the shield and wordmark. Its Disarm button asks Android to dismiss the keyguard
+  first, so nobody without the screen lock can disarm. It closes when the ladder cools to GREEN (the bump
+  reset time), on disarm, or when the owner unlocks; the keyguard then turns the screen off on its own
+  timeout. Without the full-screen permission (Android 14+) the same notification is a heads-up and the
+  screen does not wake. The owner using the unlocked, screen-on phone never gets it. Re-posted at most once
+  per 3 s while its screen is not showing.
 - AC4.6 Status screen (round 3): a big centered shield (about 75% of the width in portrait, 75% of the
   height in landscape) with the wordmark under or beside it. Stripes carry the status color: brand red
   disarmed, YELLOW arming or one bump, GREEN armed and calm, ORANGE repeated bumps or the pre-alarm, RED
@@ -252,6 +272,11 @@ over Bluetooth, end-to-end encrypted with the paired keys.
 - AC5.6 The queue is "pending send" in v1, but nothing is sent. The Incidents screen lists incidents
   and lets the owner view, share manually (Android share sheet, user-initiated) or delete photos.
 - AC5.7 Storage rules: see section 5. Unit tests cover the pruning policy.
+- AC5.8 **PHOTO TAKEN (added 2026-10-28).** Each saved trigger photo is shown on the alarm and HANDS OFF
+  screens: a white shutter flash fading over 0.3 s, then "PHOTO TAKEN" with a thumbnail of the photo for
+  about 2 s, plus a running counter ("3 photos taken") for the rest of the incident. A system shutter click
+  (`MediaActionSound`) plays only while the siren is not playing (pre-alarm), never over the siren. With
+  Android's "Remove animations" (animator duration scale 0) there is no flash, only the label.
 
 ### F6. Trusted-device Bluetooth pairing gated by device credential
 
@@ -806,6 +831,8 @@ armed while plugged in.
 - Background BLE `PendingIntent` scan delivery for alert beacons under Samsung battery settings.
 - BLE L2CAP channel throughput for Opus audio between the A17 and a second phone.
 - Push-to-talk playback on a locked receiver with Stay reachable on.
+- Motion pre-alarm settle (AC4.7) on the A17: pick up, set down, leave it; how long until it cancels.
+- HANDS OFF (AC4.8): does the full-screen intent wake the A17's screen over the lock screen for a bump?
 
 ## 9a. Dropped
 

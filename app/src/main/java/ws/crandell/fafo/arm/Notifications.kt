@@ -21,6 +21,8 @@ object Notifications {
      * only way to be sure installs whose "alarm" channel was lowered (by the user or One UI) still alert.
      */
     const val CH_ALARM_SCREEN = "alarm_screen"
+    /** HANDS OFF warning (2026-10-28): wakes the screen when the armed phone is handled. Silent, HIGH. */
+    const val CH_HANDS_OFF = "hands_off"
     const val CH_ALERTS = "alerts"
     const val CH_REACHABLE = "reachable"
     const val CH_INTERCOM = "intercom"
@@ -29,6 +31,8 @@ object Notifications {
     const val ID_STILL_ARMED = 1002
     /** Full-screen alarm notification, posted fresh on entering TRIGGERED (never an update of [ID_ARMED]). */
     const val ID_ALARM = 1005
+    /** HANDS OFF screen notification, posted fresh for each warning so its full-screen intent launches. */
+    const val ID_HANDS_OFF = 1006
     const val ID_ALERT_BASE = 2000
     const val ID_REACHABLE = 3001
     const val ID_INTERCOM = 4001
@@ -53,6 +57,12 @@ object Notifications {
                     setSound(null, null) // the service plays the siren itself on USAGE_ALARM
                     enableVibration(false)
                     setBypassDnd(true)
+                    lockscreenVisibility = Notification.VISIBILITY_PUBLIC
+                },
+                NotificationChannel(CH_HANDS_OFF, "Hands off warning", NotificationManager.IMPORTANCE_HIGH).apply {
+                    description = "Wakes the screen with HANDS OFF when the armed phone is bumped or picked up"
+                    setSound(null, null) // the service chirps itself
+                    enableVibration(false)
                     lockscreenVisibility = Notification.VISIBILITY_PUBLIC
                 },
                 NotificationChannel(CH_ALERTS, "Alerts from your devices", NotificationManager.IMPORTANCE_HIGH),
@@ -136,8 +146,15 @@ object Notifications {
                     .setContentIntent(notificationTapIntent(context))
             }
             is AlarmState.PreAlarm -> {
-                b.setContentTitle("Plug me back in")
-                    .setContentText(if (photosPaused) "Photos paused: storage low" else "Alarm in a few seconds")
+                val motion = state.cause == ws.crandell.fafo.core.IncidentCause.MOTION
+                b.setContentTitle(if (motion) "Hands off" else "Plug me back in")
+                    .setContentText(
+                        when {
+                            photosPaused -> "Photos paused: storage low"
+                            motion -> "Put it down or the alarm sounds. Unlock to stop."
+                            else -> "Alarm in a few seconds"
+                        },
+                    )
                     .setUsesChronometer(true)
                     .setChronometerCountDown(true)
                     .setWhen(state.endsAt)
@@ -182,6 +199,31 @@ object Notifications {
             .setDeleteIntent(serviceIntent(context, ArmService.ACTION_REPOST_ALARM, 3))
             .addAction(disarmAction(context))
             .build()
+
+    /**
+     * HANDS OFF (2026-10-28): posted as a NEW notification ([ID_HANDS_OFF]) so SystemUI launches
+     * [HandsOffActivity] over the lock screen and turns the screen on. With [fullScreen] false (Android 14+
+     * without the full-screen permission) it is a plain heads-up warning instead. It has no Disarm action:
+     * the screen it opens asks for the screen lock before anything.
+     */
+    fun handsOff(context: Context, fullScreen: Boolean, preAlarm: Boolean): Notification {
+        val b = NotificationCompat.Builder(context, CH_HANDS_OFF)
+            .setSmallIcon(R.drawable.ic_stat_shield)
+            .setContentTitle("HANDS OFF")
+            .setContentText(if (preAlarm) "This phone is protected. The alarm is about to sound." else "This phone is protected by FAFO Security. Put it down.")
+            .setShowWhen(false)
+            .setAutoCancel(true)
+            .setTimeoutAfter(HANDS_OFF_TIMEOUT_MS)
+            .setPriority(NotificationCompat.PRIORITY_MAX)
+            .setCategory(NotificationCompat.CATEGORY_ALARM)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+            .setContentIntent(HandsOffActivity.pendingIntent(context))
+        if (fullScreen) b.setFullScreenIntent(HandsOffActivity.pendingIntent(context), true)
+        return b.build()
+    }
+
+    /** The HANDS OFF notification never outlives the longest bump reset time. */
+    const val HANDS_OFF_TIMEOUT_MS = 60_000L
 
     /** Tap on the armed/alarm notification: a visible-app start that may re-add the camera type. */
     fun notificationTapIntent(context: Context): PendingIntent = AlarmActivity.pendingIntent(context)

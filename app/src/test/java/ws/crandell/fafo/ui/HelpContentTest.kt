@@ -34,6 +34,16 @@ class HelpContentTest {
         assertThat(arming).contains("locked the phone after arming")
     }
 
+    @Test fun deviceFeedbackTopics() {
+        val hands = HelpContent.topic("handsoff")!!
+        assertThat(hands.links).contains(HelpLink.FULL_SCREEN)
+        val handsText = hands.sections.joinToString { it.heading + it.text }
+        assertThat(handsText).contains("HANDS OFF")
+        assertThat(handsText).contains("bump reset time")
+        assertThat(HelpContent.topic("motion")!!.sections.joinToString { it.text }).contains("plugged in")
+        assertThat(HelpContent.topic("photos")!!.sections.mapNotNull { it.heading }).contains("PHOTO TAKEN")
+    }
+
     @Test fun optionalStepsNeverBlockTheBadge() {
         val s = OnboardingStatus(true, true, true, true, true, true, true, true, true, true, mailReady = false, openWifiWanted = true)
         assertThat(s.missing).isEmpty()

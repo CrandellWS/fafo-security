@@ -64,8 +64,11 @@ object ArmDeps {
     /** Local network (F9): only attached after the first unlock, never on the boot path. */
     var network: (Context) -> AlarmNetwork = { PeerNetwork.ForAlarm(it) }
     var torch: (Context) -> ws.crandell.fafo.siren.TorchBackend = { ws.crandell.fafo.siren.AndroidTorch(it) }
+    /** PHOTO TAKEN shutter click (never while the siren plays). */
+    var shutter: (Context) -> Unit = { ws.crandell.fafo.siren.ShutterSound.play() }
 
     fun reset() {
+        shutter = { ws.crandell.fafo.siren.ShutterSound.play() }
         torch = { ws.crandell.fafo.siren.AndroidTorch(it) }
         network = { PeerNetwork.ForAlarm(it) }
         capturer = { c, o -> CameraXCapturer(c, o) }

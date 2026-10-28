@@ -48,7 +48,22 @@ class MotionClassifier(private val sensitivity: MotionSensitivity) {
     /** After a pick-up the phone is in hand: its settling jolts are not bumps. */
     private var noBumpUntil = Long.MIN_VALUE
 
+    /**
+     * After each [add]: the phone is lying still (device feedback 2026-10-28, motion pre-alarm settle). Linear
+     * RMS under [SETTLE_RMS], no bump spike pending and no bump this sample. Orientation does not matter: a
+     * phone set down at a new angle is still, even while the tilt check re-baselines (a quiet PICKUP).
+     */
+    var still: Boolean = false
+        private set
+    private var lastRms = Double.MAX_VALUE
+
     fun add(t: Long, x: Double, y: Double, z: Double): MotionEvent? {
+        val ev = classify(t, x, y, z)
+        still = ev != MotionEvent.BUMP && lastRms < SETTLE_RMS && spikeStart == null && pendingBumpAt == null
+        return ev
+    }
+
+    private fun classify(t: Long, x: Double, y: Double, z: Double): MotionEvent? {
         val raw = doubleArrayOf(x, y, z)
         val gPrev = g
         if (gPrev == null) {
@@ -66,6 +81,7 @@ class MotionClassifier(private val sensitivity: MotionSensitivity) {
         windowSum += linMag * linMag
         while (window.isNotEmpty() && window.first().first < t - RMS_WINDOW_MS) windowSum -= window.removeFirst().second
         val rms = sqrt((windowSum / window.size).coerceAtLeast(0.0))
+        lastRms = rms
 
         val r = ref!!
         val atRest = rms < REST_RMS
@@ -136,6 +152,8 @@ class MotionClassifier(private val sensitivity: MotionSensitivity) {
         const val BUMP_CONFIRM_MS = 600L
         const val REST_RMS = 0.3
         const val PICKUP_QUIET_MS = 1500L
+        /** Linear RMS (m/s^2) under which the phone counts as lying still (settle; stricter than [REST_RMS]). */
+        const val SETTLE_RMS = 0.2
     }
 }
 

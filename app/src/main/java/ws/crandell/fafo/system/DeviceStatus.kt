@@ -37,6 +37,10 @@ object DeviceStatus {
         context.getSystemService(KeyguardManager::class.java)?.isDeviceLocked ?: true
 
     /** True once credential-protected storage is unlocked (after the first unlock since boot). */
+    /** Screen on (interactive). Off or dozing: the HANDS OFF warning wakes it. */
+    fun isInteractive(context: Context): Boolean =
+        context.getSystemService(android.os.PowerManager::class.java)?.isInteractive ?: true
+
     fun isCeUnlocked(context: Context): Boolean =
         context.getSystemService(UserManager::class.java)?.isUserUnlocked ?: false
 

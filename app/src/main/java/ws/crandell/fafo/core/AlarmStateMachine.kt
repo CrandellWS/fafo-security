@@ -59,6 +59,7 @@ class AlarmStateMachine(
         is AlarmEvent.WindowElapsed -> onWindowElapsed(s, e)
         AlarmEvent.PreAlarmElapsed -> onPreAlarmElapsed(s)
         is AlarmEvent.MotionEscalated -> onMotionEscalated(s, e)
+        is AlarmEvent.MotionSettled -> onMotionSettled(s, e)
         AlarmEvent.UserPresent -> onUserPresent(s)
         AlarmEvent.DisarmTapped -> when (s) {
             AlarmState.Disarmed -> s to emptyList()
@@ -136,6 +137,18 @@ class AlarmStateMachine(
         if (s !is AlarmState.Armed || s.awaitingPower || !e.locked) return s to emptyList()
         val (next, fx) = startIncident(IncidentCause.MOTION)
         return next to (if (s.unplugPendingSince != null) listOf(AlarmEffect.CancelWindowTimer) + fx else fx)
+    }
+
+    /** A MOTION pre-alarm whose phone was set down and left still, while plugged in, goes back to ARMED. */
+    private fun onMotionSettled(s: AlarmState, e: AlarmEvent.MotionSettled): Pair<AlarmState, List<AlarmEffect>> {
+        if (s !is AlarmState.PreAlarm || s.cause != IncidentCause.MOTION || !e.plugged) return s to emptyList()
+        return AlarmState.Armed() to listOf(
+            AlarmEffect.StopSound,
+            AlarmEffect.StopPhotos,
+            AlarmEffect.StopAlerts,
+            AlarmEffect.CloseIncident(s.incidentId, CloseReason.SETTLED),
+            AlarmEffect.PersistIncident(active = false),
+        )
     }
 
     private fun startIncident(cause: IncidentCause = IncidentCause.UNPLUG): Pair<AlarmState, List<AlarmEffect>> {

@@ -96,6 +96,18 @@
             android:taskAffinity=""
             android:theme="@style/Theme.Fafo" />
 
+        <!-- HANDS OFF warning over the lock screen when the armed phone is bumped or picked up (2026-10-28). -->
+        <activity
+            android:name=".arm.HandsOffActivity"
+            android:directBootAware="true"
+            android:excludeFromRecents="true"
+            android:exported="false"
+            android:launchMode="singleTop"
+            android:showWhenLocked="true"
+            android:turnScreenOn="true"
+            android:taskAffinity=""
+            android:theme="@style/Theme.Fafo" />
+
         <activity
             android:name=".ui.RemoteCommandActivity"
             android:excludeFromRecents="true"

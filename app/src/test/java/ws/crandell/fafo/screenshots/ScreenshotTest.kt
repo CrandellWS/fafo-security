@@ -78,6 +78,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Density
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.unit.dp
 import ws.crandell.fafo.ui.components.ActionKind
 import ws.crandell.fafo.ui.components.FafoTopBar
@@ -345,6 +346,64 @@ class ScreenshotTest {
             StatusHero(StateKind.DISARMED, "Disarmed")
             StatusHero(StateKind.PRE_ALARM, "Plug me back in")
         }
+    }
+
+    // ---- HANDS OFF and PHOTO TAKEN (device feedback 2026-10-28) ------------------------------------
+
+    /** A stand-in "photo" for the thumbnail: a dim room with a face-ish blob. */
+    private fun fakeThumb(): androidx.compose.ui.graphics.ImageBitmap {
+        val bmp = android.graphics.Bitmap.createBitmap(240, 320, android.graphics.Bitmap.Config.ARGB_8888)
+        val c = android.graphics.Canvas(bmp)
+        c.drawColor(android.graphics.Color.rgb(58, 52, 48))
+        val p = android.graphics.Paint().apply { color = android.graphics.Color.rgb(196, 160, 132); isAntiAlias = true }
+        c.drawCircle(120f, 140f, 62f, p)
+        p.color = android.graphics.Color.rgb(40, 36, 60)
+        c.drawRect(40f, 230f, 200f, 320f, p)
+        return bmp.asImageBitmap()
+    }
+
+    @Test fun s76_handsoff_yellow_bump() = shot("76_handsoff_yellow_bump") {
+        StatusScreen(AlarmState.Armed(), ThreatLevel.YELLOW, now = 0, photosOn = false, animate = false, onDisarm = {}, handsOff = true)
+    }
+    @Test fun s77_handsoff_orange_pickup() = shot("77_handsoff_orange_pickup") {
+        StatusScreen(AlarmState.Armed(), ThreatLevel.ORANGE, now = 0, photosOn = false, animate = false, onDisarm = {}, handsOff = true)
+    }
+    @Test fun s78_handsoff_prealarm_red_countdown() = shot("78_handsoff_prealarm_red_countdown") {
+        StatusScreen(
+            AlarmState.PreAlarm("i", 0, 10_000, ws.crandell.fafo.core.IncidentCause.MOTION), ThreatLevel.GREEN, now = 2_500,
+            photosOn = true, animate = false, onDisarm = {}, handsOff = true,
+            photo = ws.crandell.fafo.ui.status.photoTakenLook(0, 1, 2_500, reducedMotion = false),
+        )
+    }
+    @Test fun s79_handsoff_photo_taken() = shot("79_handsoff_photo_taken") {
+        StatusScreen(
+            AlarmState.PreAlarm("i", 0, 10_000, ws.crandell.fafo.core.IncidentCause.MOTION), ThreatLevel.GREEN, now = 1_300,
+            photosOn = true, animate = false, onDisarm = {}, handsOff = true,
+            photo = ws.crandell.fafo.ui.status.photoTakenLook(800, 1, 1_300, reducedMotion = false), thumbnail = fakeThumb(),
+        )
+    }
+    @Test fun s80_alarm_photo_taken_flash() = shot("80_alarm_photo_taken_flash") {
+        StatusScreen(
+            AlarmState.Triggered("i", 0), ThreatLevel.GREEN, now = 20_100, photosOn = true, animate = false, onDisarm = {},
+            photo = ws.crandell.fafo.ui.status.photoTakenLook(20_000, 3, 20_100, reducedMotion = false), thumbnail = fakeThumb(),
+        )
+    }
+    @Test fun s81_alarm_photo_taken_reduced_motion() = shot("81_alarm_photo_taken_reduced_motion") {
+        StatusScreen(
+            AlarmState.Triggered("i", 0), ThreatLevel.GREEN, now = 20_100, photosOn = true, animate = false, onDisarm = {},
+            photo = ws.crandell.fafo.ui.status.photoTakenLook(20_000, 3, 20_100, reducedMotion = true), thumbnail = fakeThumb(),
+        )
+    }
+    @Test fun s82_handsoff_orange_light() = shotLight("82_handsoff_orange_light") {
+        StatusScreen(AlarmState.Armed(), ThreatLevel.ORANGE, now = 0, photosOn = false, animate = false, onDisarm = {}, handsOff = true)
+    }
+    @Config(qualifiers = NARROW)
+    @Test fun s83_handsoff_photo_360dp_fs15() = shotFs("83_handsoff_photo_360dp_fs15", 1.5f) {
+        StatusScreen(
+            AlarmState.PreAlarm("i", 0, 10_000, ws.crandell.fafo.core.IncidentCause.MOTION), ThreatLevel.GREEN, now = 1_000,
+            photosOn = true, animate = false, onDisarm = {}, handsOff = true,
+            photo = ws.crandell.fafo.ui.status.photoTakenLook(800, 2, 1_000, reducedMotion = true), thumbnail = fakeThumb(),
+        )
     }
 
     // ---- Alarm screen (AlarmActivity) -------------------------------------------------------------

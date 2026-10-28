@@ -6,13 +6,20 @@ import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
 import ws.crandell.fafo.core.Motion
+import ws.crandell.fafo.core.SettleWatch
 
 /**
  * Accelerometer listener while ARMED only (AC4.1). It only classifies: the armed service feeds each bump or
  * pickup into the ThreatLadder, which picks the chirp (rate-limited, AC4.3), the status color and, while
  * locked, the escalation to the pre-alarm (AC4.2, round 3).
  */
-class MotionMonitor(context: Context, private val onMotion: (Motion) -> Unit) : SensorEventListener {
+class MotionMonitor(
+    context: Context,
+    private val onSettled: () -> Unit = {},
+    private val onMotion: (Motion) -> Unit,
+) : SensorEventListener {
+    /** Settle detection during a MOTION pre-alarm (device feedback 2026-10-28). */
+    private val settle = SettleWatch()
     private val sm = context.getSystemService(SensorManager::class.java)
     private var classifier: MotionClassifier? = null
     private var current: MotionSensitivity? = null
@@ -30,7 +37,13 @@ class MotionMonitor(context: Context, private val onMotion: (Motion) -> Unit) : 
         sm.registerListener(this, accel, SensorManager.SENSOR_DELAY_UI)
     }
 
+    /** Watch for the phone being set down and left still (a MOTION pre-alarm started). */
+    fun beginSettle() = settle.begin()
+    fun endSettle() = settle.end()
+    val settleWatching: Boolean get() = settle.watching
+
     fun stop() {
+        settle.end()
         if (classifier != null) sm?.unregisterListener(this)
         classifier = null
         current = null
@@ -44,6 +57,7 @@ class MotionMonitor(context: Context, private val onMotion: (Motion) -> Unit) : 
             MotionEvent.PICKUP -> onMotion(Motion.PICKUP)
             null -> Unit
         }
+        if (settle.onSample(t, c.still)) onSettled()
     }
 
     override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) = Unit

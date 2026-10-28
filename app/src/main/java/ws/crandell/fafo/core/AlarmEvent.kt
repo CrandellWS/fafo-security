@@ -24,6 +24,13 @@ sealed interface AlarmEvent {
      */
     data class MotionEscalated(val locked: Boolean) : AlarmEvent
 
+    /**
+     * Device feedback 2026-10-28: during a MOTION pre-alarm the phone has been still for the settle window
+     * ([SettleWatch]). With [plugged] it cancels back to ARMED (the ladder stays ORANGE and cools as usual);
+     * unplugged it changes nothing, so a pickup that walks off with the phone still alarms.
+     */
+    data class MotionSettled(val plugged: Boolean) : AlarmEvent
+
     /** ACTION_USER_PRESENT: the owner unlocked with the real credential or biometric. */
     data object UserPresent : AlarmEvent
 
@@ -62,7 +69,8 @@ sealed interface AlarmEvent {
 
 enum class RefusalReason { NOT_PLUGGED, NO_SECURE_LOCK, NO_INCIDENT, BEFORE_FIRST_UNLOCK, WRONG_STATE }
 
-enum class CloseReason { CANCELLED, UNLOCKED, DISARMED, RESET_REMOTE, DISARMED_REMOTE }
+/** [SETTLED]: a motion pre-alarm cancelled because the phone was put down, still and plugged in. */
+enum class CloseReason { CANCELLED, SETTLED, UNLOCKED, DISARMED, RESET_REMOTE, DISARMED_REMOTE }
 
 sealed interface AlarmEffect {
     data class PersistArmed(val armed: Boolean, val awaitingPower: Boolean = false) : AlarmEffect

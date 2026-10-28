@@ -242,6 +242,50 @@ Install only after Bill approves the screenshots.
 - [ ] Wordmark: dark-white on dark, navy on light, all white on the red screen; Help and Setup headers show
   the shield + wordmark lockup.
 
+## Device feedback 2026-10-28: settle, HANDS OFF, PHOTO TAKEN (A17, Android 16)
+
+Settings for these: Pre-alarm 10 s (your setting), Motion Medium, Motion can sound the alarm on, Bump reset
+time 15 s, Photo on trigger on. Setup checklist: full-screen alarm allowed.
+
+**1. Picked up and set down cancels (the bug).**
+- [ ] Arm, plugged in, let the screen go off and lock. Pick the phone up (cable still in), hold it a second,
+  set it back down flat and let go. Expected: HANDS OFF wakes the screen, the red countdown starts (10 s),
+  and about 2-3 s after you let go it goes back to ARMED with the orange HANDS OFF (no siren). The orange
+  clears after 15 s and the screen goes dark. Home > Incidents shows "Cancelled (put down and left still)".
+- [ ] Note how many seconds after setting it down it cancelled: ____ s.
+- [ ] Same, but set it down on its side or at an angle: still cancels.
+- [ ] Pick it up and keep it moving (walk around the room, cable stretched or unplugged): the countdown runs
+  out and the siren sounds. Unlock stops it.
+- [ ] Pick it up, unplug the cable, set it down and leave it: the siren still sounds (unplugged never settles).
+- [ ] After it settled, pick it up again within 15 s: a new countdown starts straight away.
+- [ ] Unplug pre-alarm unchanged: unplug while locked, PLUG ME BACK IN countdown; plugging back in cancels it.
+- [ ] With Pre-alarm set to 5 s: pick up and set down quickly. Does it cancel in time? (It needs about 2.5 s
+  after you let go, so a slow pickup may run out; tell me if 5 s feels too tight.)
+
+**2. HANDS OFF screen.**
+- [ ] Armed, screen off: tap or nudge the phone once. Expected: the screen turns on over the lock screen with
+  a big yellow HANDS OFF, shield and wordmark, and a chirp. Leave it: after the bump reset time (15 s) it
+  closes and the lock screen times out to dark.
+- [ ] Armed, screen off: pick it up. Expected: orange HANDS OFF, then (locked) the red countdown on the same
+  screen with the number counting down from your pre-alarm setting (10).
+- [ ] Tap Disarm on the HANDS OFF screen: Android asks for your PIN / fingerprint first. Cancel that: nothing
+  is disarmed. (A stranger cannot stop it from here.)
+- [ ] Unlock the phone normally while HANDS OFF shows: the screen closes (and a running countdown stops).
+- [ ] Phone unlocked and in use, armed: bump it: no HANDS OFF (status only, you are the owner).
+- [ ] Settings > Apps > FAFO > Notifications: a channel "Hands off warning" exists. Turn off full-screen
+  (Settings > Apps > Special access > Full screen notifications > FAFO off), screen off, bump: you get a
+  HANDS OFF pop-up notification instead and the screen stays off. Turn it back on afterwards.
+- [ ] Light theme (Settings > Display > Light): HANDS OFF follows the theme.
+
+**3. PHOTO TAKEN.**
+- [ ] Trigger a pre-alarm (unplug while locked, or pick it up). On the first photo: a white flash, "PHOTO TAKEN"
+  with a small picture of your face for about 2 s, a camera shutter click, and "1 photo taken" under the
+  countdown. Every 10 s after: the count goes up.
+- [ ] Once the siren sounds: photos keep flashing and counting, but no shutter click; the siren never stutters
+  or drops out when a photo is taken.
+- [ ] Settings > Accessibility > Visibility enhancements > Remove animations on: no white flash, the
+  PHOTO TAKEN label and picture still show. Turn it back off afterwards.
+
 ## Results
 
 (Bill: write findings here, newest first.)

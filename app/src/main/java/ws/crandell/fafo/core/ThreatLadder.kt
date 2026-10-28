@@ -79,6 +79,16 @@ class ThreatLadder(
         return (last + coolMs - now).coerceAtLeast(0L)
     }
 
+    /**
+     * A motion pre-alarm settled back to ARMED (device feedback 2026-10-28): the status stays ORANGE, so
+     * more handling escalates again, and cools to GREEN after the bump reset time like any bump.
+     */
+    fun settled(now: Long) {
+        level = ThreatLevel.ORANGE
+        lastBumpAt = null
+        lastMotionAt = now
+    }
+
     /** Back to GREEN (every change into or out of ARMED). */
     fun reset() {
         level = ThreatLevel.GREEN

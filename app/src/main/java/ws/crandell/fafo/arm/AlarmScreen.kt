@@ -47,6 +47,15 @@ import ws.crandell.fafo.ui.components.WordmarkVariant
 import ws.crandell.fafo.ui.status.StatusLook
 import ws.crandell.fafo.ui.status.StripeColor
 import ws.crandell.fafo.ui.status.statusLook
+import ws.crandell.fafo.ui.status.handsOffLook
+import ws.crandell.fafo.ui.status.PhotoTakenLook
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.border
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.font.FontWeight
 import ws.crandell.fafo.ui.theme.FafoBrand
 import ws.crandell.fafo.ui.theme.FafoColors
 import ws.crandell.fafo.ui.theme.FafoType
@@ -102,12 +111,65 @@ fun StatusScreen(
     animate: Boolean = true,
     onDisarm: (() -> Unit)? = null,
     onCancelArming: (() -> Unit)? = null,
+    /** HANDS OFF mode (device feedback 2026-10-28): the wake-up warning over the lock screen. */
+    handsOff: Boolean = false,
+    /** PHOTO TAKEN flash, label and counter for the latest trigger photo, or null. */
+    photo: PhotoTakenLook? = null,
+    thumbnail: ImageBitmap? = null,
 ) {
-    val look = statusLook(state, threat, now)
+    val look = if (handsOff) handsOffLook(state, threat, now) else statusLook(state, threat, now)
     val bg = when {
         look.flash -> if (animate) alarmPulse(now) else FafoBrand.Red
         else -> FafoColors.Ink
     }
+    Box(Modifier.fillMaxSize()) {
+        StatusBody(look, bg, state, photosOn, photo?.countLabel, onDisarm, onCancelArming)
+        if (photo != null) PhotoTakenLayer(photo, thumbnail)
+    }
+}
+
+/**
+ * PHOTO TAKEN (device feedback 2026-10-28): a white shutter flash over everything (skipped with reduced
+ * motion), then the label with the photo's thumbnail and the counter for about 2 s.
+ */
+@Composable
+private fun PhotoTakenLayer(photo: PhotoTakenLook, thumbnail: ImageBitmap?) {
+    if (photo.banner) {
+        Box(Modifier.fillMaxSize().safeDrawingPadding().padding(16.dp), contentAlignment = Alignment.TopCenter) {
+            Column(
+                Modifier.clip(RoundedCornerShape(16.dp)).background(Color.Black.copy(alpha = 0.82f))
+                    .border(2.dp, FafoBrand.White, RoundedCornerShape(16.dp)).padding(14.dp).testTag("photoTaken")
+                    .semantics { liveRegion = LiveRegionMode.Polite },
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                if (thumbnail != null) {
+                    Image(
+                        thumbnail, contentDescription = "The photo just taken",
+                        modifier = Modifier.size(132.dp).clip(RoundedCornerShape(10.dp)).testTag("photoThumb"),
+                        contentScale = ContentScale.Crop,
+                    )
+                    Spacer(Modifier.height(10.dp))
+                }
+                Text("PHOTO TAKEN", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Black, color = FafoBrand.White)
+                photo.countLabel?.let { Text(it, style = MaterialTheme.typography.titleMedium, color = FafoBrand.White) }
+            }
+        }
+    }
+    if (photo.flashAlpha > 0f) {
+        Box(Modifier.fillMaxSize().background(Color.White.copy(alpha = photo.flashAlpha)).testTag("photoFlash"))
+    }
+}
+
+@Composable
+private fun StatusBody(
+    look: StatusLook,
+    bg: Color,
+    state: AlarmState,
+    photosOn: Boolean,
+    photoCount: String?,
+    onDisarm: (() -> Unit)?,
+    onCancelArming: (() -> Unit)?,
+) {
     val landscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
     BoxWithConstraints(Modifier.fillMaxSize().background(bg).safeDrawingPadding().padding(20.dp)) {
         if (landscape) {
@@ -117,7 +179,7 @@ fun StatusScreen(
             Row(Modifier.fillMaxSize(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(24.dp)) {
                 StatusShield(look, shieldH)
                 Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
-                    StatusText(look, photosOn, onDisarm, onCancelArming, state)
+                    StatusText(look, photosOn, photoCount, onDisarm, onCancelArming, state)
                 }
             }
         } else {
@@ -132,7 +194,7 @@ fun StatusScreen(
                     StatusShield(look, minOf(shieldH, maxHeight))
                 }
                 Spacer(Modifier.height(16.dp))
-                StatusText(look, photosOn, onDisarm, onCancelArming, state)
+                StatusText(look, photosOn, photoCount, onDisarm, onCancelArming, state)
             }
         }
     }
@@ -166,6 +228,7 @@ private fun StatusShield(look: StatusLook, height: Dp) {
 private fun ColumnScope.StatusText(
     look: StatusLook,
     photosOn: Boolean,
+    photoCount: String?,
     onDisarm: (() -> Unit)?,
     onCancelArming: (() -> Unit)?,
     state: AlarmState,
@@ -191,7 +254,10 @@ private fun ColumnScope.StatusText(
         Spacer(Modifier.height(6.dp))
         Text(it, style = MaterialTheme.typography.bodyLarge, color = if (onRed) FafoBrand.White else FafoColors.TextMuted, textAlign = TextAlign.Center)
     }
-    if (photosOn && (state is AlarmState.PreAlarm || look.flash)) {
+    if (photoCount != null && (state is AlarmState.PreAlarm || look.flash)) {
+        Spacer(Modifier.height(10.dp))
+        Text(photoCount, style = MaterialTheme.typography.titleMedium, color = text, modifier = Modifier.testTag("photosLine"))
+    } else if (photosOn && (state is AlarmState.PreAlarm || look.flash)) {
         Spacer(Modifier.height(10.dp))
         Text("Photos are being taken.", style = MaterialTheme.typography.titleMedium, color = text, modifier = Modifier.testTag("photosLine"))
     }

@@ -58,6 +58,7 @@ import java.util.Date
 fun closeLabel(s: IncidentSidecar): String = when (s.closeReason) {
     null -> "Open"
     "CANCELLED" -> "Cancelled (plugged back in)"
+    "SETTLED" -> "Cancelled (put down and left still)"
     "UNLOCKED" -> "Ended by unlock"
     "DISARMED" -> "Disarmed"
     "RESET_REMOTE" -> "Reset by ${s.closedBy ?: "a trusted device"}"
@@ -69,7 +70,7 @@ fun closeLabel(s: IncidentSidecar): String = when (s.closeReason) {
 private fun closeColor(s: IncidentSidecar): Color = when (s.closeReason) {
     null -> FafoColors.RedText
     "RESET_REMOTE", "DISARMED_REMOTE" -> FafoColors.Guard
-    "CANCELLED" -> FafoColors.Amber
+    "CANCELLED", "SETTLED" -> FafoColors.Amber
     else -> FafoColors.Steel
 }
 

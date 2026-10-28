@@ -101,7 +101,7 @@ fun SettingsScreen(
         )
         SwitchRow(
             "Motion can sound the alarm", dp.motionCanAlarm, { v -> onDp { it.copy(motionCanAlarm = v) } }, "motionCanAlarm",
-            subtitle = "While locked, continued handling or a pickup starts the pre-alarm (at least 5 s to unlock). Off: chirps only.",
+            subtitle = "While locked, continued handling or a pickup starts the pre-alarm (at least 5 s to unlock). Put down, left still and plugged in, it cancels. Off: chirps only.",
         )
 
         SectionHeader("Display")

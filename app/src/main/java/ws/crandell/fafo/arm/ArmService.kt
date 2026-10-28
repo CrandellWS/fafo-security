@@ -27,6 +27,7 @@ import ws.crandell.fafo.camera.PhotoController
 import ws.crandell.fafo.camera.PhotoSettings
 import ws.crandell.fafo.camera.PhotoStore
 import ws.crandell.fafo.core.incidentId
+import ws.crandell.fafo.core.IncidentCause
 import ws.crandell.fafo.motion.MotionMonitor
 import ws.crandell.fafo.storage.CeStore
 import ws.crandell.fafo.motion.MotionSensitivity
@@ -116,7 +117,7 @@ class ArmService : LifecycleService() {
         Notifications.ensureChannels(this)
         dp = ArmDeps.dpStore(this)
         sound = ArmDeps.sound(this, lifecycleScope) { dpSettings ?: DpSettings() }
-        motion = MotionMonitor(this) { m -> lifecycleScope.launch { onMotion(m) } }
+        motion = MotionMonitor(this, onSettled = { lifecycleScope.launch { onSettled() } }) { m -> lifecycleScope.launch { onMotion(m) } }
         machine = AlarmStateMachine(ArmDeps.clock, { (dpSettings ?: DpSettings()).alarmConfig() })
         lifecycleScope.launch {
             dp.settings.collect {
@@ -227,6 +228,11 @@ class ArmService : LifecycleService() {
         if ((before is AlarmState.Armed) != (machine.state is AlarmState.Armed)) {
             ladder.reset()
             coolJob?.cancel()
+            // A motion pre-alarm that settled stays ORANGE and cools after the bump reset time.
+            if (e is AlarmEvent.MotionSettled && machine.state is AlarmState.Armed) {
+                ladder.settled(ArmDeps.clock.now())
+                scheduleCool()
+            }
             publishThreat()
         }
         var stop = false
@@ -254,6 +260,8 @@ class ArmService : LifecycleService() {
         }
         updateWakeLock()
         updateMotion()
+        updateSettle(before, s)
+        if (s is AlarmState.PreAlarm && before !is AlarmState.PreAlarm) maybeShowHandsOff(preAlarm = true)
         if (stop || s == AlarmState.Disarmed) {
             shutdown()
         } else {
@@ -301,7 +309,10 @@ class ArmService : LifecycleService() {
             AlarmEffect.RemoteChirp -> sound.apply(fx)
             AlarmEffect.AddCameraType -> Unit // handled in onStartCommand (needs the visible start)
             AlarmEffect.StartPhotos -> startPhotos()
-            AlarmEffect.StopPhotos -> photos?.stop()
+            AlarmEffect.StopPhotos -> {
+                photos?.stop()
+                AlarmStatusBus.setPhotoShot(null)
+            }
             is AlarmEffect.CloseIncident -> {
                 // CE storage only; after a reboot the incident ends with the first unlock, so CE is open.
                 if (DeviceStatus.isCeUnlocked(this)) {
@@ -359,6 +370,7 @@ class ArmService : LifecycleService() {
         }
         publishThreat()
         scheduleCool()
+        maybeShowHandsOff(preAlarm = false)
     }
 
     /**
@@ -373,9 +385,60 @@ class ArmService : LifecycleService() {
             while (true) {
                 val wait = ladder.msUntilCool(ArmDeps.clock.now()) ?: break
                 delay(wait.coerceAtLeast(MIN_COOL_POLL_MS))
-                if (ladder.tick(ArmDeps.clock.now())) { publishThreat(); break }
+                if (ladder.tick(ArmDeps.clock.now())) {
+                    publishThreat()
+                    // Left alone for the bump reset time: the HANDS OFF warning is over.
+                    if (ladder.level == ThreatLevel.GREEN) cancelNotification(Notifications.ID_HANDS_OFF)
+                    break
+                }
             }
         }
+    }
+
+    /**
+     * Device feedback 2026-10-28: a MOTION pre-alarm keeps the accelerometer on to see the phone set down.
+     * Still for the settle window: [AlarmEvent.MotionSettled] with the live plugged state.
+     */
+    private fun updateSettle(before: AlarmState, s: AlarmState) {
+        val motionPre = s is AlarmState.PreAlarm && s.cause == IncidentCause.MOTION
+        val wasMotionPre = before is AlarmState.PreAlarm && before.cause == IncidentCause.MOTION
+        if (motionPre && !wasMotionPre) motion.beginSettle() else if (!motionPre && wasMotionPre) motion.endSettle()
+    }
+
+    private suspend fun onSettled() {
+        val s = machine.state
+        if (s !is AlarmState.PreAlarm || s.cause != IncidentCause.MOTION) return
+        events.send(AlarmEvent.MotionSettled(plugged = DeviceStatus.isPlugged(this)))
+    }
+
+    /** Tests: feed a classified motion or a settle as if the accelerometer had reported it. */
+    internal fun simulateMotion(m: Motion) = lifecycleScope.launch { onMotion(m) }
+    internal fun simulateSettled() = lifecycleScope.launch { onSettled() }
+
+    /** True while the settle watch runs (tests). */
+    val settleWatching: Boolean get() = motion.settleWatching
+
+    private var lastHandsOffPost = Long.MIN_VALUE / 2
+
+    /**
+     * HANDS OFF (device feedback 2026-10-28): the armed phone was bumped or picked up (or a pre-alarm began)
+     * while the screen is off or the phone is locked. Post a fresh full-screen notification so the warning
+     * wakes the screen over the lock screen; without the full-screen permission it is a heads-up. Nothing to
+     * do while the screen already shows (it follows the bus). The owner using the unlocked phone never sees it.
+     */
+    private fun maybeShowHandsOff(preAlarm: Boolean) {
+        val s = machine.state
+        if (s !is AlarmState.Armed && s !is AlarmState.PreAlarm) return
+        if (s is AlarmState.Armed && (s.awaitingPower || ladder.level == ThreatLevel.GREEN)) return
+        if (DeviceStatus.isInteractive(this) && !DeviceStatus.isDeviceLocked(this)) return
+        if (HandsOffActivity.showing) return
+        val now = ArmDeps.clock.now()
+        if (!preAlarm && now - lastHandsOffPost < HANDS_OFF_REPOST_MS) return
+        lastHandsOffPost = now
+        val fsi = DeviceStatus.canUseFullScreenIntent(this)
+        cancelNotification(Notifications.ID_HANDS_OFF)
+        notify(Notifications.ID_HANDS_OFF) { Notifications.handsOff(this, fullScreen = fsi, preAlarm = s is AlarmState.PreAlarm) }
+        hooks.forEach { it.onHandsOff(fsi) }
     }
 
     /** Alarm light (round 3): follows the status screen's level. */
@@ -433,10 +496,27 @@ class ArmService : LifecycleService() {
                 postNotification()
             },
             beforeCapture = { torch.pauseForCapture() },
-            onSaved = { incident, name -> MailDispatcher.photoSaved(this, incident, name, ArmDeps.clock.now()) },
+            onSaved = { incident, name ->
+                MailDispatcher.photoSaved(this, incident, name, ArmDeps.clock.now())
+                onPhotoSaved(incident, name)
+            },
             afterCapture = { torch.resumeAfterCapture() },
         ).also { photos = it }
         pc.start(id, startedAt)
+    }
+
+    /**
+     * PHOTO TAKEN (device feedback 2026-10-28): tell the alarm / hands-off screens (flash, label, thumbnail,
+     * counter) and play a shutter click, but only while the siren is not playing: nothing may break the siren.
+     */
+    private fun onPhotoSaved(incident: String, name: String) {
+        val count = runCatching { photoStore().read(incident)?.photos?.size }.getOrNull() ?: photosTaken
+        val path = photoStore().photoFile(incident, name).path
+        AlarmStatusBus.setPhotoShot(ws.crandell.fafo.core.PhotoShot(incident, path, count, System.currentTimeMillis()))
+        val s = machine.state
+        val siren = s is AlarmState.Triggered || s is AlarmState.IncidentPersisted
+        if (!siren) runCatching { ArmDeps.shutter(this) }
+        hooks.forEach { it.onPhoto(count, shutter = !siren) }
     }
 
     /**
@@ -484,6 +564,10 @@ class ArmService : LifecycleService() {
     interface EffectHook {
         fun onEffect(fx: AlarmEffect)
         fun onThreat(level: ThreatLevel) {}
+        /** The HANDS OFF notification was posted ([fullScreen]: with its full-screen intent). */
+        fun onHandsOff(fullScreen: Boolean) {}
+        /** A trigger photo was saved; [shutter]: the shutter sound played (no siren running). */
+        fun onPhoto(count: Int, shutter: Boolean) {}
     }
     private val hooks = mutableListOf<EffectHook>()
     fun addHook(h: EffectHook) { hooks += h }
@@ -502,10 +586,14 @@ class ArmService : LifecycleService() {
         receiverRegistered = true
     }
 
-    /** AC4.1: accelerometer only while ARMED (never in PRE_ALARM / TRIGGERED), unless motion is Off. */
+    /**
+     * AC4.1: accelerometer while ARMED, and during a MOTION pre-alarm to see the phone settle (device feedback
+     * 2026-10-28); never in an unplug pre-alarm or TRIGGERED, and never when motion is Off.
+     */
     private fun updateMotion() {
-        val armed = machine.state is AlarmState.Armed
-        motion.update(if (armed) MotionSensitivity.fromSetting((dpSettings ?: DpSettings()).motion) else null)
+        val s = machine.state
+        val on = s is AlarmState.Armed || (s is AlarmState.PreAlarm && s.cause == IncidentCause.MOTION)
+        motion.update(if (on) MotionSensitivity.fromSetting((dpSettings ?: DpSettings()).motion) else null)
     }
 
     /** True while the accelerometer listener is registered (tests). */
@@ -608,7 +696,9 @@ class ArmService : LifecycleService() {
         preAlarmJob?.cancel()
         sound.stop()
         AlarmStatusBus.setCameraActive(false)
+        AlarmStatusBus.setPhotoShot(null)
         cancelAlarmNotification()
+        cancelNotification(Notifications.ID_HANDS_OFF)
         ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE)
         inForeground = false
         stopSelf()
@@ -648,6 +738,8 @@ class ArmService : LifecycleService() {
         private const val WAKE_LOCK_TIMEOUT_MS = 10 * 60 * 1000L
         /** Floor for each cool-down wait, so a clock that lags the coroutine timer cannot spin the loop. */
         private const val MIN_COOL_POLL_MS = 250L
+        /** At most one fresh HANDS OFF post this often while its screen is not up (no heads-up spam). */
+        const val HANDS_OFF_REPOST_MS = 3_000L
 
         @Volatile var instance: ArmService? = null
             private set
