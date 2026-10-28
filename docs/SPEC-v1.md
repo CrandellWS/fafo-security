@@ -374,6 +374,15 @@ internet address is ever contacted.
     "Reset" and/or "Disarm" actions when that phone's circle grants them (the alarming phone sends its
     granted powers in the `Alert`; the target still enforces them). Alerts are "nearby" only; out of range
     means no alert.
+  - Build notes M11: the Bluetooth beacon is service data under the FAFO UUID: 1 state byte (1 = alarming,
+    0 = reachable) + the 8-byte tag in 2-minute slots, so it fits a legacy advertisement (30 bytes) with no
+    name. While the local network runs (app open, armed, Stay reachable or room mode) the phone also
+    advertises the reachable beacon (state 0, connectable) so its circles can open a Bluetooth session when
+    Wi-Fi is not shared; the background `PendingIntent` scan matches only state 1. A phone that connects
+    while the other is alarming gets the `Alert` (with the granted powers) as soon as the session opens. The
+    background scan is registered when the network starts and again after `BOOT_COMPLETED` (scan
+    registrations do not survive a reboot), by a separate non-direct-boot receiver, so the direct-boot alarm
+    receiver still never touches CE storage.
 - AC9.8 **Reset and disarm from a trusted device.** Sending `Reset` or `Disarm` requires the sender's
   own credential at the moment of sending, enforced cryptographically, not just by a UI prompt: each
   install has a second Keystore key, the **command key** (ECDSA P-256, `setUserAuthenticationParameters(0,

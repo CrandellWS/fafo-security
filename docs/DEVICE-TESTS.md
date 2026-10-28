@@ -91,6 +91,18 @@ exact steps, and the next build session fixes it.
       reboot. With "Nearby devices" denied: no discovery. Grant it: alerts and reset work again.
 - [ ] Remove B on A's Trusted devices (PIN): B disappears from every circle on A.
 
+## M11 Bluetooth, Bluetooth alerts, Stay reachable (two phones)
+
+- [ ] Wi-Fi off on both phones (Bluetooth on). Arm B, lock, unplug: A (screen off, FAFO closed, not
+      reachable) gets "B: ALARM" within about a minute from the background Bluetooth scan, then the full
+      alert with Reset / Disarm once it connects. Note the delay, and repeat with Samsung battery settings
+      at default and at Unrestricted.
+- [ ] Tap Reset on A over Bluetooth only: B resets (siren off, stays armed).
+- [ ] Settings > Stay reachable on A: notification "Reachable by: Home" stays; Stop on the notification
+      turns it off (and the switch). Reboot A, unlock: the notification comes back by itself.
+- [ ] Reboot A with Stay reachable on and do not unlock: no "Reachable" notification until the first unlock.
+- [ ] Both on the same Wi-Fi again: alerts and reset use Wi-Fi (faster than Bluetooth).
+
 ## Results
 
 (Bill: write findings here, newest first.)

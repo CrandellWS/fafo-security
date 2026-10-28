@@ -63,10 +63,9 @@ class ManifestTest {
     }
 
     @Test fun permissionsNotYetAdded() {
-        // Added in later milestones: connectedDevice (M11), microphone (M12).
+        // Added in a later milestone: microphone (M12).
         assertThat(permissions).doesNotContain("android.permission.RECORD_AUDIO")
         assertThat(permissions).doesNotContain("android.permission.FOREGROUND_SERVICE_MICROPHONE")
-        assertThat(permissions).doesNotContain("android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE")
     }
 
     @Test fun armServicePermissions() {
@@ -111,6 +110,13 @@ class ManifestTest {
     private fun sourceManifest(): String {
         val candidates = listOf("src/main/AndroidManifest.xml", "app/src/main/AndroidManifest.xml").map { File(it) }
         return candidates.first { it.isFile }.readText()
+    }
+
+    @Test fun reachableServiceIsConnectedDevice() {
+        assertThat(permissions).contains("android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE")
+        val si = pm.getServiceInfo(ComponentName(context, ws.crandell.fafo.reach.ReachableService::class.java), PackageManager.GET_META_DATA)
+        assertThat(si.foregroundServiceType).isEqualTo(ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE)
+        assertThat(si.exported).isFalse()
     }
 
     @Test fun backupDisabled() {

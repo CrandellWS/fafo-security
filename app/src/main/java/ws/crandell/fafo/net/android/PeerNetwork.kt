@@ -9,7 +9,12 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import ws.crandell.fafo.ble.BleAlertScan
+import ws.crandell.fafo.ble.BleTransport
 import ws.crandell.fafo.circles.CircleManager
+import ws.crandell.fafo.net.Transport
+import ws.crandell.fafo.net.TransportSelector
+import ws.crandell.fafo.ui.NearbyPermissions
 import ws.crandell.fafo.circles.CircleStore
 import ws.crandell.fafo.circles.Permission
 import ws.crandell.fafo.link.MessageLink
@@ -37,6 +42,7 @@ object PeerNetwork {
     private val owners = HashSet<String>()
     private var scope: CoroutineScope? = null
     private var wifi: WifiTransport? = null
+    private var ble: BleTransport? = null
     @Volatile var hub: PeerHub? = null
         private set
     @Volatile private var beacon: BeaconKeyStore? = null
@@ -50,9 +56,6 @@ object PeerNetwork {
     private val _reachable = MutableStateFlow<Set<String>>(emptySet())
     /** Trusted peers reachable now (session open or seen on this Wi-Fi), for the reachable dots. */
     val reachable: StateFlow<Set<String>> = _reachable
-
-    /** Extra transports (Bluetooth, M11) add candidate links after Wi-Fi. */
-    @Volatile var extraDialer: (suspend (String) -> List<MessageLink>)? = null
 
     fun circles(context: Context): CircleStore = TrustGraph.circles(context)
     fun circleManager(context: Context, gate: CredentialGate = this.gate) = CircleManager(circles(context), gate)
@@ -122,14 +125,37 @@ object PeerNetwork {
             peerBeaconKeys = { trusted.all().mapNotNull { d -> d.beaconKey?.let { d.fingerprint to it } }.toMap() },
             onIncoming = { link -> h.accept(link) },
         )
-        h.dialer = { fp ->
-            val viaWifi = w.dial(fp, tryUnknown = trusted.get(fp)?.beaconKey == null)
-            viaWifi + (if (viaWifi.isEmpty()) extraDialer?.invoke(fp).orEmpty() else emptyList())
+        val b = if (NearbyPermissions.missing(app).isEmpty()) {
+            BleTransport(
+                app, s, ownBeaconKey = { keys.key() },
+                peerBeaconKeys = { trusted.all().mapNotNull { d -> d.beaconKey?.let { d.fingerprint to it } }.toMap() },
+                onIncoming = { link -> h.accept(link) },
+            )
+        } else {
+            null
         }
+        // AC9.3: Wi-Fi when both are on the same network, else Bluetooth.
+        h.dialer = { fp ->
+            val order = TransportSelector.order(
+                onWifi = w.onWifi, seenOnWifi = fp in w.reachablePeers(),
+                seenOnBluetooth = b != null && fp in b.reachablePeers(), bluetoothOn = b?.bluetoothOn == true,
+            )
+            var links = emptyList<MessageLink>()
+            for (t in order) {
+                links = if (t == Transport.WIFI) w.dial(fp, tryUnknown = false) else b?.dial(fp).orEmpty()
+                if (links.isNotEmpty()) break
+            }
+            // A peer whose beacon key we do not have yet: try the unrecognised FAFO services on this Wi-Fi.
+            if (links.isEmpty() && trusted.get(fp)?.beaconKey == null) links = w.dial(fp, tryUnknown = true)
+            links
+        }
+        ble = b
         w.onNetworkChanged = { h.disconnectAll() } // AC9.4: sessions end when the network changes
         wifi = w
         hub = h
         w.start()
+        b?.start()
+        if (b != null && trusted.all().isNotEmpty()) BleAlertScan.register(app)
         s.launch {
             h.connected.collect { publishReachable() }
         }
@@ -138,11 +164,8 @@ object PeerNetwork {
 
     fun publishReachable() {
         val h = hub ?: return run { _reachable.value = emptySet() }
-        _reachable.value = h.connected.value + (wifi?.reachablePeers() ?: emptySet()) + extraReachable()
+        _reachable.value = h.connected.value + (wifi?.reachablePeers() ?: emptySet()) + (ble?.reachablePeers() ?: emptySet())
     }
-
-    /** Bluetooth reachability (M11) contributes here. */
-    @Volatile var extraReachable: () -> Set<String> = { emptySet() }
 
     fun wifiTransport(): WifiTransport? = wifi
 
@@ -150,9 +173,11 @@ object PeerNetwork {
         hub?.stopAlerts()
         hub?.disconnectAll()
         wifi?.stop()
+        ble?.stop()
         scope?.cancel()
         hub = null
         wifi = null
+        ble = null
         scope = null
         _reachable.value = emptySet()
     }
@@ -176,15 +201,18 @@ object PeerNetwork {
         override fun detach() {
             hub?.commandTarget = null
             hub?.stopAlerts()
+            ble?.alarming = false
             release(OWNER_ARM)
         }
 
         override fun startAlerts(info: () -> AlertInfo?) {
             hub?.startAlerts(info)
+            ble?.alarming = true // AC9.7: Bluetooth alert beacon while alarming
         }
 
         override fun stopAlerts() {
             hub?.stopAlerts()
+            ble?.alarming = false
         }
     }
 

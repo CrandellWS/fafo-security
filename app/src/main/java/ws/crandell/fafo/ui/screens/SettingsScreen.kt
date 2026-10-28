@@ -23,6 +23,7 @@ fun SettingsScreen(
     onDp: ((DpSettings) -> DpSettings) -> Unit,
     onCe: ((CeSettings) -> CeSettings) -> Unit,
     modifier: Modifier = Modifier,
+    onStayReachable: (Boolean) -> Unit = {},
 ) {
     Column(modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(16.dp)) {
         ScreenTitle("Settings")
@@ -63,6 +64,11 @@ fun SettingsScreen(
         )
         Text("Photos pause when less than 500 MB is free; the siren keeps going.")
         HorizontalDivider(Modifier.padding(vertical = 8.dp))
+        SwitchRow("Stay reachable (alerts and push-to-talk in the background)", ce.stayReachable, { v ->
+            onCe { it.copy(stayReachable = v) }
+            onStayReachable(v)
+        }, "stayReachable")
+        Text("Shows a notification \"Reachable by: ...\" the whole time. Without it, Bluetooth alerts still arrive.", style = androidx.compose.material3.MaterialTheme.typography.bodySmall)
         SwitchRow("Chime when someone listens", ce.chimeOnListen, { v -> onCe { it.copy(chimeOnListen = v) } }, "chime")
     }
 }

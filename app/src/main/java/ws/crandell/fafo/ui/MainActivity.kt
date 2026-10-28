@@ -208,6 +208,7 @@ class MainActivity : FragmentActivity() {
 
     private var armAfterPermissions = false
 
+
     /** AC1.3: ask for notifications and camera first; arming without camera is allowed ("Photos off"). */
     fun onArm() {
         val missing = buildList {
@@ -279,7 +280,9 @@ class MainActivity : FragmentActivity() {
                     onStep = { screen = Screen.ONBOARDING },
                     modifier = m,
                 )
-                Screen.SETTINGS -> SettingsScreen(dp, ce, vm::updateDp, vm::updateCe, m)
+                Screen.SETTINGS -> SettingsScreen(dp, ce, vm::updateDp, vm::updateCe, m, onStayReachable = { on ->
+                    if (on) ws.crandell.fafo.reach.ReachableService.start(this) else ws.crandell.fafo.reach.ReachableService.stop(this)
+                })
                 Screen.ONBOARDING -> OnboardingScreen(
                     onboarding, ::onStep, { screen = Screen.HOME }, m, onSamsungBattery = { samsungDialog = true },
                 )

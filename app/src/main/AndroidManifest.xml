@@ -8,6 +8,7 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CAMERA" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE" />
     <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.VIBRATE" />
@@ -115,5 +116,24 @@
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
                 android:value="Anti-theft alarm: detects charger removal and sounds a siren on the owner's own device; must resume from boot" />
         </service>
+
+        <!-- AC9.9 Stay reachable: after first unlock only, may resume from BOOT_COMPLETED. -->
+        <service
+            android:name=".reach.ReachableService"
+            android:exported="false"
+            android:foregroundServiceType="connectedDevice" />
+
+        <receiver
+            android:name=".reach.ReachableBootReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver>
+
+        <!-- AC9.7: woken by the background Bluetooth scan PendingIntent (explicit, not exported). -->
+        <receiver
+            android:name=".ble.BleAlertReceiver"
+            android:exported="false" />
     </application>
 </manifest>
