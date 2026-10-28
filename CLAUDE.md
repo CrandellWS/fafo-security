@@ -5,25 +5,29 @@ owner's own phone. This repo is built by a Claude Code cloud session. It is a se
 unrelated to gwaslots.com.
 
 Read in this order: `docs/SPEC-v1.md` (what to build, acceptance criteria), then
-`docs/BUILD-PLAN.md` (milestones M0-M12, done-checks). Work milestones in order.
+`docs/BUILD-PLAN.md` (milestones M0-M13, done-checks). Work milestones in order. Manual checks on
+Bill's phones never block the next milestone: list them in `docs/A17-TEST-CHECKLIST.md` and move on.
 
 ## Rules (hard)
 
 - **No internet server, no analytics, no remote endpoints.** No backend, relay or cloud functions. The app
   holds `INTERNET` only because Android needs it for local sockets (spec F9): traffic goes only to the
   owner's paired devices on the same Wi-Fi or over Bluetooth. Enforced by `LocalAddressPolicy` (private
-  addresses only), `NoRemoteEndpointsTest` (no hardcoded non-local URLs/hosts, no network or analytics
-  libraries) and the manifest test.
+  addresses only), `NoRemoteEndpointsTest` (no hardcoded non-local URLs/hosts), the Gradle task
+  `checkNoRemoteDeps` (no network or analytics libraries on the runtime classpath) and the manifest test.
+  No message type may arm, start room mode, open a mic or change circles on the receiving device.
 - **No analytics, trackers, crash reporters or ad SDKs.** No Firebase, Crashlytics, Play Services, Sentry, etc.
 - **Intercom is open-use only (spec F10).** The mic opens only in room mode turned on by the person at that
   phone (persistent notification naming listeners, system mic indicator) or while someone holds
   push-to-talk in the visible app. Never started by a remote message, from boot or from a sticky restart;
-  nothing is recorded. No remote listening during alarms and nothing over the internet: that is phase
+  nothing is recorded. An alarm (PRE_ALARM/TRIGGERED) ends room mode and drops listeners. No remote listening during alarms and nothing over the internet: that is phase
   two (spec section 10) and is not built until Bill says so. Never call it a baby monitor.
 - **Every network message is end-to-end encrypted and authenticated** with the paired keys (spec AC9.4);
-  each circle's permissions are checked by the receiving device (spec F8).
+  each circle's permissions are checked by the receiving device (spec F8). Reset and Disarm are separate
+  permissions (Reset never disarms) and are signed with the user-authentication-bound command key (AC9.8).
 - **Own device only.** Never add hidden modes, disguised icons, or anything that monitors another person.
-  The persistent notification must show whenever the app is armed or alarming.
+  A persistent notification must show whenever the app is armed, alarming, reachable or in intercom room mode.
+- **SMS reset is not built** until Bill approves its one Play Services library (spec section 9a).
 - **Keep secrets out of the repo.** No keystores, signing configs, API keys or `local.properties`
   committed. Private keys live only in Android Keystore at runtime.
 - **Scope changes go in the spec first.** If something in the spec is wrong or impossible on Android,

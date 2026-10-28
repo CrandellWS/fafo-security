@@ -9,7 +9,7 @@ photos while the alarm is active, and only devices you paired with your real scr
 
 Trusted devices are grouped into circles (Home, Work...) with your own labels ("Register", "Back room")
 and per-circle permissions. Nearby trusted devices, on the same Wi-Fi or over Bluetooth, get an alert
-when your phone is triggered and can silence or disarm it if their circle allows. Devices in a circle
+when your phone is triggered and can reset the alarm (siren off, stays armed) or disarm it if their circle allows. Devices in a circle
 can also use a simple intercom and push-to-talk walkie-talkie on the same Wi-Fi or Bluetooth.
 
 v1 is free and needs no internet: no server, no account, no analytics, no remote endpoints. All traffic

@@ -56,10 +56,14 @@ jobs:
         run: |
           chmod +x ./gradlew
           ./gradlew --no-daemon assembleDebug test
+          # From M4 on: fail on any network/analytics library on the runtime classpath (spec section 6).
+          if ./gradlew --no-daemon -q tasks --all | grep -q 'checkNoRemoteDeps'; then
+            ./gradlew --no-daemon checkNoRemoteDeps
+          fi
 
       - name: Lint
         if: steps.wrapper.outputs.present == 'true'
-        # Advisory until M12; the M12 commit removes continue-on-error so lint errors fail CI.
+        # Advisory until M13; the M13 commit removes continue-on-error so lint errors fail CI.
         continue-on-error: true
         run: ./gradlew --no-daemon lintDebug
 
