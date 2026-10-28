@@ -1,0 +1,74 @@
+name: Android CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check for Gradle wrapper
+        id: wrapper
+        run: |
+          if [ -f ./gradlew ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::No Gradle wrapper yet (before milestone M1). Skipping build."
+          fi
+
+      - name: Set up JDK 17
+        if: steps.wrapper.outputs.present == 'true'
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Android SDK
+        if: steps.wrapper.outputs.present == 'true'
+        uses: android-actions/setup-android@v3
+
+      - name: Install SDK packages
+        if: steps.wrapper.outputs.present == 'true'
+        run: |
+          yes | sdkmanager --licenses > /dev/null || true
+          sdkmanager "platform-tools" "platforms;android-36" "build-tools;36.0.0"
+
+      - name: Set up Gradle
+        if: steps.wrapper.outputs.present == 'true'
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Build and test
+        if: steps.wrapper.outputs.present == 'true'
+        run: |
+          chmod +x ./gradlew
+          ./gradlew --no-daemon assembleDebug test
+
+      - name: Upload debug APK
+        if: steps.wrapper.outputs.present == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: fafo-debug-apk
+          path: app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
+
+      - name: Upload test reports
+        if: always() && steps.wrapper.outputs.present == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports
+          path: '**/build/reports/tests/'
+          if-no-files-found: ignore
