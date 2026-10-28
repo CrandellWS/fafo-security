@@ -8,6 +8,7 @@ import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.google.common.truth.Truth.assertThat
@@ -55,6 +56,16 @@ class UiTest {
         rule.onNodeWithTag("camera_Front").performScrollTo().assertIsSelected()
         rule.onNodeWithTag("photoCap_100 MB").performScrollTo().assertIsSelected()
         rule.onNodeWithText("Longer = fewer false alarms from loose cables or plug swaps.").assertExists()
+    }
+
+    @Test fun settingsShowGraceWindowDefault() {
+        var picked: Int? = null
+        rule.setContent { SettingsScreen(DpSettings(), CeSettings(deviceLabel = "Phone"), {}, {}, onGrace = { picked = it }) }
+        rule.onNodeWithTag("grace_30 s").performScrollTo().assertIsSelected()
+        rule.onNodeWithTag("grace_Off").performScrollTo().performClick()
+        // The setting itself changes only after the confirmation (AppViewModel.changeGrace).
+        assertThat(picked).isEqualTo(0)
+        rule.onNodeWithTag("grace_30 s").assertIsSelected()
     }
 
     @Test fun onboardingChecklistReflectsPermissions() {

@@ -14,6 +14,17 @@ import ws.crandell.fafo.core.Defaults
 import ws.crandell.fafo.storage.CeSettings
 import ws.crandell.fafo.storage.DpSettings
 
+fun graceLabel(s: Int): String = when {
+    s == 0 -> "Off"
+    s >= 120 && s % 60 == 0 -> "${s / 60} min"
+    else -> "$s s"
+}
+
+fun graceHint(s: Int): String =
+    if (s == 0) "Off: Arm and Disarm always ask for your fingerprint or screen lock."
+    else "If you unlocked the phone in the last ${graceLabel(s)}, Arm and Disarm don't ask again. " +
+        "Changing this asks for your screen lock."
+
 fun sensitivityLabel(ms: Long): String = if (ms % 1000 == 0L) "${ms / 1000} s" else "${ms / 1000.0} s"
 
 @Composable
@@ -24,6 +35,7 @@ fun SettingsScreen(
     onCe: ((CeSettings) -> CeSettings) -> Unit,
     modifier: Modifier = Modifier,
     onStayReachable: (Boolean) -> Unit = {},
+    onGrace: (Int) -> Unit = {},
 ) {
     Column(modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(16.dp)) {
         ScreenTitle("Settings")
@@ -40,6 +52,10 @@ fun SettingsScreen(
         ChoiceRow("Siren sound", Defaults.SIREN_SOUNDS, dp.sirenSound, { it }, { v -> onDp { it.copy(sirenSound = v) } }, "siren")
         SwitchRow("Force max alarm volume", dp.forceMaxVolume, { v -> onDp { it.copy(forceMaxVolume = v) } }, "forceMax")
         SwitchRow("Disarm on unlock (while armed, not triggered)", dp.disarmOnUnlock, { v -> onDp { it.copy(disarmOnUnlock = v) } }, "disarmOnUnlock")
+        ChoiceRow(
+            "Unlock grace window", Defaults.UNLOCK_GRACE_CHOICES_S, dp.unlockGraceS, ::graceLabel, onGrace, "grace",
+            hint = graceHint(dp.unlockGraceS),
+        )
         ChoiceRow(
             "Motion chirps", listOf("OFF", "LOW", "MEDIUM", "HIGH"), dp.motion,
             { it.lowercase().replaceFirstChar(Char::uppercase) }, { v -> onDp { it.copy(motion = v) } }, "motion",

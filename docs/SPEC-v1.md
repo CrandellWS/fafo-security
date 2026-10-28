@@ -71,9 +71,15 @@ over Bluetooth, end-to-end encrypted with the paired keys.
   plugged in (AC, USB or wireless) and has a secure lock screen (`KeyguardManager.isDeviceSecure()`).
   If not plugged in, the Arm button is disabled with the text "Plug in to arm"; with no secure lock it
   says "Set a screen lock first" (without one a thief just swipes to unlock and stops the siren).
-  The tap starts the foreground service (types `specialUse|camera`).
-- **ARMED to DISARMED:** the owner taps Disarm in the app or on the notification action (both need the
-  device unlocked). Unlocking alone does not disarm unless the setting "Disarm on unlock" is on (default: off).
+  The tap starts the foreground service (types `specialUse|camera`) only after the owner confirms it is
+  them (AC1.7): the phone's screen lock or a Class 3 (strong) biometric, skipped when the phone was unlocked
+  within the "Unlock grace window".
+- **ARMED to DISARMED:** the owner taps Disarm in the app or on the notification action. Both need the
+  same confirmation as arming (AC1.7). The notification action opens the app (it needs the device unlocked)
+  and the app runs the confirmation, so right after unlocking there is no extra prompt. Changed 2026-10-28:
+  the notification action used to disarm straight from a service intent with only "device unlocked",
+  which let anyone holding the unlocked phone disarm without the credential. Unlocking alone does not
+  disarm unless the setting "Disarm on unlock" is on (default: off).
 - **ARMED to PRE_ALARM:** power disconnected and still disconnected after the sensitivity window,
   and the device is locked (`KeyguardManager.isDeviceLocked()`). If the device is unlocked when
   unplugged, show a "Still armed: plug back in or disarm" chirp + notification instead.
@@ -125,6 +131,16 @@ over Bluetooth, end-to-end encrypted with the paired keys.
 - AC1.4 Armed state is written to device-protected storage.
 - AC1.5 Arming is refused when `KeyguardManager.isDeviceSecure()` is false ("Set a screen lock first").
 - AC1.6 Unit tests: arm is refused when plugged state is false, and when the device has no secure lock.
+- AC1.7 Arm and Disarm in the app need the owner's screen lock or a strong biometric
+  (`BiometricPrompt`, `BIOMETRIC_STRONG | DEVICE_CREDENTIAL`), except within the "Unlock grace window"
+  after the phone was unlocked. Implemented with an Android Keystore HMAC key created with
+  `setUserAuthenticationParameters(grace, AUTH_BIOMETRIC_STRONG | AUTH_DEVICE_CREDENTIAL)`: the app tries
+  the key first; a device unlock (PIN / pattern / password or Class 3 fingerprint) inside the window lets
+  it work with no prompt; on `UserNotAuthenticatedException` the prompt is shown and the key is checked
+  again. Grace 0 means every Arm / Disarm prompts (per-use key with a `CryptoObject`). Changing the grace
+  window also needs the confirmation and re-creates the key. Smart Lock and Class 2 face unlock do not
+  count, so they always prompt. Remote Reset / Disarm (AC9.8) and the owner's unlock stopping an alarm are
+  unchanged. Cancelling leaves the state as it was.
 
 ### F2. Unplug siren that persists through reboot
 
@@ -494,6 +510,7 @@ All settings live in DataStore. Settings needed at boot (marked DP) live in a de
 | Force max alarm volume | on/off | on | DP |
 | Pre-alarm | 0, 1, 5, 10, 30, 60 s | 5 s | DP |
 | Disarm on unlock (while armed, not triggered) | on/off | off | DP |
+| Unlock grace window (Arm / Disarm skip the prompt this long after an unlock, AC1.7) | Off, 15, 30, 60, 120 s | 30 s | DP (the key itself lives in Keystore) |
 | Motion chirps | Off / Low / Medium / High | Medium | DP |
 | Photo on trigger | on/off | on | CE |
 | Photo interval | 5–30 s (step 5) | 10 s | CE |

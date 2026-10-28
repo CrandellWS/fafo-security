@@ -10,6 +10,7 @@ import java.security.KeyPair
 import java.security.KeyPairGenerator
 import java.security.Signature
 import java.security.spec.ECGenParameterSpec
+import javax.crypto.Mac
 
 /** Software stand-in for the Keystore identity + command keys (Keystore does not exist on the JVM). */
 class FakeIdentityKeys : IdentityKeys {
@@ -37,6 +38,15 @@ class FakeGate(var result: GateResult = GateResult.Success()) : CredentialGate {
     override suspend fun unlockCommandKey(title: String, subtitle: String, signer: Signature): GateResult {
         calls += title
         return if (result is GateResult.Success) GateResult.Success(signer) else result
+    }
+    val confirmMacs = mutableListOf<Mac?>()
+    /** Called when a confirmUser prompt succeeds (e.g. a fake key records the fresh authentication). */
+    var onConfirmed: () -> Unit = {}
+    override suspend fun confirmUser(title: String, subtitle: String, mac: Mac?): GateResult {
+        calls += title
+        confirmMacs += mac
+        val r = result
+        return if (r is GateResult.Success) { onConfirmed(); GateResult.Success(mac = mac) } else r
     }
 }
 

@@ -72,6 +72,15 @@
             </intent-filter>
         </activity>
 
+        <!--
+            AC1.7: target of the notification's Disarm action. Not exported, so only FAFO's own PendingIntent
+            can open MainActivity with a disarm request; MainActivity still asks for the screen lock.
+        -->
+        <activity-alias
+            android:name=".ui.DisarmRequest"
+            android:exported="false"
+            android:targetActivity=".ui.MainActivity" />
+
         <activity
             android:name=".arm.AlarmActivity"
             android:directBootAware="true"

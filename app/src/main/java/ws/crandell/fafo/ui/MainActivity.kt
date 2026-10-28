@@ -54,6 +54,7 @@ import java.io.File
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
 import ws.crandell.fafo.arm.ArmService
+import ws.crandell.fafo.auth.AuthAction
 import ws.crandell.fafo.arm.Notifications
 import ws.crandell.fafo.siren.AndroidAudioBackend
 import ws.crandell.fafo.siren.Siren
@@ -96,6 +97,22 @@ class MainActivity : FragmentActivity() {
         vm.gate.target = BiometricCredentialGate(this)
         PeerNetwork.gate.target = vm.gate.target
         setContent { FafoTheme { AppRoot() } }
+        if (savedInstanceState == null) takeDisarmRequest(intent)
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        takeDisarmRequest(intent)
+    }
+
+    /** AC1.7: the notification's Disarm action arrives through the unexported [DISARM_ALIAS] only. */
+    private var pendingDisarm = false
+
+    private fun takeDisarmRequest(intent: Intent?) {
+        if (intent?.action == ACTION_REQUEST_DISARM && intent.component?.className == DISARM_ALIAS) {
+            pendingDisarm = true
+            setIntent(Intent(intent).setAction(Intent.ACTION_MAIN))
+        }
     }
 
     override fun onStart() {
@@ -149,6 +166,10 @@ class MainActivity : FragmentActivity() {
     override fun onResume() {
         super.onResume()
         vm.refresh()
+        if (pendingDisarm) {
+            pendingDisarm = false
+            onDisarm()
+        }
     }
 
     private fun launch(intent: Intent) {
@@ -283,10 +304,13 @@ class MainActivity : FragmentActivity() {
             return
         }
         if (!DeviceStatus.isPlugged(this) || !DeviceStatus.isDeviceSecure(this)) return
-        ArmService.arm(this)
+        // AC1.7: the screen lock or fingerprint, skipped inside the unlock grace window.
+        vm.guarded(AuthAction.ARM) { ArmService.arm(this) }
     }
 
-    fun onDisarm() = ArmService.disarm(this)
+    fun onDisarm() {
+        vm.guarded(AuthAction.DISARM) { ArmService.disarm(this) }
+    }
 
     /** AC6.6: pairing ends with the device in the circle the owner started from (default Home). */
     @OptIn(ExperimentalLayoutApi::class)
@@ -303,6 +327,12 @@ class MainActivity : FragmentActivity() {
                 }
             }
         }
+    }
+
+    companion object {
+        const val ACTION_REQUEST_DISARM = "ws.crandell.fafo.action.REQUEST_DISARM"
+        /** Unexported activity-alias of this activity (manifest), the only way in for [ACTION_REQUEST_DISARM]. */
+        const val DISARM_ALIAS = "ws.crandell.fafo.ui.DisarmRequest"
     }
 
     @Composable
@@ -337,7 +367,7 @@ class MainActivity : FragmentActivity() {
                 )
                 Screen.SETTINGS -> SettingsScreen(dp, ce, vm::updateDp, vm::updateCe, m, onStayReachable = { on ->
                     if (on) ws.crandell.fafo.reach.ReachableService.start(this) else ws.crandell.fafo.reach.ReachableService.stop(this)
-                })
+                }, onGrace = { vm.changeGrace(it) })
                 Screen.ONBOARDING -> OnboardingScreen(
                     onboarding, ::onStep, { screen = Screen.HOME }, m, onSamsungBattery = { samsungDialog = true },
                 )

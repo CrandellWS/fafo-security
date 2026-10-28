@@ -15,6 +15,10 @@ object Defaults {
 
     const val DISARM_ON_UNLOCK = false
 
+    /** AC1.7: Arm / Disarm skip the prompt this long after the phone was unlocked (0 = always ask). */
+    val UNLOCK_GRACE_CHOICES_S = listOf(0, 15, 30, 60, 120)
+    const val UNLOCK_GRACE_S = 30
+
     const val MOTION = "MEDIUM" // OFF / LOW / MEDIUM / HIGH
 
     const val PHOTO_ON_TRIGGER = true

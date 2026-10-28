@@ -27,6 +27,7 @@ data class DpSettings(
     val preAlarmS: Int = Defaults.PRE_ALARM_S,
     val disarmOnUnlock: Boolean = Defaults.DISARM_ON_UNLOCK,
     val motion: String = Defaults.MOTION,
+    val unlockGraceS: Int = Defaults.UNLOCK_GRACE_S,
 ) {
     fun alarmConfig() = AlarmConfig(sensitivityMs, preAlarmS * 1000L, disarmOnUnlock)
 }
@@ -71,6 +72,7 @@ class DpStore(private val store: DataStore<Preferences>) {
         it[PRE_ALARM_S] = n.preAlarmS
         it[DISARM_ON_UNLOCK] = n.disarmOnUnlock
         it[MOTION] = n.motion
+        it[UNLOCK_GRACE_S] = n.unlockGraceS
     }
 
     private fun Preferences.toSettings() = DpSettings(
@@ -80,6 +82,7 @@ class DpStore(private val store: DataStore<Preferences>) {
         preAlarmS = this[PRE_ALARM_S] ?: Defaults.PRE_ALARM_S,
         disarmOnUnlock = this[DISARM_ON_UNLOCK] ?: Defaults.DISARM_ON_UNLOCK,
         motion = this[MOTION] ?: Defaults.MOTION,
+        unlockGraceS = this[UNLOCK_GRACE_S] ?: Defaults.UNLOCK_GRACE_S,
     )
 
     private fun Preferences.toState() = DpState(
@@ -104,6 +107,7 @@ class DpStore(private val store: DataStore<Preferences>) {
         private val PRE_ALARM_S = intPreferencesKey("pre_alarm_s")
         private val DISARM_ON_UNLOCK = booleanPreferencesKey("disarm_on_unlock")
         private val MOTION = stringPreferencesKey("motion")
+        private val UNLOCK_GRACE_S = intPreferencesKey("unlock_grace_s")
 
         @Volatile private var instance: DpStore? = null
 

@@ -21,11 +21,16 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import ws.crandell.fafo.core.AlarmState
 import ws.crandell.fafo.ui.OnboardingStep
 
 enum class Screen { HOME, SETTINGS, INCIDENTS, TRUSTED, CIRCLES, INTERCOM, ONBOARDING }
 
 data class HomeUiState(
+    /** The live alarm state the labels are derived from (screens color by it). */
+    val alarmState: AlarmState = AlarmState.Disarmed,
+    /** AC1.7: the screen-lock / fingerprint confirmation for Arm or Disarm is running. */
+    val confirming: Boolean = false,
     val plugged: Boolean = false,
     val secureLock: Boolean = false,
     /** Human-readable state: Disarmed, Armed, Plug me back in (n s), ALARM. */
@@ -74,13 +79,14 @@ fun HomeScreen(
         if (state.armed || state.alarming) {
             Button(
                 onClick = onDisarm,
+                enabled = !state.confirming,
                 modifier = Modifier.fillMaxWidth().height(96.dp).testTag("disarmButton"),
                 colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary),
             ) { Text("Disarm", fontSize = 28.sp) }
         } else {
             Button(
                 onClick = onArm,
-                enabled = state.plugged && state.secureLock,
+                enabled = state.plugged && state.secureLock && !state.confirming,
                 modifier = Modifier.fillMaxWidth().height(96.dp).testTag("armButton"),
             ) { Text(armButtonLabel(state), fontSize = 24.sp) }
         }

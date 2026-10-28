@@ -16,6 +16,12 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import ws.crandell.fafo.pairing.DelegatingGate
+import ws.crandell.fafo.auth.ArmAuthUi
+import ws.crandell.fafo.auth.ArmAuthenticator
+import ws.crandell.fafo.auth.AuthAction
+import ws.crandell.fafo.auth.GuardedAction
+import ws.crandell.fafo.auth.KeystoreArmAuthKey
+import ws.crandell.fafo.ui.screens.graceLabel
 import ws.crandell.fafo.circles.Circle
 import ws.crandell.fafo.circles.CircleManager
 import ws.crandell.fafo.circles.Permission
@@ -69,11 +75,37 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch { flags.collect { refresh() } }
     }
 
+    /** The activity on screen sets [DelegatingGate.target] so ViewModel flows can show BiometricPrompt. */
+    val gate = DelegatingGate()
+
+    /** AC1.7: Arm / Disarm / grace changes need the screen lock or a strong biometric outside the grace window. */
+    private val armAuth = ArmAuthenticator(KeystoreArmAuthKey(), gate, { dpSettings.value.unlockGraceS })
+    private val armGuard = GuardedAction(armAuth::authorize)
+    val armAuthUi: StateFlow<ArmAuthUi> = armGuard.ui
+
+    /** Runs [block] (start / stop the armed service) only after the owner is confirmed. */
+    fun guarded(action: AuthAction, block: () -> Unit) = viewModelScope.launch {
+        armGuard.run(action, { _message.value = it }) { block() }
+    }
+
+    /** Settings > Security: a new grace window needs the confirmation; Cancel keeps the old value and key. */
+    fun changeGrace(newGraceS: Int) = viewModelScope.launch {
+        if (newGraceS == dpSettings.value.unlockGraceS) return@launch
+        armGuard.run(AuthAction.CHANGE_GRACE, { _message.value = it }) {
+            armAuth.rekey(newGraceS)
+            dp.update { it.copy(unlockGraceS = newGraceS) }
+            _message.value = "Grace window set to ${graceLabel(newGraceS)}"
+        }
+    }
+
     val home: StateFlow<HomeUiState> = combine(
-        _plugged, _onboarding, AlarmStatusBus.state, dpState, AlarmStatusBus.cameraActive,
-    ) { plugged, onboarding, live, dpState, camera ->
+        combine(_plugged, armGuard.ui) { p, a -> p to a },
+        _onboarding, AlarmStatusBus.state, dpState, AlarmStatusBus.cameraActive,
+    ) { (plugged, auth), onboarding, live, dpState, camera ->
         val state = if (live == AlarmState.Disarmed && dpState.armed) AlarmState.Armed(dpState.awaitingPower) else live
         HomeUiState(
+            alarmState = state,
+            confirming = auth is ArmAuthUi.Confirming,
             plugged = plugged,
             secureLock = onboarding.secureLock,
             stateLabel = stateLabel(state, System.currentTimeMillis()),
@@ -109,8 +141,6 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         photoStore.deleteIncident(id); _incidents.value = photoStore.list()
     }
 
-    /** The activity on screen sets [DelegatingGate.target] so ViewModel flows can show BiometricPrompt. */
-    val gate = DelegatingGate()
     private val trustedStore by lazy { TrustGraph.trusted(app) }
     val trustedDevices: StateFlow<List<TrustedDevice>> by lazy { trustedStore.devices }
 

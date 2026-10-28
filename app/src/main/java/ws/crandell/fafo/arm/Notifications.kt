@@ -6,7 +6,6 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
-import android.os.Build
 import androidx.core.app.NotificationCompat
 import ws.crandell.fafo.R
 import ws.crandell.fafo.core.AlarmState
@@ -76,10 +75,21 @@ object Notifications {
         PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
     )
 
-    /** Disarm action: needs the device unlocked (API 31+ authentication; on API 30 it opens the app). */
+    /**
+     * Disarm action (AC1.7): opens the app through the unexported [MainActivity.DISARM_ALIAS], which asks for
+     * the screen lock or fingerprint unless the phone was unlocked within the grace window. It also needs the
+     * device unlocked. It never disarms straight from a service intent: "unlocked" alone is not the owner.
+     */
+    fun disarmIntent(context: Context): PendingIntent = PendingIntent.getActivity(
+        context, 1,
+        Intent(MainActivity.ACTION_REQUEST_DISARM)
+            .setClassName(context, MainActivity.DISARM_ALIAS)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP),
+        PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
+    )
+
     private fun disarmAction(context: Context): NotificationCompat.Action {
-        val pi = if (Build.VERSION.SDK_INT >= 31) serviceIntent(context, ArmService.ACTION_DISARM, 1) else openAppIntent(context)
-        return NotificationCompat.Action.Builder(0, "Disarm", pi)
+        return NotificationCompat.Action.Builder(0, "Disarm", disarmIntent(context))
             .setAuthenticationRequired(true)
             .build()
     }

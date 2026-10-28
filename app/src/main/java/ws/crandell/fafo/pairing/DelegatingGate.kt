@@ -1,6 +1,7 @@
 package ws.crandell.fafo.pairing
 
 import java.security.Signature
+import javax.crypto.Mac
 
 /**
  * A [CredentialGate] that forwards to whatever activity is on screen. Long-running flows (pairing) live in
@@ -16,4 +17,7 @@ class DelegatingGate : CredentialGate {
 
     override suspend fun unlockCommandKey(title: String, subtitle: String, signer: Signature): GateResult =
         target?.unlockCommandKey(title, subtitle, signer) ?: GateResult.Failed("app not on screen")
+
+    override suspend fun confirmUser(title: String, subtitle: String, mac: Mac?): GateResult =
+        target?.confirmUser(title, subtitle, mac) ?: GateResult.Failed("app not on screen")
 }
