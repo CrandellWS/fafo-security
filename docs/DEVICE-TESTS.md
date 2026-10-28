@@ -24,6 +24,18 @@ exact steps, and the next build session fixes it.
 - [ ] DND on (Alarms allowed): siren plays. DND "Total silence": note what happens.
 - [ ] Setup checklist "Self-test": 1 s chirp then 1 s siren at alarm volume.
 
+## M6 Reboot
+
+- [ ] Trigger the alarm, then hold power and restart (if the power menu is reachable while locked; note
+      whether One UI "Lock network and security" blocks it). Siren returns before you unlock. Time from
+      boot to siren (target under 30 s).
+- [ ] Reboot during the pre-alarm countdown: siren returns at full volume (no second countdown).
+- [ ] After that reboot, unlock: siren stops. No photos were taken after the reboot (expected in v1).
+- [ ] Armed and plugged, reboot: notification "Armed after reboot, open the app to enable photos".
+- [ ] Armed and plugged, power off, unplug, power on, leave locked: window, pre-alarm, siren.
+- [ ] Alarm running, then the system kills the app (or `adb shell am kill ws.crandell.fafo`): siren
+      resumes; tapping the alarm notification / alarm screen resumes photos.
+
 ## Results
 
 (Bill: write findings here, newest first.)
