@@ -6,7 +6,8 @@ package ws.crandell.fafo.core
  * phone is still (no linear motion, no tilt in progress, no bump or pickup). Once it has been still for
  * [settleMs] in a row, [onSample] returns true: the service sends [AlarmEvent.MotionSettled], which cancels
  * the pre-alarm only if the phone is still plugged in. It keeps returning true every [settleMs] while the
- * phone stays still, so plugging back in during a still spell is picked up too. Pure, timestamps in ms.
+ * phone stays still, so a late plugged reading is retried. An unplug the machine saw during (or just before)
+ * the pre-alarm latches ([AlarmState.PreAlarm.unplugged]): no settle cancels it after that. Pure, ms.
  */
 class SettleWatch(val settleMs: Long = SETTLE_MS) {
     private var active = false

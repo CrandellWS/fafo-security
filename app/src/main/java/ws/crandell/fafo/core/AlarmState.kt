@@ -26,6 +26,11 @@ sealed interface AlarmState {
         val startedAt: Long,
         val endsAt: Long,
         val cause: IncidentCause = IncidentCause.UNPLUG,
+        /**
+         * MOTION only: the cable came out during (or just before) this pre-alarm. Latched: a settle can no longer
+         * cancel it, even if the plugged reading lags the unplug or the cable goes back in.
+         */
+        val unplugged: Boolean = false,
     ) : AlarmState
 
     data class Triggered(val incidentId: String, val startedAt: Long) : AlarmState

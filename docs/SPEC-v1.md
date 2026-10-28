@@ -229,7 +229,9 @@ over Bluetooth, end-to-end encrypted with the paired keys.
   pre-alarm cancels back to ARMED: sound, photos and alerts stop, the incident closes as `SETTLED`
   ("Cancelled (put down and left still)"), and the ladder stays ORANGE until the bump reset time cools it, so
   more handling starts a new pre-alarm. A pickup that keeps moving never settles; unplugged, settling changes
-  nothing (the owner can still plug back in and leave it, which then settles). An unplug pre-alarm is not
+  nothing. An unplug during the motion pre-alarm (or a pending unplug window when it started) latches: plugging
+  back in does not re-enable the settle, only unlock or Disarm stops it (review 2026-10-28: the plugged reading
+  can lag the unplug, and a thief must not be able to unplug, replug and hold still). An unplug pre-alarm is not
   affected. Pure logic in `SettleWatch` and `AlarmStateMachine`, unit tested with synthetic traces.
 - AC4.8 **HANDS OFF (added 2026-10-28, Bill: "that's what I want").** While ARMED with the screen off or the
   phone locked, a bump or a pickup (and the start of any pre-alarm) posts a fresh notification on the silent

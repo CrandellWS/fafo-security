@@ -257,6 +257,8 @@ time 15 s, Photo on trigger on. Setup checklist: full-screen alarm allowed.
 - [ ] Pick it up and keep it moving (walk around the room, cable stretched or unplugged): the countdown runs
   out and the siren sounds. Unlock stops it.
 - [ ] Pick it up, unplug the cable, set it down and leave it: the siren still sounds (unplugged never settles).
+- [ ] Pick it up, unplug the cable, plug it straight back in, set it down and leave it: the siren still sounds
+  (an unplug during the countdown is remembered; unlock to stop it).
 - [ ] After it settled, pick it up again within 15 s: a new countdown starts straight away.
 - [ ] Unplug pre-alarm unchanged: unplug while locked, PLUG ME BACK IN countdown; plugging back in cancels it.
 - [ ] With Pre-alarm set to 5 s: pick up and set down quickly. Does it cancel in time? (It needs about 2.5 s

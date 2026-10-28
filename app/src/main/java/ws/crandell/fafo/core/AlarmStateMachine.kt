@@ -103,6 +103,8 @@ class AlarmStateMachine(
         if (s is AlarmState.Arming) {
             return AlarmState.Disarmed to listOf(AlarmEffect.CancelArmingTimer, AlarmEffect.Refused(RefusalReason.NOT_PLUGGED), AlarmEffect.StopService)
         }
+        // A MOTION pre-alarm ignores the cable, but an unplug latches so a settle can never cancel it.
+        if (s is AlarmState.PreAlarm && s.cause == IncidentCause.MOTION && !s.unplugged) return s.copy(unplugged = true) to emptyList()
         if (s !is AlarmState.Armed || s.awaitingPower || s.unplugPendingSince != null) return s to emptyList()
         return s.copy(unplugPendingSince = e.at) to listOf(AlarmEffect.StartWindowTimer(config().sensitivityMs))
     }
@@ -135,13 +137,15 @@ class AlarmStateMachine(
 
     private fun onMotionEscalated(s: AlarmState, e: AlarmEvent.MotionEscalated): Pair<AlarmState, List<AlarmEffect>> {
         if (s !is AlarmState.Armed || s.awaitingPower || !e.locked) return s to emptyList()
-        val (next, fx) = startIncident(IncidentCause.MOTION)
+        val (started, fx) = startIncident(IncidentCause.MOTION)
+        // Already unplugged when the handling escalated: the settle must not cancel this one either.
+        val next = if (s.unplugPendingSince != null && started is AlarmState.PreAlarm) started.copy(unplugged = true) else started
         return next to (if (s.unplugPendingSince != null) listOf(AlarmEffect.CancelWindowTimer) + fx else fx)
     }
 
     /** A MOTION pre-alarm whose phone was set down and left still, while plugged in, goes back to ARMED. */
     private fun onMotionSettled(s: AlarmState, e: AlarmEvent.MotionSettled): Pair<AlarmState, List<AlarmEffect>> {
-        if (s !is AlarmState.PreAlarm || s.cause != IncidentCause.MOTION || !e.plugged) return s to emptyList()
+        if (s !is AlarmState.PreAlarm || s.cause != IncidentCause.MOTION || s.unplugged || !e.plugged) return s to emptyList()
         return AlarmState.Armed() to listOf(
             AlarmEffect.StopSound,
             AlarmEffect.StopPhotos,

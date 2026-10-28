@@ -54,6 +54,30 @@ class SettleTest {
         assertThat(m.state).isInstanceOf(AlarmState.Triggered::class.java)
     }
 
+    /** Review 2026-10-28: the plugged reading can lag the unplug; an unplug seen by the machine latches. */
+    @Test fun unplugDuringMotionPreAlarmLatchesEvenIfThePluggedReadingLags() {
+        val m = motionPreAlarm()
+        assertThat(m.handle(AlarmEvent.PowerDisconnected(at = clock.now()))).isEmpty()
+        assertThat((m.state as AlarmState.PreAlarm).unplugged).isTrue()
+        // Stale "plugged" reading, or the thief plugs it back in and holds it still: still no cancel.
+        assertThat(m.handle(AlarmEvent.MotionSettled(plugged = true))).isEmpty()
+        m.handle(AlarmEvent.PowerConnected(at = clock.now()))
+        assertThat(m.handle(AlarmEvent.MotionSettled(plugged = true))).isEmpty()
+        clock.t += 10_000
+        assertThat(m.handle(AlarmEvent.PreAlarmElapsed)).containsExactly(AlarmEffect.StartSiren)
+    }
+
+    @Test fun unpluggedBeforeTheEscalationAlsoLatches() {
+        val m = machine()
+        m.handle(AlarmEvent.PowerDisconnected(at = clock.now()))
+        m.handle(AlarmEvent.MotionEscalated(locked = true))
+        val s = m.state as AlarmState.PreAlarm
+        assertThat(s.cause).isEqualTo(IncidentCause.MOTION)
+        assertThat(s.unplugged).isTrue()
+        assertThat(m.handle(AlarmEvent.MotionSettled(plugged = true))).isEmpty()
+        assertThat(m.state).isInstanceOf(AlarmState.PreAlarm::class.java)
+    }
+
     @Test fun unplugPreAlarmIgnoresSettle() {
         val m = machine()
         m.handle(AlarmEvent.PowerDisconnected(0))
