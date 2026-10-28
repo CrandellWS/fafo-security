@@ -11,6 +11,40 @@ exact steps, and the next build session fixes it.
 - Open FAFO, go through the setup checklist (notifications, camera, full-screen alarm, DND access,
   battery Unrestricted, Samsung sleeping-apps steps).
 
+## v1 done: the nine items (spec section 1)
+
+Tick each once the detailed steps below pass on the A17.
+
+1. [ ] Arms only while plugged in (Home: "Plug in to arm" when unplugged; "Set a screen lock first" without a lock).
+2. [ ] Unplug before unlock: pre-alarm countdown (0/1/5/10/30/60 s, default 5 s) beeping faster, then the
+       siren until unlock; plugging back in or unlocking cancels the countdown; the siren returns after a reboot (M5, M6).
+3. [ ] Unplug sensitivity 0.1 s to 5 s changes how long a cable can be out before it counts (Settings).
+4. [ ] A bump chirps; a pick-up chirps louder (M7).
+5. [ ] Photo on trigger, then every 10 s, kept on the phone only (M8).
+6. [ ] Pairing over Bluetooth, approved only with the real PIN/pattern/password (M9).
+7. [ ] Circles with their own members, labels and permissions (M10).
+8. [ ] Nearby trusted devices get the alert and can reset or disarm as their circle allows, over Wi-Fi and
+       over Bluetooth (M10, M11).
+9. [ ] Intercom room mode and push-to-talk, to one device or All, started only on the listening phone (M12).
+
+## Open items from spec section 9 (record what you see)
+
+- [ ] Camera before first unlock (expected: no photos after a reboot until unlock).
+- [ ] `USAGE_ALARM` in each Samsung DND mode; `setStreamVolume` under DND with and without DND access.
+- [ ] Boot-to-siren time from power on (target under 30 s).
+- [ ] Unplug delivery latency: does 0.1 s sensitivity behave differently from 0.5 s? Do "Protect battery"
+      (charging stops at 80-85 %) or a wireless pad cause false unplugs?
+- [ ] Does One UI 8 "Lock network and security" block power off from the lock screen?
+- [ ] After a process kill, does tapping the alarm notification / alarm screen resume photos?
+- [ ] Samsung default battery settings: does the armed service survive a night?
+- [ ] NSD discovery between two phones on home Wi-Fi: time from opening the app to the reachable dot.
+- [ ] `adb shell am compat enable RESTRICT_LOCAL_NETWORK ws.crandell.fafo` (reboot): fails without Nearby
+      devices, works with it.
+- [ ] Does the A17 have an `audio/opus` encoder (Bluetooth intercom needs it)? Intercom latency and echo.
+- [ ] Background Bluetooth scan delivery with Samsung battery settings.
+- [ ] Bluetooth L2CAP audio between the A17 and a second phone (choppy / fine).
+- [ ] Push-to-talk to a locked receiver with Stay reachable on.
+
 ## M5 Siren
 
 - [ ] Arm while charging, lock, unplug: pre-alarm beeps (5 s default) get faster, then the full siren.

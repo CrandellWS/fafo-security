@@ -559,6 +559,11 @@ Runtime state in DP: `armed` (bool), `awaiting_power` (bool, after a remote Rese
 | `FOREGROUND_SERVICE_MICROPHONE` | `IntercomService` room mode, started only from the visible app. |
 | `MODIFY_AUDIO_SETTINGS` | Voice-communication audio mode and speaker routing for intercom. |
 
+Merged in by AndroidX libraries (not declared in FAFO's own manifest): `USE_BIOMETRIC` and
+`USE_FINGERPRINT` (androidx.biometric, for `BiometricPrompt`; normal, install-time) and the app-private
+signature permission `ws.crandell.fafo.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION` (androidx.core). The
+manifest test allows exactly these on top of the list above (build note M13).
+
 Later: `ACCESS_LOCAL_NETWORK` when targetSdk moves to 37 (Android 17 enforces local network protection).
 
 **Enforced rule replacing "no INTERNET": no internet server, no analytics, no remote endpoints.**

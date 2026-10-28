@@ -73,6 +73,17 @@ class IntercomService : LifecycleService() {
                 }
             }
         }
+        // AC10.2: stop if notifications get blocked while room mode runs (no event for that, so poll).
+        lifecycleScope.launch {
+            while (true) {
+                kotlinx.coroutines.delay(NOTIFICATION_CHECK_MS)
+                if (!notificationsOk()) {
+                    Intercom.stopRoomMode()
+                    stop()
+                    break
+                }
+            }
+        }
         return START_NOT_STICKY
     }
 
@@ -93,6 +104,7 @@ class IntercomService : LifecycleService() {
         const val ACTION_START = "ws.crandell.fafo.action.ROOM_MODE"
         const val ACTION_STOP = "ws.crandell.fafo.action.ROOM_MODE_STOP"
         const val EXTRA_CIRCLES = "circles"
+        private const val NOTIFICATION_CHECK_MS = 3_000L
 
         fun notification(context: Context, circles: List<String>, listeners: List<String>): Notification =
             NotificationCompat.Builder(context, Notifications.CH_INTERCOM)
