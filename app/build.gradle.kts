@@ -33,6 +33,12 @@ android {
         compose = true
     }
 
+    lint {
+        // Print every issue in the build log (CI has no other way to show them).
+        textReport = true
+        textOutput = file("stdout")
+    }
+
     testOptions {
         unitTests.isIncludeAndroidResources = true
         unitTests.all { it.maxHeapSize = "2g" }

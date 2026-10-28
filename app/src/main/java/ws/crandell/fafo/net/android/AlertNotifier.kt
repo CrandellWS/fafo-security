@@ -17,6 +17,14 @@ import java.util.Date
 
 /** AC9.7: "Back room: ALARM (unplugged 21:04)" with Reset / Disarm when that phone's circle grants them. */
 object AlertNotifier {
+    private fun notify(context: Context, id: Int, n: android.app.Notification) {
+        try {
+            NotificationManagerCompat.from(context).notify(id, n)
+        } catch (e: SecurityException) {
+            // POST_NOTIFICATIONS revoked: nothing to show
+        }
+    }
+
     fun post(context: Context, peer: String, label: String, alert: Message.Alert) {
         if (!DeviceStatus.hasNotificationPermission(context)) return
         val time = DateFormat.getTimeInstance(DateFormat.SHORT).format(Date(alert.startedAt))
@@ -38,7 +46,7 @@ object AlertNotifier {
         if (Permission.DISARM in granted) {
             b.addAction(0, "Disarm", commandIntent(context, peer, label, alert, Command.DISARM, id * 2 + 1))
         }
-        runCatching { NotificationManagerCompat.from(context).notify(id, b.build()) }
+        notify(context, id, b.build())
     }
 
     private fun commandIntent(context: Context, peer: String, label: String, alert: Message.Alert, cmd: Command, rc: Int): PendingIntent =
@@ -54,6 +62,23 @@ object AlertNotifier {
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
         )
 
+    /** Bluetooth beacon match (AC9.7): the alert before the details arrive over GATT. */
+    fun postBeacon(context: Context, peer: String, label: String) {
+        if (!DeviceStatus.hasNotificationPermission(context)) return
+        val id = Notifications.ID_ALERT_BASE + (peer.hashCode() and 0xff)
+        val n = NotificationCompat.Builder(context, Notifications.CH_ALERTS)
+            .setSmallIcon(R.drawable.ic_stat_shield)
+            .setContentTitle("$label: ALARM")
+            .setContentText("Nearby over Bluetooth. Connecting for details")
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setCategory(NotificationCompat.CATEGORY_ALARM)
+            .setOnlyAlertOnce(true)
+            .setAutoCancel(true)
+            .setContentIntent(Notifications.openAppIntent(context))
+            .build()
+        notify(context, id, n)
+    }
+
     fun postInvite(context: Context, label: String, circle: String) {
         if (!DeviceStatus.hasNotificationPermission(context)) return
         val n = NotificationCompat.Builder(context, Notifications.CH_ALERTS)
@@ -63,6 +88,6 @@ object AlertNotifier {
             .setAutoCancel(true)
             .setContentIntent(Notifications.openAppIntent(context))
             .build()
-        runCatching { NotificationManagerCompat.from(context).notify(Notifications.ID_ALERT_BASE + 300, n) }
+        notify(context, Notifications.ID_ALERT_BASE + 300, n)
     }
 }
