@@ -138,7 +138,7 @@ class WifiTransport(
                 continue
             }
             s.tcpNoDelay = true
-            val link = StreamLink(s.getInputStream(), s.getOutputStream()) { runCatching { s.close() } }
+            val link = StreamLink(s.getInputStream(), s.getOutputStream(), s.inetAddress) { runCatching { s.close() } }
             scope.launch { onIncoming(link) }
         }
     }
@@ -261,7 +261,7 @@ class WifiTransport(
             s.connect(addr, CONNECT_TIMEOUT_MS)
             s.tcpNoDelay = true
             if (!LocalAddressPolicy.isAllowed(s.remoteSocketAddress)) throw SecurityException("non-local")
-            StreamLink(s.getInputStream(), s.getOutputStream()) { runCatching { s.close() } }
+            StreamLink(s.getInputStream(), s.getOutputStream(), s.inetAddress) { runCatching { s.close() } }
         } catch (e: Exception) {
             runCatching { s.close() }
             null

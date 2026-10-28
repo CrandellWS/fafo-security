@@ -34,9 +34,8 @@ android {
     }
 
     lint {
-        // Print every issue in the build log (CI has no other way to show them).
+        // Plain-text report (build/reports/lint-results-debug.txt); CI prints it when lint fails.
         textReport = true
-        textOutput = file("stdout")
     }
 
     testOptions {

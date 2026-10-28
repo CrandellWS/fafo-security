@@ -13,7 +13,12 @@ import java.io.OutputStream
  * AC9.5 framing for stream transports (TCP on Wi-Fi): each message is a 4-byte big-endian length then
  * the bytes; anything above [MAX_FRAME] closes the link. Pure JVM.
  */
-class StreamLink(input: InputStream, output: OutputStream, private val onClose: () -> Unit = {}) : MessageLink {
+class StreamLink(
+    input: InputStream,
+    output: OutputStream,
+    override val remote: Any? = null,
+    private val onClose: () -> Unit = {},
+) : MessageLink {
     private val din = DataInputStream(input.buffered())
     private val dout = DataOutputStream(output.buffered())
     @Volatile private var closed = false

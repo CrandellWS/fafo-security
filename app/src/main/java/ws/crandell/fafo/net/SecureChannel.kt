@@ -61,6 +61,8 @@ class SecureChannel(
     private val sendLock = Mutex()
     val createdAt = clock()
     val peer: String get() = keys.peerFingerprint
+    /** Transport address of the peer (for the F10 audio path). */
+    val remote: Any? get() = link.remote
 
     val expired: Boolean get() = clock() - createdAt >= maxAgeMs
 

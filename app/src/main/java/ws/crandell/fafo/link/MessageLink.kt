@@ -11,6 +11,9 @@ interface MessageLink {
     suspend fun receive(): ByteArray
 
     fun close()
+
+    /** The peer's transport address (an `InetAddress` on Wi-Fi, a `BluetoothDevice` on Bluetooth), if known. */
+    val remote: Any? get() = null
 }
 
 class LinkClosed(message: String = "link closed") : Exception(message)

@@ -10,6 +10,7 @@ import android.bluetooth.BluetoothGattServerCallback
 import android.bluetooth.BluetoothGattService
 import android.bluetooth.BluetoothManager
 import android.bluetooth.BluetoothProfile
+import android.bluetooth.BluetoothStatusCodes
 import android.content.Context
 import android.os.Build
 import android.util.Log
@@ -148,6 +149,7 @@ class FafoGattServer(
     }
 
     private inner class ServerLink(private val device: BluetoothDevice, private val purpose: Purpose) : MessageLink {
+        override val remote: Any get() = device
         private val inbox = Channel<ByteArray>(64)
         private val joiner = Chunker.Joiner()
         private val sendLock = Mutex()
@@ -172,7 +174,7 @@ class FafoGattServer(
                 val done = CompletableDeferred<Int>()
                 pending = done
                 val queued = if (Build.VERSION.SDK_INT >= 33) {
-                    s.notifyCharacteristicChanged(device, tx, false, chunk) == BluetoothGatt.GATT_SUCCESS
+                    s.notifyCharacteristicChanged(device, tx, false, chunk) == BluetoothStatusCodes.SUCCESS
                 } else {
                     @Suppress("DEPRECATION")
                     tx.value = chunk
