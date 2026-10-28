@@ -13,6 +13,8 @@ import ws.crandell.fafo.siren.AndroidAudioBackend
 import ws.crandell.fafo.siren.Siren
 import ws.crandell.fafo.storage.DpSettings
 import ws.crandell.fafo.storage.DpStore
+import ws.crandell.fafo.net.android.AlarmNetwork
+import ws.crandell.fafo.net.android.PeerNetwork
 
 /** What the armed service does with sound. Implemented by the siren (M5); tests use fakes. */
 interface AlarmSound {
@@ -59,8 +61,11 @@ object ArmDeps {
     var sound: SoundFactory = defaultSound
     var capturer: (Context, LifecycleOwner) -> Capturer = { c, o -> CameraXCapturer(c, o) }
     var freeBytes: (Context) -> Long = { DeviceStatus.freeBytes(it) }
+    /** Local network (F9): only attached after the first unlock, never on the boot path. */
+    var network: (Context) -> AlarmNetwork = { PeerNetwork.ForAlarm(it) }
 
     fun reset() {
+        network = { PeerNetwork.ForAlarm(it) }
         capturer = { c, o -> CameraXCapturer(c, o) }
         freeBytes = { DeviceStatus.freeBytes(it) }
         clock = Clock.SYSTEM

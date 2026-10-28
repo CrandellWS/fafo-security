@@ -33,6 +33,11 @@ import ws.crandell.fafo.motion.MotionSensitivity
 import ws.crandell.fafo.storage.DpSettings
 import ws.crandell.fafo.storage.DpStore
 import ws.crandell.fafo.system.DeviceStatus
+import ws.crandell.fafo.net.AlertInfo
+import ws.crandell.fafo.net.Command
+import ws.crandell.fafo.net.CommandTarget
+import ws.crandell.fafo.net.android.AlarmNetwork
+import ws.crandell.fafo.core.wireName
 
 /**
  * The armed foreground service (spec F1, F2). `specialUse|camera`, directBootAware, START_STICKY.
@@ -47,6 +52,8 @@ class ArmService : LifecycleService() {
     private var dpSettings: DpSettings? = null
     private lateinit var motion: MotionMonitor
     private val events = Channel<AlarmEvent>(Channel.UNLIMITED)
+    private var network: AlarmNetwork? = null
+    private var networkAttached = false
 
     private var windowJob: Job? = null
     private var preAlarmJob: Job? = null
@@ -193,7 +200,10 @@ class ArmService : LifecycleService() {
             }
         }
         AlarmStatusBus.publish(s)
-        if (s != AlarmState.Disarmed) registerReceivers()
+        if (s != AlarmState.Disarmed) {
+            registerReceivers()
+            ensureNetwork()
+        }
         updateWakeLock()
         updateMotion()
         if (stop || s == AlarmState.Disarmed) {
@@ -248,7 +258,16 @@ class ArmService : LifecycleService() {
                 }
                 hooks.forEach { it.onEffect(fx) }
             }
-            is AlarmEffect.StartAlerts, AlarmEffect.StopAlerts, AlarmEffect.EndIntercom -> hooks.forEach { it.onEffect(fx) }
+            is AlarmEffect.StartAlerts -> {
+                ensureNetwork()
+                network?.startAlerts(::alertInfo)
+                hooks.forEach { it.onEffect(fx) }
+            }
+            AlarmEffect.StopAlerts -> {
+                network?.stopAlerts()
+                hooks.forEach { it.onEffect(fx) }
+            }
+            AlarmEffect.EndIntercom -> hooks.forEach { it.onEffect(fx) }
             is AlarmEffect.Refused -> Log.i(TAG, "refused: ${fx.reason}")
             AlarmEffect.StopService -> Unit
         }
@@ -286,6 +305,41 @@ class ArmService : LifecycleService() {
             },
         ).also { photos = it }
         pc.start(id, startedAt)
+    }
+
+    /**
+     * F9: listen for verified Reset / Disarm and send alerts, after the first unlock only (the trust list and
+     * keys are CE / Keystore). An armed phone can always be reset or disarmed by a circle that grants it.
+     */
+    private fun ensureNetwork() {
+        if (networkAttached || !DeviceStatus.isCeUnlocked(this)) return
+        val n = network ?: ArmDeps.network(this).also { network = it }
+        networkAttached = n.attach(commandTarget)
+    }
+
+    private fun alertInfo(): AlertInfo? {
+        val s = machine.state
+        val id = s.incidentId ?: return null
+        val started = when (s) {
+            is AlarmState.PreAlarm -> s.startedAt
+            is AlarmState.Triggered -> s.startedAt
+            is AlarmState.IncidentPersisted -> s.startedAt
+            else -> return null
+        }
+        return AlertInfo(id, s.wireName, started)
+    }
+
+    private val commandTarget = object : CommandTarget {
+        override fun currentIncident(): String? = machine.state.incidentId
+
+        override suspend fun apply(cmd: Command, peerLabel: String, circleId: String): Boolean {
+            val ce = DeviceStatus.isCeUnlocked(this@ArmService)
+            val e = when (cmd) {
+                Command.RESET -> AlarmEvent.RemoteReset(peerLabel, circleId, DeviceStatus.isPlugged(this@ArmService), ce)
+                Command.DISARM -> AlarmEvent.RemoteDisarm(peerLabel, circleId, ce)
+            }
+            return events.trySend(e).isSuccess
+        }
     }
 
     /** Photos taken so far in this service instance (tests). */
@@ -363,6 +417,7 @@ class ArmService : LifecycleService() {
     }
 
     private fun shutdown() {
+        detachNetwork()
         photos?.stop()
         motion.stop()
         windowJob?.cancel()
@@ -374,7 +429,13 @@ class ArmService : LifecycleService() {
         stopSelf()
     }
 
+    private fun detachNetwork() {
+        if (networkAttached) network?.detach()
+        networkAttached = false
+    }
+
     override fun onDestroy() {
+        detachNetwork()
         if (::motion.isInitialized) motion.stop()
         if (receiverRegistered) unregisterReceiver(systemReceiver)
         receiverRegistered = false

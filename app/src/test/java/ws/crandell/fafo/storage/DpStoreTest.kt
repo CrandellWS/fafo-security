@@ -21,7 +21,7 @@ class DpStoreTest {
 
     @After fun tearDown() = scope.cancel()
 
-    @Test fun defaultsMatchSpec() = runBlocking {
+    @Test fun defaultsMatchSpec() = runBlocking<Unit> {
         val store = DpStore.create(context, scope)
         val s = store.readSettings()
         assertThat(s.sensitivityMs).isEqualTo(500L)
@@ -35,7 +35,7 @@ class DpStoreTest {
         assertThat(st.incidentActive).isFalse()
     }
 
-    @Test fun readsBackFromDeviceProtectedContext() = runBlocking {
+    @Test fun readsBackFromDeviceProtectedContext() = runBlocking<Unit> {
         val store = DpStore.create(context, scope)
         store.setArmed(true, awaitingPower = false)
         store.setIncident(true, "abc", 42L)
@@ -57,7 +57,7 @@ class DpStoreTest {
         assertThat(store.readState().incidentId).isNull()
     }
 
-    @Test fun ceDefaultsMatchSpec() = runBlocking {
+    @Test fun ceDefaultsMatchSpec() = runBlocking<Unit> {
         val ce = CeStore.create(context, scope).read()
         assertThat(ce.photoOnTrigger).isTrue()
         assertThat(ce.photoIntervalS).isEqualTo(10)

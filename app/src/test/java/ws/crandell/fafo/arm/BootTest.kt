@@ -45,11 +45,13 @@ class BootTest {
     private lateinit var dp: DpStore
     private val sound = RecordingSound()
     private val ce = ThrowingCeStore()
+    private val network = FakeAlarmNetwork()
     private var controller: ServiceController<ArmService>? = null
 
     @Before fun setUp() {
         dp = DpStore.create(app, scope)
         ArmDeps.dpStore = { dp }
+        ArmDeps.network = { network }
         ArmDeps.sound = { _, _, _ -> sound }
         ArmDeps.clock = ws.crandell.fafo.core.Clock { android.os.SystemClock.uptimeMillis() }
         CeStore.override = ce

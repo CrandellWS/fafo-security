@@ -295,6 +295,12 @@ A circle is a named group of trusted devices with labels and permissions, for ex
   grants B never implies what B grants A. Declined or unanswered invites expire after 10 minutes. During
   pairing (F6) the first invite rides on the already authenticated pairing link; later invites (adding an
   existing trusted device to another circle) use a session (F9).
+  Build notes M10: the raw pairing link is authenticated but not encrypted, so right after both phones
+  confirm, they run a normal F9 session handshake over the same Bluetooth link and the first invite rides
+  inside it. The phone that searched ("Find the other phone") invites the other into the circle its owner
+  chose; an invitee whose built-in Home is still empty adopts the inviter's circle id for it instead of
+  getting a second "Home". The inviter adds the invitee only when the `CircleAccept` arrives within the 10
+  minutes (the inviter's credential was given when the invite was sent).
 - AC8.7 **No transitive trust.** If A trusts B and C, B and C do not trust each other until they pair.
   "All" in a circle means all members that this device itself trusts. (Introductions, where A vouches
   for C to B, are a later idea, not in v1.)
@@ -347,8 +353,12 @@ internet address is ever contacted.
   direction 64-bit counter; the receiver rejects any counter at or below the last one seen (replay
   protection). Message types: `Hello(label, beaconKey on first session)`, `CircleInvite`,
   `CircleAccept`, `Alert`, `CommandChallenge`, `Reset`, `Disarm`, `IntercomListen`, `IntercomStop`,
-  `PttStart`, `PttStop`, `Ping`. There is deliberately no message that arms, starts room mode, opens a
-  mic or changes circles/permissions on the receiver. Unknown types are ignored. Max frame 64 KiB.
+  `PttStart`, `PttStop`, `Ping`, plus three replies that only answer a request: `CommandResult` (to
+  `Reset` / `Disarm` / a refused `CommandChallenge`), `IntercomListenReply` (carries the room phone's codec
+  csd and UDP port) and `PttBusy` (half-duplex collision). There is deliberately no message that arms,
+  starts room mode, opens a mic or changes circles/permissions on the receiver. Unknown types are ignored.
+  Max frame 64 KiB. (Build note M10: the three replies added; `Hello` carries the beacon key in every
+  session, not only the first, which also delivers a rotated key, AC9.6.)
 - AC9.6 **Beacon key.** Each install makes one random 256-bit beacon key, stored in CE storage encrypted
   with a non-exportable Keystore AES-GCM key, and sends it to each peer in the first session after
   pairing. It is used only for discovery tags (AC9.1) and BLE alert beacons (AC9.7). Removing a device

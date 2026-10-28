@@ -49,9 +49,21 @@ class ManifestTest {
         notRequested.forEach { assertThat(permissions).doesNotContain(it) }
     }
 
+    @Test fun localNetworkPermissions() {
+        // M10: sockets need INTERNET even on the LAN (spec F9); local-only use is enforced elsewhere.
+        assertThat(permissions).containsAtLeast(
+            "android.permission.INTERNET",
+            "android.permission.ACCESS_NETWORK_STATE",
+            "android.permission.CHANGE_NETWORK_STATE",
+            "android.permission.NEARBY_WIFI_DEVICES",
+        )
+        val tag = Regex("<uses-permission[^>]*NEARBY_WIFI_DEVICES[^>]*>").find(sourceManifest())!!.value
+        assertThat(tag).contains("neverForLocation")
+        assertThat(sourceManifest()).contains("@xml/network_security_config")
+    }
+
     @Test fun permissionsNotYetAdded() {
-        // Added in later milestones: INTERNET (M10), connectedDevice (M11), microphone (M12).
-        assertThat(permissions).doesNotContain("android.permission.INTERNET")
+        // Added in later milestones: connectedDevice (M11), microphone (M12).
         assertThat(permissions).doesNotContain("android.permission.RECORD_AUDIO")
         assertThat(permissions).doesNotContain("android.permission.FOREGROUND_SERVICE_MICROPHONE")
         assertThat(permissions).doesNotContain("android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE")

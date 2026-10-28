@@ -143,7 +143,7 @@ class PairingTest {
         assertThat(a.store.all() + b.store.all()).isEmpty()
     }
 
-    @Test fun removeNeedsCredential() = runBlocking {
+    @Test fun removeNeedsCredential() = runBlocking<Unit> {
         val gate = FakeGate()
         val store = TrustedDeviceStore(java.io.File(tmp.root, "t.json"))
         val keys = FakeIdentityKeys()

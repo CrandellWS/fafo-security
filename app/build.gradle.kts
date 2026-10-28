@@ -33,6 +33,11 @@ android {
         compose = true
     }
 
+    lint {
+        // Plain-text report (build/reports/lint-results-debug.txt); CI prints it when lint fails.
+        textReport = true
+    }
+
     testOptions {
         unitTests.isIncludeAndroidResources = true
         unitTests.all { it.maxHeapSize = "2g" }

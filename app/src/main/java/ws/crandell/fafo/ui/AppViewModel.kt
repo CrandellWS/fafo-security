@@ -16,6 +16,12 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import ws.crandell.fafo.pairing.DelegatingGate
+import ws.crandell.fafo.circles.Circle
+import ws.crandell.fafo.circles.CircleManager
+import ws.crandell.fafo.circles.Permission
+import ws.crandell.fafo.net.IncomingInvite
+import ws.crandell.fafo.net.android.PeerNetwork
+import ws.crandell.fafo.pairing.GateResult
 import ws.crandell.fafo.pairing.PairingFinisher
 import ws.crandell.fafo.pairing.TrustedDevice
 import ws.crandell.fafo.trust.TrustGraph
@@ -112,8 +118,66 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         app, viewModelScope, gate, TrustGraph::keys, { trustedStore }, { ce.read().deviceLabel },
     )
 
+    private val circleStore by lazy { TrustGraph.circles(app) }
+    val circles: StateFlow<List<Circle>> by lazy { circleStore.circles }
+    private val circleManager by lazy { CircleManager(circleStore, gate) }
+    val reachable: StateFlow<Set<String>> = PeerNetwork.reachable
+    val invites: StateFlow<List<IncomingInvite>> = PeerNetwork.invites.invites
+
+    /** The circle "Add trusted device" pairs into (AC6.6, default Home). */
+    private val _pairingCircle = MutableStateFlow<String?>(null)
+    val pairingCircle: StateFlow<String?> = _pairingCircle
+    fun choosePairingCircle(id: String) { _pairingCircle.value = id }
+
+    private val _message = MutableStateFlow<String?>(null)
+    /** One-shot user feedback (toast). */
+    val message: StateFlow<String?> = _message
+    fun messageShown() { _message.value = null }
+
+    init {
+        pairing.afterPaired = { initiator, link, device ->
+            PairingInvite(
+                app, TrustGraph.keys(), trustedStore, circleManager, PeerNetwork.invites,
+                myLabel = { ce.read().deviceLabel },
+                beaconKey = { PeerNetwork.beaconKeys(app).key() },
+                status = pairing::status,
+            ).run(initiator, link, device, _pairingCircle.value ?: circleStore.all().first().id)
+        }
+    }
+
     fun removeDevice(d: TrustedDevice) = viewModelScope.launch {
-        PairingFinisher(gate, trustedStore) { System.currentTimeMillis() }.remove(d.fingerprint)
+        if (PairingFinisher(gate, trustedStore) { System.currentTimeMillis() }.remove(d.fingerprint)) {
+            PeerNetwork.forget(getApplication(), d.fingerprint)
+        }
+    }
+
+    fun answerInvite(inv: IncomingInvite, accepted: Set<Permission>?) = viewModelScope.launch {
+        if (accepted == null) return@launch PeerNetwork.invites.answer(inv.id, null)
+        val ok = circleManager.acceptInvite(inv.circleId, inv.circleName, inv.offered, accepted, inv.peer, inv.peerLabel)
+        if (ok) PeerNetwork.invites.answer(inv.id, accepted intersect inv.offered) else _message.value = "Screen lock not confirmed"
+    }
+
+    val circlesActions = object : ws.crandell.fafo.ui.screens.CirclesActions {
+        override fun setDeviceLabel(label: String) { updateCe { it.copy(deviceLabel = label.trim().take(ws.crandell.fafo.core.Defaults.LABEL_MAX)) } }
+        override fun createCircle(name: String) {
+            if (circleManager.create(name) == null) _message.value = "A circle needs a new name of 1-24 characters"
+        }
+        override fun setPermissions(circleId: String, permissions: Set<Permission>) { viewModelScope.launch { circleManager.setCirclePermissions(circleId, permissions) } }
+        override fun renameMember(circleId: String, fingerprint: String, label: String) {
+            if (!circleManager.renameMember(circleId, fingerprint, label)) _message.value = "Names are 1-24 characters and unique in a circle"
+        }
+        override fun removeMember(circleId: String, fingerprint: String) { viewModelScope.launch { circleManager.removeMember(circleId, fingerprint) } }
+        override fun removeCircle(circleId: String) { viewModelScope.launch { circleManager.removeCircle(circleId) } }
+        override fun invite(circleId: String, fingerprint: String) {
+            viewModelScope.launch {
+                val name = circleStore.get(circleId)?.name ?: return@launch
+                // AC8.5: adding a member needs the credential; the member joins when they accept.
+                if (gate.authenticate("Add to $name", "Confirm with your screen lock") !is GateResult.Success) return@launch
+                val hub = PeerNetwork.hub
+                _message.value = if (hub != null && hub.invite(fingerprint, circleId)) "Invite sent. It expires in 10 minutes." else "That device is not reachable now"
+            }
+        }
+        override fun pairInto(circleId: String) { _pairingCircle.value = circleId }
     }
 
     fun markOnboarding(flag: String) = viewModelScope.launch { ce.markOnboarding(flag) }

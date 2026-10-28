@@ -36,7 +36,7 @@ class AlarmStateMachine(
     private val newIncidentId: () -> String = IncidentIds::next,
     initial: AlarmState = AlarmState.Disarmed,
 ) {
-    var state: AlarmState = initial
+    @Volatile var state: AlarmState = initial
         private set
 
     fun handle(event: AlarmEvent): List<AlarmEffect> {

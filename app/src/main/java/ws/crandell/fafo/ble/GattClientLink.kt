@@ -7,6 +7,7 @@ import android.bluetooth.BluetoothGattCallback
 import android.bluetooth.BluetoothGattCharacteristic
 import android.bluetooth.BluetoothGattDescriptor
 import android.bluetooth.BluetoothProfile
+import android.bluetooth.BluetoothStatusCodes
 import android.content.Context
 import android.os.Build
 import kotlinx.coroutines.CompletableDeferred
@@ -28,6 +29,8 @@ class GattClientLink private constructor(
     private val txUuid: UUID,
 ) : MessageLink {
     private var gatt: BluetoothGatt? = null
+    override var remote: Any? = null
+        private set
     private var rx: BluetoothGattCharacteristic? = null
     private var mtu = 23
     private val ready = CompletableDeferred<Unit>()
@@ -63,7 +66,7 @@ class GattClientLink private constructor(
             rx = rxc
             g.setCharacteristicNotification(txc, true)
             val started = if (Build.VERSION.SDK_INT >= 33) {
-                g.writeDescriptor(cccd, BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE) == BluetoothGatt.GATT_SUCCESS
+                g.writeDescriptor(cccd, BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE) == BluetoothStatusCodes.SUCCESS
             } else {
                 @Suppress("DEPRECATION")
                 cccd.value = BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
@@ -114,7 +117,7 @@ class GattClientLink private constructor(
             val done = CompletableDeferred<Int>()
             pendingWrite = done
             val queued = if (Build.VERSION.SDK_INT >= 33) {
-                g.writeCharacteristic(c, chunk, BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT) == BluetoothGatt.GATT_SUCCESS
+                g.writeCharacteristic(c, chunk, BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT) == BluetoothStatusCodes.SUCCESS
             } else {
                 @Suppress("DEPRECATION")
                 c.writeType = BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT
@@ -148,6 +151,7 @@ class GattClientLink private constructor(
             timeoutMs: Long = 20_000,
         ): GattClientLink {
             val link = GattClientLink(purpose.rx, purpose.tx)
+            link.remote = device
             link.gatt = device.connectGatt(context, false, link.callback, BluetoothDevice.TRANSPORT_LE)
                 ?: throw LinkClosed("connectGatt failed")
             try {
