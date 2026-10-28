@@ -267,7 +267,10 @@ class ArmService : LifecycleService() {
                 network?.stopAlerts()
                 hooks.forEach { it.onEffect(fx) }
             }
-            AlarmEffect.EndIntercom -> hooks.forEach { it.onEffect(fx) }
+            AlarmEffect.EndIntercom -> {
+                AlarmStatusBus.endIntercom?.invoke()
+                hooks.forEach { it.onEffect(fx) }
+            }
             is AlarmEffect.Refused -> Log.i(TAG, "refused: ${fx.reason}")
             AlarmEffect.StopService -> Unit
         }

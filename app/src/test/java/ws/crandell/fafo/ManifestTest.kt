@@ -62,11 +62,15 @@ class ManifestTest {
         assertThat(sourceManifest()).contains("@xml/network_security_config")
     }
 
-    @Test fun permissionsNotYetAdded() {
-        // Added in later milestones: connectedDevice (M11), microphone (M12).
-        assertThat(permissions).doesNotContain("android.permission.RECORD_AUDIO")
-        assertThat(permissions).doesNotContain("android.permission.FOREGROUND_SERVICE_MICROPHONE")
-        assertThat(permissions).doesNotContain("android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE")
+    /** M12: the microphone service type is declared only on IntercomService. */
+    @Test fun microphoneOnlyOnIntercomService() {
+        assertThat(permissions).containsAtLeast(
+            "android.permission.RECORD_AUDIO", "android.permission.FOREGROUND_SERVICE_MICROPHONE", "android.permission.MODIFY_AUDIO_SETTINGS",
+        )
+        info.services.forEach { s ->
+            val mic = s.foregroundServiceType and ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE != 0
+            assertThat(mic).isEqualTo(s.name == "ws.crandell.fafo.intercom.IntercomService")
+        }
     }
 
     @Test fun armServicePermissions() {
@@ -111,6 +115,13 @@ class ManifestTest {
     private fun sourceManifest(): String {
         val candidates = listOf("src/main/AndroidManifest.xml", "app/src/main/AndroidManifest.xml").map { File(it) }
         return candidates.first { it.isFile }.readText()
+    }
+
+    @Test fun reachableServiceIsConnectedDevice() {
+        assertThat(permissions).contains("android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE")
+        val si = pm.getServiceInfo(ComponentName(context, ws.crandell.fafo.reach.ReachableService::class.java), PackageManager.GET_META_DATA)
+        assertThat(si.foregroundServiceType).isEqualTo(ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE)
+        assertThat(si.exported).isFalse()
     }
 
     @Test fun backupDisabled() {

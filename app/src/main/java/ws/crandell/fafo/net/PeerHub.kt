@@ -90,6 +90,7 @@ class PeerHub(
     /** Peers with a live session right now. */
     val connected: StateFlow<Set<String>> = _connected
     private var alertJob: Job? = null
+    @Volatile private var alertInfo: (() -> AlertInfo?)? = null
 
     inner class Conn(val channel: SecureChannel) {
         val peer: String get() = channel.peer
@@ -163,7 +164,11 @@ class PeerHub(
         publish()
         scope.launch {
             try {
-                conn.send(Message.Hello(myLabel(), beaconKey()))
+                val label = myLabel()
+                conn.send(Message.Hello(label, beaconKey()))
+                // A peer that connects while we are alarming (e.g. after seeing our Bluetooth beacon) gets the
+                // Alert with its granted powers right away (AC9.7).
+                alertInfo?.invoke()?.let { i -> alertsFor(i, label).firstOrNull { it.first == ch.peer }?.let { conn.send(it.second) } }
                 while (isActive) {
                     val m = ch.receive()
                     if (!conn.offer(m)) handle(conn, m)
@@ -287,6 +292,7 @@ class PeerHub(
 
     /** AC9.7: alert every member of every circle that grants Alerts, every 30 s while [info] is non-null. */
     fun startAlerts(info: () -> AlertInfo?) {
+        alertInfo = info
         alertJob?.cancel()
         alertJob = scope.launch {
             while (isActive) {
@@ -298,6 +304,7 @@ class PeerHub(
     }
 
     fun stopAlerts() {
+        alertInfo = null
         alertJob?.cancel()
         alertJob = null
     }

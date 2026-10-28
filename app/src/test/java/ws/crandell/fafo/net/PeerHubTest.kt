@@ -103,6 +103,14 @@ class PeerHubTest {
         assertThat(a.hub.alertsFor(AlertInfo("inc", "TRIGGERED", 5), "Register")).isEmpty()
     }
 
+    @Test fun alertSentAsSoonAsASessionOpensWhileAlarming() = runBlocking<Unit> {
+        grant(a, b, Permission.ALERTS, Permission.DISARM)
+        a.hub.startAlerts { AlertInfo("inc2", "TRIGGERED", 9) }
+        until { synchronized(b.alerts) { b.alerts.isNotEmpty() } }
+        assertThat(Permission.fromBits(b.alerts[0].granted)).containsExactly(Permission.RESET, Permission.DISARM)
+        a.hub.stopAlerts()
+    }
+
     @Test fun alertArrives() = runBlocking<Unit> {
         grant(a, b, Permission.ALERTS)
         a.hub.sendAlertsOnce(AlertInfo("inc1", "PRE_ALARM", 7))

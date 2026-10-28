@@ -8,6 +8,11 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CAMERA" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE" />
+    <!-- F10 intercom / push-to-talk only: asked at first use, never at arm time; nothing is recorded. -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
     <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.VIBRATE" />
@@ -115,5 +120,30 @@
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
                 android:value="Anti-theft alarm: detects charger removal and sounds a siren on the owner's own device; must resume from boot" />
         </service>
+
+        <!-- AC9.9 Stay reachable: after first unlock only, may resume from BOOT_COMPLETED. -->
+        <service
+            android:name=".reach.ReachableService"
+            android:exported="false"
+            android:foregroundServiceType="connectedDevice" />
+
+        <receiver
+            android:name=".reach.ReachableBootReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver>
+
+        <!-- AC10.1 intercom room mode: started only from the visible app, never from boot or a sticky restart. -->
+        <service
+            android:name=".intercom.IntercomService"
+            android:exported="false"
+            android:foregroundServiceType="microphone|connectedDevice" />
+
+        <!-- AC9.7: woken by the background Bluetooth scan PendingIntent (explicit, not exported). -->
+        <receiver
+            android:name=".ble.BleAlertReceiver"
+            android:exported="false" />
     </application>
 </manifest>

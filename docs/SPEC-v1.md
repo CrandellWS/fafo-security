@@ -374,6 +374,15 @@ internet address is ever contacted.
     "Reset" and/or "Disarm" actions when that phone's circle grants them (the alarming phone sends its
     granted powers in the `Alert`; the target still enforces them). Alerts are "nearby" only; out of range
     means no alert.
+  - Build notes M11: the Bluetooth beacon is service data under the FAFO UUID: 1 state byte (1 = alarming,
+    0 = reachable) + the 8-byte tag in 2-minute slots, so it fits a legacy advertisement (30 bytes) with no
+    name. While the local network runs (app open, armed, Stay reachable or room mode) the phone also
+    advertises the reachable beacon (state 0, connectable) so its circles can open a Bluetooth session when
+    Wi-Fi is not shared; the background `PendingIntent` scan matches only state 1. A phone that connects
+    while the other is alarming gets the `Alert` (with the granted powers) as soon as the session opens. The
+    background scan is registered when the network starts and again after `BOOT_COMPLETED` (scan
+    registrations do not survive a reboot), by a separate non-direct-boot receiver, so the direct-boot alarm
+    receiver still never touches CE storage.
 - AC9.8 **Reset and disarm from a trusted device.** Sending `Reset` or `Disarm` requires the sender's
   own credential at the moment of sending, enforced cryptographically, not just by a UI prompt: each
   install has a second Keystore key, the **command key** (ECDSA P-256, `setUserAuthenticationParameters(0,
@@ -450,6 +459,11 @@ baby monitor or as a way to listen to anyone; it is an intercom/walkie-talkie fo
   reset within a session. Control (listen, stop, PTT start/stop) goes over the encrypted session channel.
   Target mouth-to-ear latency on Wi-Fi under 300 ms. The Opus decoder needs its `csd-0/1/2` (OpusHead +
   pre-skip/seek-preroll) sent once per stream inside the encrypted `PttStart` / `IntercomListen` reply.
+- Build notes M12: the receiver of a `PttStart` accepts it with an `IntercomListenReply` that carries its
+  own audio port (UDP port on Wi-Fi, L2CAP PSM on Bluetooth), or refuses with `PttBusy`; the room phone
+  answers `IntercomListen` the same way, with its codec csd. One audio crypto context per session keeps the
+  64-bit send counter running across all streams of that session. The Opus decoder is configured at 48 kHz
+  (what Android's decoder outputs) and played at that rate.
 - AC10.8 **Alarm takes priority, and ends room mode.** If the phone enters PRE_ALARM or TRIGGERED,
   push-to-talk playback on it stops, **room mode is turned off and every listener is disconnected**, the
   mic closes, and the siren plays. Room mode cannot be turned on again until the incident ends. Otherwise
