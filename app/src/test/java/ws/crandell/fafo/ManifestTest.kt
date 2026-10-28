@@ -62,10 +62,15 @@ class ManifestTest {
         assertThat(sourceManifest()).contains("@xml/network_security_config")
     }
 
-    @Test fun permissionsNotYetAdded() {
-        // Added in a later milestone: microphone (M12).
-        assertThat(permissions).doesNotContain("android.permission.RECORD_AUDIO")
-        assertThat(permissions).doesNotContain("android.permission.FOREGROUND_SERVICE_MICROPHONE")
+    /** M12: the microphone service type is declared only on IntercomService. */
+    @Test fun microphoneOnlyOnIntercomService() {
+        assertThat(permissions).containsAtLeast(
+            "android.permission.RECORD_AUDIO", "android.permission.FOREGROUND_SERVICE_MICROPHONE", "android.permission.MODIFY_AUDIO_SETTINGS",
+        )
+        info.services.forEach { s ->
+            val mic = s.foregroundServiceType and ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE != 0
+            assertThat(mic).isEqualTo(s.name == "ws.crandell.fafo.intercom.IntercomService")
+        }
     }
 
     @Test fun armServicePermissions() {

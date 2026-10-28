@@ -60,7 +60,6 @@ import ws.crandell.fafo.storage.CeStore
 import ws.crandell.fafo.system.DeviceStatus
 import ws.crandell.fafo.ui.screens.HomeScreen
 import ws.crandell.fafo.ui.screens.OnboardingScreen
-import ws.crandell.fafo.ui.screens.PlaceholderScreen
 import ws.crandell.fafo.ui.screens.Screen
 import ws.crandell.fafo.ui.screens.SettingsScreen
 import ws.crandell.fafo.ui.theme.FafoTheme
@@ -208,6 +207,58 @@ class MainActivity : FragmentActivity() {
 
     private var armAfterPermissions = false
 
+    /** F7 / section 8: the microphone is asked only at first intercom or push-to-talk use, never at arm time. */
+    private var afterMic: (() -> Unit)? = null
+    private val micLauncher = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        if (granted) afterMic?.invoke() else Toast.makeText(this, "Intercom needs the microphone", Toast.LENGTH_LONG).show()
+        afterMic = null
+    }
+
+    private fun withMic(block: () -> Unit) {
+        if (DeviceStatus.hasPermission(this, Manifest.permission.RECORD_AUDIO)) block() else {
+            afterMic = block
+            micLauncher.launch(Manifest.permission.RECORD_AUDIO)
+        }
+    }
+
+    private val intercomActions = object : ws.crandell.fafo.ui.screens.IntercomActions {
+        override fun setRoomMode(on: Boolean, circles: Set<String>) {
+            if (!on) return ws.crandell.fafo.intercom.IntercomService.stop(this@MainActivity)
+            if (!DeviceStatus.hasNotificationPermission(this@MainActivity) || !DeviceStatus.notificationsEnabled(this@MainActivity)) {
+                Toast.makeText(this@MainActivity, "Allow notifications: intercom always shows one while on.", Toast.LENGTH_LONG).show()
+                return
+            }
+            withMic { ws.crandell.fafo.intercom.IntercomService.start(this@MainActivity, circles) }
+        }
+
+        override fun listen(fingerprint: String, circleId: String) {
+            lifecycleScope.launch {
+                ws.crandell.fafo.intercom.Intercom.listen(this@MainActivity, fingerprint, circleId)?.let {
+                    Toast.makeText(this@MainActivity, it, Toast.LENGTH_LONG).show()
+                }
+            }
+        }
+
+        override fun stopListening() = ws.crandell.fafo.intercom.Intercom.stopListening()
+
+        override fun talkStart(targets: List<String>, circleId: String) {
+            if (!DeviceStatus.hasPermission(this@MainActivity, Manifest.permission.RECORD_AUDIO)) {
+                withMic {}
+                return
+            }
+            talkJob = lifecycleScope.launch {
+                ws.crandell.fafo.intercom.Intercom.startTalk(this@MainActivity, targets, circleId)?.let {
+                    Toast.makeText(this@MainActivity, it, Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+
+        override fun talkStop() {
+            talkJob?.cancel()
+            ws.crandell.fafo.intercom.Intercom.stopTalk()
+        }
+    }
+    private var talkJob: kotlinx.coroutines.Job? = null
 
     /** AC1.3: ask for notifications and camera first; arming without camera is allowed ("Photos off"). */
     fun onArm() {
@@ -330,7 +381,12 @@ class MainActivity : FragmentActivity() {
                         m,
                     )
                 }
-                Screen.INTERCOM -> PlaceholderScreen("Intercom", "Intercom arrives in a later build.", m)
+                Screen.INTERCOM -> {
+                    val ui by ws.crandell.fafo.intercom.Intercom.ui.collectAsStateWithLifecycle()
+                    val circles by vm.circles.collectAsStateWithLifecycle()
+                    val reachable by vm.reachable.collectAsStateWithLifecycle()
+                    ws.crandell.fafo.ui.screens.IntercomScreen(ui, circles, reachable, home.alarming, intercomActions, m)
+                }
             }
         }
         val invites by vm.invites.collectAsStateWithLifecycle()
