@@ -28,6 +28,7 @@ import ws.crandell.fafo.core.AlarmState
 import ws.crandell.fafo.core.Defaults
 import ws.crandell.fafo.ui.OnboardingStep
 import ws.crandell.fafo.ui.components.ActionKind
+import ws.crandell.fafo.ui.components.AutoFitText
 import ws.crandell.fafo.ui.components.Banner
 import ws.crandell.fafo.ui.components.FafoCard
 import ws.crandell.fafo.ui.components.FafoDims
@@ -121,9 +122,9 @@ fun HomeScreen(
                     PlugLine(state.plugged, if (state.plugged && state.secureLock) "ready to arm" else null)
                 }
                 StateKind.ARMING -> {
-                    Text(
+                    AutoFitText(
                         "${state.armingLeftS}", style = FafoType.countdown.copy(fontSize = 72.sp, lineHeight = 76.sp),
-                        color = stateColor(StateKind.ARMING),
+                        color = stateColor(StateKind.ARMING), sample = "88",
                         modifier = Modifier.testTag("armingCountdown").semantics { liveRegion = LiveRegionMode.Polite },
                     )
                     Text("Armed in ${state.armingLeftS} s. Leave it plugged in.", style = MaterialTheme.typography.bodyLarge, color = FafoColors.White)

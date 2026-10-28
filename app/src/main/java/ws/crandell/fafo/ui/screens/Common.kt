@@ -25,6 +25,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import ws.crandell.fafo.ui.theme.FafoColors
 
 /** 48dp chip colors: selected = brand red with white text and a check, unselected = outlined. */
@@ -127,7 +128,7 @@ fun SwitchRow(
 
 @Composable
 fun ScreenTitle(text: String) {
-    Text(text.uppercase(), style = MaterialTheme.typography.headlineMedium, color = FafoColors.White, modifier = Modifier.padding(bottom = 8.dp))
+    ws.crandell.fafo.ui.components.AutoFitText(text.uppercase(), style = MaterialTheme.typography.headlineMedium, color = FafoColors.White, minFontSize = 16.sp, modifier = Modifier.padding(bottom = 8.dp))
 }
 
 /** AlertDialog in the FAFO style: Surface2, 24dp corners. */

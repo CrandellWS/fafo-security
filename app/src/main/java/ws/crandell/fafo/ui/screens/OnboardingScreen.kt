@@ -38,6 +38,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import ws.crandell.fafo.ui.OnboardingStatus
 import ws.crandell.fafo.ui.OnboardingStep
 import ws.crandell.fafo.ui.components.FafoCard
@@ -101,9 +102,9 @@ fun OnboardingScreen(
                 ShieldLogo(64.dp)
                 Spacer(Modifier.width(16.dp))
                 Column(Modifier.weight(1f)) {
-                    Text(
+                    ws.crandell.fafo.ui.components.AutoFitText(
                         if (todo.isEmpty()) "All set" else "${done.size} of ${steps.size} done",
-                        style = MaterialTheme.typography.headlineMedium, color = FafoColors.White,
+                        style = MaterialTheme.typography.headlineMedium, color = FafoColors.White, minFontSize = 16.sp,
                         modifier = Modifier.testTag("setupProgress"),
                     )
                     Text(

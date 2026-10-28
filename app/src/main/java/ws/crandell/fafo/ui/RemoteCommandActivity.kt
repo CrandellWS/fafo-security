@@ -40,6 +40,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.Dispatchers
@@ -153,7 +154,7 @@ fun RemoteCommandScreen(cmd: Command?, label: String, status: String, step: Int,
             Modifier.fillMaxSize().padding(p).padding(horizontal = FafoDims.Gutter, vertical = 20.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
-            Text(what.uppercase(), style = MaterialTheme.typography.headlineMedium, color = FafoColors.White)
+            ws.crandell.fafo.ui.components.AutoFitText(what.uppercase(), style = MaterialTheme.typography.headlineMedium, color = FafoColors.White, minFontSize = 16.sp)
             Text(
                 if (cmd == Command.RESET) "Stops $label's alarm. It stays armed." else "Ends $label's alarm and disarms it.",
                 style = MaterialTheme.typography.bodyLarge, color = FafoColors.TextMuted,

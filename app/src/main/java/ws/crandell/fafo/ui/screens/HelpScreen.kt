@@ -122,7 +122,7 @@ private fun TopicCard(t: HelpTopic, open: Boolean, onToggle: () -> Unit, onLink:
             }
             Spacer(Modifier.width(14.dp))
             Column(Modifier.weight(1f)) {
-                Text(t.title, style = MaterialTheme.typography.titleMedium, color = FafoColors.White)
+                ws.crandell.fafo.ui.components.AutoFitText(t.title, style = MaterialTheme.typography.titleMedium, color = FafoColors.White, minFontSize = 13.sp)
                 Text(t.summary, style = MaterialTheme.typography.bodyMedium, color = FafoColors.TextMuted)
             }
             Icon(

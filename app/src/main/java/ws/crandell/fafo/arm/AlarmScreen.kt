@@ -32,6 +32,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import ws.crandell.fafo.core.AlarmState
+import ws.crandell.fafo.ui.components.AutoFitText
 import ws.crandell.fafo.ui.components.FafoWordmark
 import ws.crandell.fafo.ui.components.ShieldLogo
 import ws.crandell.fafo.ui.theme.FafoColors
@@ -77,13 +78,13 @@ private fun PreAlarm(s: AlarmState.PreAlarm, now: Long) {
                 drawArc(FafoColors.Surface2, 0f, 360f, false, Offset(inset, inset), arc, style = Stroke(w))
                 drawArc(FafoColors.Amber, -90f, 360f * fraction, false, Offset(inset, inset), arc, style = Stroke(w, cap = StrokeCap.Round))
             }
-            Text(
-                "$left", style = FafoType.countdown, color = FafoColors.White,
+            AutoFitText(
+                "$left", style = FafoType.countdown, color = FafoColors.White, sample = "88",
                 modifier = Modifier.testTag("countdown").semantics { liveRegion = LiveRegionMode.Polite },
             )
         }
         Spacer(Modifier.height(28.dp))
-        Text("PLUG ME BACK IN", style = MaterialTheme.typography.displaySmall, color = FafoColors.Amber, textAlign = TextAlign.Center)
+        AutoFitText("PLUG ME BACK IN", style = MaterialTheme.typography.displaySmall, color = FafoColors.Amber, textAlign = TextAlign.Center, minFontSize = 18.sp)
         Spacer(Modifier.height(10.dp))
         Text(
             "The alarm sounds in $left ${if (left == 1L) "second" else "seconds"}.\nPlug the charger back in, or unlock.",
@@ -113,7 +114,7 @@ private fun Triggered(photosOn: Boolean, now: Long?) {
     ) {
         ShieldLogo(240.dp, haloOnRed = true)
         Spacer(Modifier.height(20.dp))
-        Text(
+        AutoFitText(
             "ALARM", style = FafoType.stateDisplay.copy(fontSize = 88.sp, lineHeight = 92.sp), color = FafoColors.White,
             modifier = Modifier.testTag("alarmWord").semantics { liveRegion = LiveRegionMode.Assertive },
         )

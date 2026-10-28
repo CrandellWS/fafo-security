@@ -22,6 +22,8 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -126,7 +128,7 @@ fun FafoTopBar(
                 if (title == null) {
                     FafoWordmark(size = 24.sp)
                 } else {
-                    Text(title.uppercase(), style = MaterialTheme.typography.headlineSmall, color = FafoColors.White, modifier = Modifier.semantics { heading() })
+                    AutoFitText(title.uppercase(), style = MaterialTheme.typography.headlineSmall, color = FafoColors.White, minFontSize = 16.sp, modifier = Modifier.semantics { heading() })
                 }
             }
             if (onSettings != null) {
@@ -147,6 +149,8 @@ data class BarItem(val key: String, val label: String, val icon: ImageVector, va
 /** M3 bottom navigation on navy: red indicator pill, white selected, steel unselected, labels always shown. */
 @Composable
 fun FafoBottomBar(items: List<BarItem>, selected: String, onSelect: (String) -> Unit) {
+    // Every label is measured against the longest one, so all tabs shrink together at large font sizes.
+    val longest = items.maxByOrNull { it.label.length }?.label
     NavigationBar(containerColor = FafoColors.Navy, contentColor = FafoColors.White) {
         items.forEach { item ->
             NavigationBarItem(
@@ -161,7 +165,7 @@ fun FafoBottomBar(items: List<BarItem>, selected: String, onSelect: (String) -> 
                         Icon(item.icon, contentDescription = null)
                     }
                 },
-                label = { Text(item.label, style = MaterialTheme.typography.labelSmall, maxLines = 1) },
+                label = { AutoFitText(item.label, style = MaterialTheme.typography.labelSmall, minFontSize = 9.sp, sample = longest) },
                 alwaysShowLabel = true,
                 colors = NavigationBarItemDefaults.colors(
                     selectedIconColor = FafoColors.White,
@@ -224,8 +228,9 @@ fun StatusHero(
                 Icon(stateIcon(kind), contentDescription = null, tint = color, modifier = Modifier.size(56.dp))
             }
             Spacer(Modifier.width(16.dp))
-            Text(
-                word.uppercase(), style = FafoType.stateDisplay, color = color, maxLines = 2,
+            // One line at any width or font size (Bill 2026-10-28: "DISARMED" wrapped on the A17).
+            AutoFitText(
+                word.uppercase(), style = FafoType.stateDisplay, color = color, minFontSize = 20.sp,
                 modifier = Modifier.weight(1f).then(if (wordTag != null) Modifier.testTag(wordTag) else Modifier),
             )
         }
@@ -268,12 +273,14 @@ fun PrimaryActionButton(
         if (busy) {
             CircularProgressIndicator(Modifier.size(26.dp), color = fg, strokeWidth = 3.dp, trackColor = fg.copy(alpha = 0.3f))
             Spacer(Modifier.width(14.dp))
-            Text("Confirming it's you", style = MaterialTheme.typography.titleLarge)
+            AutoFitText("Confirming it's you", style = MaterialTheme.typography.titleLarge, minFontSize = 13.sp)
         } else if (enabled) {
             // Drawn in capitals; read out (and matched by tests) as the plain word.
-            Text(label.uppercase(), style = FafoType.action, modifier = Modifier.clearAndSetSemantics { text = AnnotatedString(label) })
+            Box(Modifier.clearAndSetSemantics { text = AnnotatedString(label) }, contentAlignment = Alignment.Center) {
+                AutoFitText(label.uppercase(), style = FafoType.action, minFontSize = 16.sp, textAlign = TextAlign.Center)
+            }
         } else {
-            Text(label, style = MaterialTheme.typography.titleLarge, textAlign = TextAlign.Center)
+            AutoFitText(label, style = MaterialTheme.typography.titleLarge, minFontSize = 13.sp, textAlign = TextAlign.Center)
         }
     }
 }
@@ -319,9 +326,11 @@ fun Banner(text: String, action: String, color: Color, onClick: () -> Unit, modi
             Icon(icon, contentDescription = null, tint = FafoColors.Ink, modifier = Modifier.size(24.dp))
             Spacer(Modifier.width(12.dp))
         }
-        Text(text, style = MaterialTheme.typography.titleMedium, color = FafoColors.Ink, modifier = Modifier.weight(1f))
+        // A sentence, not a headline: up to two lines; the action label shrinks to leave it room.
+        Text(text, style = MaterialTheme.typography.titleMedium, color = FafoColors.Ink, maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(2f))
         if (action.isNotEmpty()) {
-            Text(action, style = MaterialTheme.typography.labelLarge, color = FafoColors.Ink)
+            Spacer(Modifier.width(8.dp))
+            AutoFitText(action, style = MaterialTheme.typography.labelLarge, color = FafoColors.Ink, minFontSize = 11.sp, modifier = Modifier.weight(1f, fill = false))
             Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = FafoColors.Ink)
         }
     }

@@ -53,6 +53,17 @@ import ws.crandell.fafo.ui.screens.OnboardingScreen
 import ws.crandell.fafo.ui.screens.SettingsScreen
 import ws.crandell.fafo.ui.screens.TrustedScreen
 import ws.crandell.fafo.ui.theme.FafoTheme
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.padding
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.dp
+import ws.crandell.fafo.ui.components.ActionKind
+import ws.crandell.fafo.ui.components.FafoTopBar
+import ws.crandell.fafo.ui.components.PrimaryActionButton
+import ws.crandell.fafo.ui.components.StateKind
+import ws.crandell.fafo.ui.components.StatusHero
 import ws.crandell.fafo.ui.OnboardingStep
 import java.io.File
 
@@ -62,6 +73,10 @@ private const val PHONE = "w411dp-h891dp-port-420dpi"
 private const val TALL = "w411dp-h1600dp-port-420dpi"
 /** Settings is the longest page. */
 private const val TALLER = "w411dp-h2100dp-port-420dpi"
+/** A narrow phone (Bill's DISARMED wrap case at a large font size). */
+private const val NARROW = "w360dp-h780dp-port-420dpi"
+/** Display size at its largest on the A17: about 320dp wide. */
+private const val NARROWEST = "w320dp-h700dp-port-420dpi"
 
 /**
  * Every screen in its key states at Galaxy A17 size (411 x 891 dp at 420 dpi = 1079 x 2339 px). Fixed fake
@@ -79,6 +94,16 @@ class ScreenshotTest {
 
     private fun shot(name: String, content: @Composable () -> Unit) {
         rule.setContent { FafoTheme { content() } }
+        rule.waitForIdle()
+        rule.onRoot().captureRoboImage(path(name))
+    }
+
+    /** Rendered at the user's font size [fontScale] (Settings > Display > Font size). */
+    private fun shotFs(name: String, fontScale: Float, content: @Composable () -> Unit) {
+        rule.setContent {
+            val d = LocalDensity.current
+            CompositionLocalProvider(LocalDensity provides Density(d.density, fontScale)) { FafoTheme { content() } }
+        }
         rule.waitForIdle()
         rule.onRoot().captureRoboImage(path(name))
     }
@@ -125,6 +150,44 @@ class ScreenshotTest {
     }
     @Test fun s10_home_alarm() = shot("10_home_alarm") {
         Home(armed.copy(alarmState = AlarmState.Triggered("i", 0), armed = false, alarming = true, plugged = false, stateLabel = "ALARM"))
+    }
+
+    @Test fun s44_home_arming_dark() = shot("44_home_arming_dark") {
+        Home(ready.copy(alarmState = AlarmState.Arming(0, 5_000), arming = true, armingLeftS = 4, stateLabel = "Arming (4 s)"))
+    }
+
+    // ---- Large font and narrow width (AutoFitText) ------------------------------------------------
+
+    @Test fun s61_home_disarmed_fs13() = shotFs("61_home_disarmed_fs13", 1.3f) { Home(ready.copy(checklist = threeLeft)) }
+    @Test fun s62_home_disarmed_fs15() = shotFs("62_home_disarmed_fs15", 1.5f) { Home(ready.copy(checklist = threeLeft)) }
+    @Config(qualifiers = NARROW)
+    @Test fun s63_home_disarmed_360dp_fs15() = shotFs("63_home_disarmed_360dp_fs15", 1.5f) { Home(ready.copy(checklist = threeLeft)) }
+    @Config(qualifiers = NARROWEST)
+    @Test fun s63b_home_disarmed_320dp_fs15() = shotFs("63b_home_disarmed_320dp_fs15", 1.5f) { Home(ready.copy(checklist = threeLeft)) }
+    @Config(qualifiers = NARROW)
+    @Test fun s64_status_prealarm_360dp_fs15() = shotFs("64_status_prealarm_360dp_fs15", 1.5f) {
+        AlarmScreen(AlarmState.PreAlarm("i", 0, 15_000), now = 0, photosOn = true)
+    }
+    @Config(qualifiers = NARROW)
+    @Test fun s65_buttons_360dp_fs15() = shotFs("65_buttons_360dp_fs15", 1.5f) {
+        Column(Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            PrimaryActionButton("Arm", ActionKind.ARM, {})
+            PrimaryActionButton("Disarm", ActionKind.DISARM, {})
+            PrimaryActionButton("Cancel arming", ActionKind.DISARM, {})
+            PrimaryActionButton("Send test email", ActionKind.ARM, {})
+            PrimaryActionButton("Arm", ActionKind.ARM, {}, busy = true)
+            PrimaryActionButton("Set a screen lock first", ActionKind.ARM, {}, enabled = false)
+        }
+    }
+    @Config(qualifiers = NARROW)
+    @Test fun s66_topbar_titles_360dp_fs15() = shotFs("66_topbar_titles_360dp_fs15", 1.5f) {
+        Column {
+            FafoTopBar(null)
+            FafoTopBar("Settings", onBack = {}, onSettings = {})
+            FafoTopBar("Paired phones and circles", onBack = {}, onSettings = {})
+            StatusHero(StateKind.DISARMED, "Disarmed")
+            StatusHero(StateKind.PRE_ALARM, "Plug me back in")
+        }
     }
 
     // ---- Alarm screen (AlarmActivity) -------------------------------------------------------------
