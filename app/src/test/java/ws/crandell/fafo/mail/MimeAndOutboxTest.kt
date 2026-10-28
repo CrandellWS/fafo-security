@@ -90,6 +90,31 @@ class MimeAndOutboxTest {
         assertThat(o.all().size).isAtMost(Outbox.MAX_PER_INCIDENT)
     }
 
+    @Test fun capPerIncidentHoldsWhenMailIsSent() {
+        // A long alarm with a working connection: every due message is sent at once. The cap must still hold.
+        val o = Outbox(tmp.newFolder())
+        var t = 0L
+        repeat(500) {
+            o.enqueuePhoto("inc", "p$it.jpg", t)
+            o.due(t).forEach(o::markSent)
+            t += 10_000L
+        }
+        o.due(t + Outbox.BATCH_MS).forEach(o::markSent)
+        assertThat(o.all().size).isAtMost(Outbox.MAX_PER_INCIDENT)
+        assertThat(o.pending()).isEmpty()
+        assertThat(o.all().map { it.seq }.toSet()).hasSize(o.all().size)
+    }
+
+    @Test fun sentRecordsExpire() {
+        val o = Outbox(tmp.newFolder())
+        o.enqueuePhoto("old", "p1.jpg", 0)
+        o.due(0).forEach(o::markSent)
+        assertThat(o.all().single().state).isEqualTo(OutboxState.SENT)
+        assertThat(o.pinned()).isEmpty()
+        o.enqueuePhoto("new", "p1.jpg", Outbox.SENT_KEEP_MS + 1)
+        assertThat(o.all().map { it.incidentId }).containsExactly("new")
+    }
+
     @Test fun pendingPhotosArePinnedAgainstPruning() {
         val o = Outbox(tmp.newFolder())
         o.enqueuePhoto("inc", "p2.jpg", 0)

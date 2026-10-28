@@ -132,7 +132,7 @@ fun FafoTopBar(
                 if (title == null) {
                     FafoWordmark(height = 24.dp)
                 } else {
-                    AutoFitText(title.uppercase(), style = MaterialTheme.typography.headlineSmall, color = FafoColors.White, minFontSize = 16.sp, modifier = Modifier.semantics { heading() })
+                    AutoFitText(title.uppercase(), style = MaterialTheme.typography.headlineSmall, color = FafoColors.White, minFontSize = 12.sp, modifier = Modifier.semantics { heading() })
                 }
             }
             if (onSettings != null) {

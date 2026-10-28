@@ -15,7 +15,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -32,7 +32,6 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.min
 import androidx.compose.ui.unit.sp
 import ws.crandell.fafo.core.AlarmState
 import ws.crandell.fafo.core.ThreatLevel
@@ -40,6 +39,8 @@ import ws.crandell.fafo.ui.components.ActionKind
 import ws.crandell.fafo.ui.components.AutoFitText
 import ws.crandell.fafo.ui.components.FafoWordmark
 import ws.crandell.fafo.ui.components.PrimaryActionButton
+import ws.crandell.fafo.ui.components.SHIELD_ART_HEIGHT_PER_HEIGHT
+import ws.crandell.fafo.ui.components.SHIELD_ART_WIDTH_PER_HEIGHT
 import ws.crandell.fafo.ui.components.SHIELD_MARK_ASPECT
 import ws.crandell.fafo.ui.components.ShieldMark
 import ws.crandell.fafo.ui.components.WordmarkVariant
@@ -110,7 +111,9 @@ fun StatusScreen(
     val landscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
     BoxWithConstraints(Modifier.fillMaxSize().background(bg).safeDrawingPadding().padding(20.dp)) {
         if (landscape) {
-            val shieldH = min(maxHeight * 0.75f, maxWidth * 0.45f / SHIELD_MARK_ASPECT)
+            // The visible shield is 75% of the screen height (Bill 2026-10-28), within the padded box.
+            val screenH = LocalConfiguration.current.screenHeightDp.dp
+            val shieldH = minOf(screenH * 0.75f / SHIELD_ART_HEIGHT_PER_HEIGHT, maxHeight, maxWidth * 0.5f / SHIELD_MARK_ASPECT)
             Row(Modifier.fillMaxSize(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(24.dp)) {
                 StatusShield(look, shieldH)
                 Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
@@ -118,10 +121,16 @@ fun StatusScreen(
                 }
             }
         } else {
-            // 75% of the width, but leave room for the words and buttons on short screens.
-            val shieldH = min(maxWidth * 0.75f / SHIELD_MARK_ASPECT, maxHeight * 0.48f)
+            // The visible shield is 75% of the screen width (Bill 2026-10-28), but leave room for the words
+            // and buttons on short screens.
+            val screenW = LocalConfiguration.current.screenWidthDp.dp
+            val shieldH = minOf(screenW * 0.75f / SHIELD_ART_WIDTH_PER_HEIGHT, maxWidth / SHIELD_MARK_ASPECT, maxHeight * 0.48f)
             Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-                StatusShield(look, shieldH)
+                // Weighted, so the words and the Disarm button are measured first: with a big font or display
+                // size the shield shrinks instead of pushing the button off the screen.
+                BoxWithConstraints(Modifier.weight(1f, fill = false), contentAlignment = Alignment.Center) {
+                    StatusShield(look, minOf(shieldH, maxHeight))
+                }
                 Spacer(Modifier.height(16.dp))
                 StatusText(look, photosOn, onDisarm, onCancelArming, state)
             }
@@ -193,6 +202,6 @@ private fun ColumnScope.StatusText(
     }
     if (button != null) {
         Spacer(Modifier.height(20.dp))
-        PrimaryActionButton(button.first, ActionKind.DISARM, button.second, Modifier.width(320.dp).testTag(button.third))
+        PrimaryActionButton(button.first, ActionKind.DISARM, button.second, Modifier.fillMaxWidth().widthIn(max = 320.dp).testTag(button.third))
     }
 }

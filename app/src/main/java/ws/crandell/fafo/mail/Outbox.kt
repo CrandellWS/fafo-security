@@ -5,7 +5,12 @@ import kotlinx.serialization.json.Json
 import java.io.File
 
 @Serializable
-enum class OutboxState { PENDING, FAILED_PERMANENT }
+enum class OutboxState {
+    PENDING,
+    FAILED_PERMANENT,
+    /** Sent: kept as a small record (no photos) so the per-incident cap and message numbers still hold. */
+    SENT,
+}
 
 /** One email waiting to go: the photos of one incident, by file name. */
 @Serializable
@@ -51,6 +56,7 @@ class Outbox(private val dir: File) {
     fun pinned(): Set<Pair<String, String>> = pending().flatMap { e -> e.photos.map { e.incidentId to it } }.toSet()
 
     @Synchronized fun enqueuePhoto(incidentId: String, photo: String, now: Long) {
+        pruneSent(now)
         val mine = all().filter { it.incidentId == incidentId }
         val openBatch = mine.firstOrNull { it.open && it.state == OutboxState.PENDING }
         when {
@@ -65,9 +71,14 @@ class Outbox(private val dir: File) {
         }
     }
 
-    /** A message that is not tied to an incident (none today; test sends go direct). */
+    /** Sent (or nothing left to send): keep a photo-less record so [MAX_PER_INCIDENT] counts every message. */
     @Synchronized fun markSent(e: OutboxEntry) {
-        file(e.id).delete()
+        write(e.copy(photos = emptyList(), open = false, state = OutboxState.SENT, lastError = null))
+    }
+
+    /** Sent records older than [SENT_KEEP_MS] are no longer needed for the cap. */
+    private fun pruneSent(now: Long) {
+        all().filter { it.state == OutboxState.SENT && now - it.createdAt > SENT_KEEP_MS }.forEach { file(it.id).delete() }
     }
 
     @Synchronized fun markFailed(e: OutboxEntry, error: MailError, now: Long) {
@@ -101,6 +112,7 @@ class Outbox(private val dir: File) {
         const val BATCH_MAX = 5
         const val MAX_PER_INCIDENT = 20
         const val MIN_GAP_MS = 30_000L
+        const val SENT_KEEP_MS = 7 * 24 * 60 * 60_000L
         private val BACKOFF_MS = listOf(30_000L, 60_000L, 120_000L, 300_000L, 900_000L)
         fun backoffMs(attempts: Int): Long = BACKOFF_MS[(attempts - 1).coerceIn(0, BACKOFF_MS.lastIndex)]
         fun root(filesDir: File) = File(filesDir, "outbox")

@@ -46,8 +46,6 @@ object MailDispatcher {
     /** A specific network to send on (validated open Wi-Fi from the fallback); null = default network. */
     @Volatile var preferredNetwork: Network? = null
 
-    private var drain: MailDrain? = null
-
     fun outbox(context: Context) = Outbox(Outbox.root(context.applicationContext.filesDir))
 
     @Synchronized fun acquire(context: Context, host: String) {
@@ -132,7 +130,10 @@ object MailDispatcher {
                     if (net == null) {
                         if (outbox(ctx).pending().isNotEmpty()) onNoNetwork?.invoke(ctx)
                         null
-                    } else runCatching { drainer(ctx, net).drainOnce() }.onFailure { Log.w(TAG, "drain failed", it) }.getOrNull()
+                    } else runCatching {
+                        val d = drainer(ctx, net)
+                        d.drainOnce().also { record(d) }
+                    }.onFailure { Log.w(TAG, "drain failed: ${it.javaClass.simpleName}") }.getOrNull()
                 }
                 refreshStatus(ctx)
                 if (next == null) break
@@ -141,9 +142,18 @@ object MailDispatcher {
         }
     }
 
+    // Totals across passes (each pass gets a fresh MailDrain bound to the current network).
+    @Volatile private var sentTotal = 0
+    @Volatile private var lastError: String? = null
+
+    private fun record(d: MailDrain) {
+        sentTotal += d.sentPhotos
+        if (d.lastError != null) lastError = d.lastError else if (d.sentPhotos > 0) lastError = null
+    }
+
     private fun drainer(ctx: Context, net: Network): MailDrain {
         val store = PhotoStore(PhotoStore.root(ctx.filesDir))
-        val d = MailDrain(
+        return MailDrain(
             outbox(ctx),
             config = { CeStore.get(ctx).read().mailConfig() },
             senderFor = { cfg -> senderFor(ctx, cfg, net) },
@@ -151,8 +161,6 @@ object MailDispatcher {
             deviceLabel = { CeStore.get(ctx).read().deviceLabel },
             clock = System::currentTimeMillis,
         )
-        drain = d
-        return d
     }
 
     /** SMTP (every build) or Gmail (play flavor), bound to [net]. */
@@ -167,12 +175,11 @@ object MailDispatcher {
 
     private fun refreshStatus(ctx: Context) {
         val o = outbox(ctx)
-        val d = drain
         if (o.pending().isEmpty()) runCatching { OpenWifiFallback.maybeCleanup(ctx) }
         _status.value = MailStatus(
             pending = o.pending().sumOf { it.photos.size },
-            sentPhotos = d?.sentPhotos ?: _status.value.sentPhotos,
-            lastError = d?.lastError ?: _status.value.lastError,
+            sentPhotos = sentTotal,
+            lastError = lastError,
             failedPermanently = o.all().count { it.state == OutboxState.FAILED_PERMANENT },
         )
     }

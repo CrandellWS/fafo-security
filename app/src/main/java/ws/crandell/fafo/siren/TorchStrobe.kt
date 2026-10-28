@@ -66,7 +66,9 @@ class TorchStrobe(
             while (isActive) {
                 if (!paused) light(true)
                 delay(pattern.first)
-                light(false)
+                // off(), not light(false): while paused for a photo the torch is already off, and the
+                // camera owns the flash unit, so leave it alone.
+                off()
                 delay(pattern.second)
             }
         }

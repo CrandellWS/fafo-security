@@ -29,6 +29,14 @@ private object ShieldGeometry {
 const val SHIELD_MARK_ASPECT = 0.908f
 
 /**
+ * The visible art inside a [ShieldMark] of height H: the silhouette spans x 79..943 and y 36..984 of the
+ * 1024 viewport, so it is about 0.843 H wide and 0.926 H tall (the rest is transparent margin). Sizing for
+ * "75% of the screen" uses these, not the canvas size.
+ */
+const val SHIELD_ART_WIDTH_PER_HEIGHT = 0.843f
+const val SHIELD_ART_HEIGHT_PER_HEIGHT = 0.926f
+
+/**
  * The approved navy / red / white eagle shield as vector layers (round 3), so the status screen can recolor
  * it: [stripes] take the status color (brand red by default) and [eye] is white when disarmed and red when
  * armed (Bill 2026-10-28). The beak is always red. Non-red stripes get a thin navy keyline so yellow and

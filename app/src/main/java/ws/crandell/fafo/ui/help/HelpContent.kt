@@ -296,6 +296,7 @@ object HelpContent {
                 HelpSection(text = "Optional, Android 13 and later. If photos are waiting, there is no mobile data and no known Wi-Fi, FAFO suggests nearby open Wi-Fi networks to Android, and sends only once the network really reaches the internet."),
                 HelpSection("Allow it in advance", "Android asks once whether FAFO may suggest Wi-Fi networks. Nobody can answer that during a theft, so Setup asks now."),
                 HelpSection("Sign-in pages", "Hotel, airport and cafe networks with a sign-in page can't be passed automatically. FAFO skips them."),
+                HelpSection("Not on every phone", "To find open networks FAFO needs Android's list of nearby Wi-Fi. Some Android versions give that list only to apps with location access, which FAFO never asks for. On those phones this fallback finds nothing, and the photos wait for mobile data or a known Wi-Fi."),
                 HelpSection("Afterwards", "FAFO removes its suggestions once the photos are sent, after 30 minutes, or when you disarm. Mail is always encrypted, so an open network sees nothing readable."),
             ),
         ),

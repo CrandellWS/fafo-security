@@ -48,7 +48,7 @@ enum class OnboardingStep(val title: String, val detail: String, val optional: B
     OPEN_WIFI(
         "Allow open Wi-Fi fallback",
         "Optional, Android 13+: lets FAFO suggest open Wi-Fi when queued photos have no connection. Android asks once; " +
-            "answer Allow now, because nobody can answer it during a theft.",
+            "answer Allow now, because nobody can answer it during a theft. Not every phone shares nearby Wi-Fi without location access (see Help).",
         optional = true,
     ),
     FLASH("Flash alarm light", "The camera flash strobes during the alarm and blinks at orange. Turn it off in Settings.", optional = true),
