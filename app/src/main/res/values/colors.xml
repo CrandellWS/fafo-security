@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Brand tokens; the Compose palette is ui/theme/Color.kt. -->
+    <color name="ic_launcher_background">#FF0B1F35</color>
+    <color name="fafo_navy">#FF0B1F35</color>
+    <color name="fafo_ink">#FF070D16</color>
+    <color name="fafo_red">#FFD61018</color>
+</resources>

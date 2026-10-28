@@ -180,6 +180,25 @@ class ManifestTest {
         assertThat(si.exported).isFalse()
     }
 
+    /** Brand: adaptive launcher icon with background, foreground and a monochrome (themed icon) layer. */
+    @Test fun adaptiveLauncherIcon() {
+        val xml = sourceManifest()
+        assertThat(xml).contains("android:icon=\"@mipmap/ic_launcher\"")
+        assertThat(xml).contains("android:roundIcon=\"@mipmap/ic_launcher_round\"")
+        val res = listOf(File("src/main/res"), File("app/src/main/res")).first { it.isDirectory }
+        for (name in listOf("ic_launcher", "ic_launcher_round")) {
+            val icon = File(res, "mipmap-anydpi/$name.xml").readText()
+            assertThat(icon).contains("<background android:drawable=\"@color/ic_launcher_background\"")
+            assertThat(icon).contains("<foreground android:drawable=\"@mipmap/ic_launcher_foreground\"")
+            assertThat(icon).contains("<monochrome android:drawable=\"@mipmap/ic_launcher_monochrome\"")
+        }
+        for (d in listOf("mdpi", "hdpi", "xhdpi", "xxhdpi", "xxxhdpi")) {
+            assertThat(File(res, "mipmap-$d/ic_launcher_foreground.webp").isFile).isTrue()
+            assertThat(File(res, "mipmap-$d/ic_launcher_monochrome.webp").isFile).isTrue()
+        }
+        assertThat(context.applicationInfo.icon).isNotEqualTo(0)
+    }
+
     @Test fun backupDisabled() {
         assertThat(context.applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_ALLOW_BACKUP).isEqualTo(0)
     }
