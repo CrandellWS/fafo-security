@@ -24,6 +24,7 @@ import ws.crandell.fafo.auth.KeystoreArmAuthKey
 import ws.crandell.fafo.auth.DisarmPolicy
 import ws.crandell.fafo.system.BootClock
 import kotlinx.coroutines.delay
+import androidx.compose.ui.graphics.asAndroidBitmap
 import kotlinx.coroutines.flow.collectLatest
 import ws.crandell.fafo.ui.screens.graceLabel
 import ws.crandell.fafo.circles.Circle
@@ -253,6 +254,65 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         if (after != before) ws.crandell.fafo.ui.theme.applyAppNightMode(ctx, ws.crandell.fafo.ui.theme.ThemeMode.parse(after))
     }
     fun updateCe(t: (CeSettings) -> CeSettings) = viewModelScope.launch { ce.update(t) }
+
+    // ---- Photo email (round 3) ----------------------------------------------------------------------
+
+    private val _mailTest = MutableStateFlow<ws.crandell.fafo.ui.screens.MailTestUi>(ws.crandell.fafo.ui.screens.MailTestUi.Idle)
+    val mailTest: StateFlow<ws.crandell.fafo.ui.screens.MailTestUi> = _mailTest
+    val mailStatus = ws.crandell.fafo.mail.MailDispatcher.status
+
+    val mailActions = object : ws.crandell.fafo.ui.screens.MailActions {
+        override fun update(t: (CeSettings) -> CeSettings) = updateCe(t).let { }
+        override fun savePassword(password: String) {
+            viewModelScope.launch(Dispatchers.IO) {
+                val sealed = runCatching { ws.crandell.fafo.mail.SecretBox.seal(ws.crandell.fafo.mail.KeystoreSecretCipher(), password) }.getOrNull()
+                if (sealed == null) { _message.value = "Could not store the password securely"; return@launch }
+                ce.update { it.copy(mailSecret = sealed, mailTestOk = false) }
+            }
+        }
+        override fun removePassword() { updateCe { it.copy(mailSecret = "", mailTestOk = false) } }
+        override fun sendTest() { sendTestEmail() }
+        override fun sendQueuedNow() = ws.crandell.fafo.mail.MailDispatcher.sendNow()
+        override fun discardQueued() = ws.crandell.fafo.mail.MailDispatcher.discardAll(ctx)
+    }
+
+    /** Settings > Photo email > Send test email: a small message with the shield, sent directly (no queue). */
+    fun sendTestEmail() = viewModelScope.launch(Dispatchers.IO) {
+        val s = ce.read()
+        val cfg = s.mailConfig()
+        if (!cfg.complete) {
+            _mailTest.value = ws.crandell.fafo.ui.screens.MailTestUi.Error("Fill in the addresses and the mail server details first")
+            return@launch
+        }
+        _mailTest.value = ws.crandell.fafo.ui.screens.MailTestUi.Sending
+        val sender = ws.crandell.fafo.mail.MailDispatcher.senderFor(ctx, cfg, null)
+        if (sender == null) {
+            _mailTest.value = ws.crandell.fafo.ui.screens.MailTestUi.Error("This build cannot send with that account")
+            return@launch
+        }
+        val msg = ws.crandell.fafo.mail.MimeBuilder.build(
+            cfg.sender, cfg.recipients, "FAFO Security test email from ${s.deviceLabel}",
+            "This is a test from FAFO Security on ${s.deviceLabel}.\n\nIf the alarm goes off, trigger photos are emailed here.",
+            listOf(ws.crandell.fafo.mail.Attachment("fafo-shield.jpg", shieldJpeg())),
+        )
+        when (val r = sender.send(cfg.sender, cfg.recipients, msg)) {
+            ws.crandell.fafo.mail.SendResult.Sent -> {
+                ce.update { it.copy(mailTestOk = true) }
+                _mailTest.value = ws.crandell.fafo.ui.screens.MailTestUi.Ok
+            }
+            is ws.crandell.fafo.mail.SendResult.Failed -> _mailTest.value = ws.crandell.fafo.ui.screens.MailTestUi.Error(r.error.message)
+        }
+    }
+
+    private fun shieldJpeg(): ByteArray {
+        val shield = ws.crandell.fafo.ui.components.renderShieldMark(256)
+        val bmp = android.graphics.Bitmap.createBitmap(shield.width + 32, shield.height + 32, android.graphics.Bitmap.Config.ARGB_8888)
+        android.graphics.Canvas(bmp).apply {
+            drawColor(android.graphics.Color.WHITE)
+            drawBitmap(shield.asAndroidBitmap(), 16f, 16f, null)
+        }
+        return java.io.ByteArrayOutputStream().also { bmp.compress(android.graphics.Bitmap.CompressFormat.JPEG, 90, it) }.toByteArray()
+    }
 
     override fun onCleared() {
         ctx.unregisterReceiver(batteryReceiver)

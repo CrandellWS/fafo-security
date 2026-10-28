@@ -6,4 +6,7 @@ import ws.crandell.fafo.mail.MailProviderKind
 object FlavorMail {
     const val FLAVOR = "play"
     val providers: List<MailProviderKind> = listOf(MailProviderKind.SMTP, MailProviderKind.GMAIL)
+
+    /** Gmail API sender (filled in by the Gmail commit). */
+    fun gmailSender(context: android.content.Context, account: String, network: android.net.Network?): ws.crandell.fafo.mail.MailSender? = null
 }

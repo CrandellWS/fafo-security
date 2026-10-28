@@ -87,7 +87,7 @@ class PhotoStore(private val root: File) {
      */
     @Synchronized fun add(id: String, startedAt: Long, jpeg: ByteArray, meta: PhotoMeta, capBytes: Long): Boolean {
         open(id, startedAt)
-        val plan = PrunePolicy.plan(infos(), capBytes, jpeg.size.toLong())
+        val plan = PrunePolicy.plan(infos(), capBytes, jpeg.size.toLong(), pinned())
         plan.deletes.forEach { deletePhoto(it.incidentId, it.name) }
         if (!plan.fits) {
             log(id, "${meta.takenAt}: photo skipped, storage cap reached")
@@ -99,6 +99,9 @@ class PhotoStore(private val root: File) {
         write(s.copy(photos = s.photos + meta.copy(sizeBytes = jpeg.size.toLong())))
         return true
     }
+
+    /** Photos the email outbox still needs (round 3); never pruned by the cap. Set by the mail dispatcher. */
+    @Volatile var pinned: () -> Set<Pair<String, String>> = { emptySet() }
 
     @Synchronized fun deletePhoto(id: String, name: String) {
         photoFile(id, name).delete()

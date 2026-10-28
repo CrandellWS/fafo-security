@@ -52,6 +52,7 @@ fun SettingsScreen(
     onGrace: (Int) -> Unit = {},
     version: String = "",
     hasFlash: Boolean = true,
+    mail: (@Composable () -> Unit)? = null,
 ) {
     Column(modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = FafoDims.Gutter, vertical = 4.dp)) {
         SectionHeader("Alarm")
@@ -127,6 +128,9 @@ fun SettingsScreen(
                 { v -> onCe { it.copy(photoCapMb = v) } }, "photoCap",
                 hint = "Photos pause when less than 500 MB is free; the siren keeps going.",
             )
+
+            SectionHeader("Photo email")
+            if (mail != null) mail()
 
             SectionHeader("Nearby devices")
             SwitchRow(

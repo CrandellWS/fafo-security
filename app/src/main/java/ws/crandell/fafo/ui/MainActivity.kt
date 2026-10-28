@@ -145,10 +145,12 @@ class MainActivity : FragmentActivity() {
         super.onStart()
         // AC10.4 / F9: while the app is open this phone is reachable by its circles.
         PeerNetwork.acquire(this, PeerNetwork.OWNER_UI)
+        ws.crandell.fafo.mail.MailDispatcher.acquire(this, ws.crandell.fafo.mail.MailDispatcher.HOST_APP)
     }
 
     override fun onStop() {
         PeerNetwork.release(PeerNetwork.OWNER_UI)
+        ws.crandell.fafo.mail.MailDispatcher.release(ws.crandell.fafo.mail.MailDispatcher.HOST_APP)
         super.onStop()
     }
 
@@ -341,6 +343,15 @@ class MainActivity : FragmentActivity() {
     /** ARMING: Cancel needs no confirmation (the result is "not armed"). */
     fun onCancelArming() = ArmService.cancelArming(this)
 
+    /** Settings > Photo email; Gmail sign-in is added by the play flavor. */
+    private val mailActions: ws.crandell.fafo.ui.screens.MailActions by lazy {
+        object : ws.crandell.fafo.ui.screens.MailActions by vm.mailActions {
+            override fun connectGmail() = connectGmailAccount()
+        }
+    }
+
+    private fun connectGmailAccount() {}
+
     /** AC6.6: pairing ends with the device in the circle the owner started from (default Home). */
     @OptIn(ExperimentalLayoutApi::class)
     @Composable
@@ -445,6 +456,15 @@ class MainActivity : FragmentActivity() {
                     onGrace = { vm.changeGrace(it) },
                     version = appVersion(),
                     hasFlash = remember { ws.crandell.fafo.siren.AndroidTorch.hasFlash(this) },
+                    mail = {
+                        val c = ce
+                        val test by vm.mailTest.collectAsStateWithLifecycle()
+                        val status by vm.mailStatus.collectAsStateWithLifecycle()
+                        if (c != null) ws.crandell.fafo.ui.screens.MailSettings(
+                            c, ws.crandell.fafo.mail.flavor.FlavorMail.providers, test, status, mailActions,
+                            showOpenWifi = Build.VERSION.SDK_INT >= 33,
+                        )
+                    },
                 )
                 Pushed.INCIDENTS -> {
                     LaunchedEffect(Unit) { vm.loadIncidents() }

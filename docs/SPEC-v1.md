@@ -534,6 +534,44 @@ baby monitor or as a way to listen to anyone; it is an intercom/walkie-talkie fo
   `IntercomService` starts only with `microphone|connectedDevice` from an activity, posts the
   notification first, and refuses to start when notifications are blocked.
 
+### F11. Photo email (round 3, opt-in, off by default)
+
+Bill 2026-10-28 (approved): on trigger, photos are emailed automatically to a list of addresses the owner
+chooses. This is the one way FAFO data can leave the owner's own devices, and only when set up.
+
+- AC11.1 Settings > Photo email: an on/off switch (off by default), up to 5 recipient addresses, and the
+  account to send from. Every build: the owner's own SMTP server (host, port, SSL/TLS on 465 or STARTTLS on
+  587, username, app password, optional From). Play build only: one-tap Google sign-in with the
+  `gmail.send` scope (send only; FAFO cannot read mail), sending through the Gmail API.
+- AC11.2 No plaintext: SMTP is TLS-only with hostname verification; STARTTLS that the server does not offer
+  fails closed; AUTH is never sent on an unencrypted connection. The app password is sealed with a
+  non-exportable Android Keystore AES-256-GCM key in CE storage, never logged or shown. The key has no
+  user-auth requirement because photos are sent while the phone is locked.
+- AC11.3 Queue: the first trigger photo of an incident is sent alone and at once; later photos are batched
+  (every 60 s or 5 photos), at most 20 messages per incident and one send per 30 s. Failures back off 30 s,
+  1, 2, 5, then 15 min; permanent errors (bad password, rejected address) stop and show in Settings. Queued
+  photos are protected from the photo cap until sent. The queue is files in CE storage and survives restarts.
+- AC11.4 Sending happens only while a host is alive (the armed service, the open app, or Stay reachable)
+  and only on a network with INTERNET and VALIDATED; captive portals are skipped. No WorkManager and no
+  JobScheduler: mail queued when the owner disarms waits until the app is opened or FAFO is armed again.
+- AC11.5 "Send test email" sends a small message with the shield right away and shows the result or the
+  mapped error (e.g. 535: "Server refused the username or app password").
+- AC11.6 Open Wi-Fi fallback (opt-in, Android 13+): see F12.
+
+### F12. Open Wi-Fi fallback for queued photo email (round 3, opt-in)
+
+- AC12.1 When photo email is waiting, there is no validated network for 60 s and no mobile data, FAFO reads
+  the cached Wi-Fi scan results (and asks for a scan at most once per throttle window) and suggests the top
+  5 open networks (no PSK/EAP/SAE/WEP; Enhanced Open allowed; signal above -80 dBm) to Android with
+  `WifiNetworkSuggestion`. Android decides when to join.
+- AC12.2 Mail is sent only once that network is VALIDATED. Captive portals (hotels, airports, cafes with a
+  sign-in page) cannot be passed automatically and are never counted as connected.
+- AC12.3 The suggestions are always removed once the queue is empty, after 30 min, or on disarm, so the
+  phone is never left auto-joining open Wi-Fi. The suggested list is persisted so a crash cleans up.
+- AC12.4 Android shows a one-time "Allow FAFO to suggest Wi-Fi networks?" approval the first time; a Setup
+  step raises it in advance. Needs `ACCESS_WIFI_STATE` and `CHANGE_WIFI_STATE` (normal permissions) and the
+  existing `NEARBY_WIFI_DEVICES` (`neverForLocation`); no location permission (AC6.5). Android 13+ only.
+
 ## 4. Settings and defaults
 
 All settings live in DataStore. Settings needed at boot (marked DP) live in a device-protected DataStore.
@@ -628,16 +666,20 @@ manifest test allows exactly these on top of the list above (build note M13).
 
 Later: `ACCESS_LOCAL_NETWORK` when targetSdk moves to 37 (Android 17 enforces local network protection).
 
-**Enforced rule replacing "no INTERNET": no internet server, no analytics, no remote endpoints.**
-- No network or analytics libraries (OkHttp, Retrofit, Ktor, Cronet, Firebase, Play Services, Sentry,
-  ad SDKs). A Gradle verification task `checkNoRemoteDeps`, wired into `check` and run by CI, walks the
-  resolved `debugRuntimeClasspath` and `releaseRuntimeClasspath` and fails on any denied group
-  (`com.squareup.okhttp3`, `com.squareup.retrofit2`, `io.ktor`, `org.chromium.net`,
-  `com.google.firebase`, `com.google.android.gms`, `io.sentry`, ad SDK groups). A JVM unit test cannot see
-  the Gradle classpath, so this is a Gradle task, not a test.
-- No hardcoded non-local URLs or hosts: a test scans `app/src/main` for `http://`, `https://`, `ws://`,
-  `wss://`, `ftp://` literals and public IP literals, with an allowlist for XML namespace URIs
-  (`http://schemas.android.com/...`) only.
+**Enforced rule replacing "no INTERNET": no server of ours, no analytics.** Network traffic goes only to
+(a) the owner's paired devices on the LAN or Bluetooth and (b) opt-in, off-by-default photo email (F11):
+the user's own SMTP server (both flavors) or the Gmail API with the user's own Google account (play
+flavor only). Nothing else. (Changed 2026-10-28, round 3; v1 now has opt-in outbound email.)
+- No network or analytics libraries (OkHttp, Retrofit, Ktor, Cronet, Firebase, Sentry, ad SDKs). A Gradle
+  verification task `checkNoRemoteDeps`, wired into `check` and run by CI, walks each flavor's resolved
+  runtime classpaths. `oss` denies every Google Play services and Firebase group; `play` allows only an
+  exact list of `play-services-auth` modules (Gmail sign-in) and denies the rest. A JVM unit test cannot
+  see the Gradle classpath, so this is a Gradle task, not a test.
+- No hardcoded non-local URLs or hosts: a test scans `app/src/main` and `app/src/oss` for URL literals,
+  host-name literals and public IP literals (XML namespace URIs allowed); `app/src/play` may hold exactly
+  the Gmail send endpoint and the `gmail.send` scope. SMTP hosts always come from the user.
+- `EgressTest`: sockets and HTTP connections may be opened only in `net/` (LAN peers), the intercom's
+  audio sockets, `mail/SmtpClient.kt` and the play flavor's `GmailSender.kt`.
 - `LocalAddressPolicy` refuses non-private addresses at runtime (AC9.2). No `WebView`.
 - `network_security_config` with `cleartextTrafficPermitted="false"` as a belt-and-braces default.
 
@@ -648,6 +690,14 @@ contacts, `CAPTURE_AUDIO_OUTPUT`, device admin, accessibility service. A manifes
 exact permission list.
 
 ## 7. Threat model and known limits
+
+- **Email credentials on the device (F11, round 3).** The SMTP app password is sealed by a Keystore key
+  without user authentication, because alarm photos are sent while the phone is locked. A rooted attacker
+  with the running app could use it; FAFO recommends a revocable app password, never the main password.
+  The Gmail flavor holds only an OAuth grant for `gmail.send`, revocable in the Google account.
+- **Open Wi-Fi (F12).** The phone may join an open network the owner did not choose, only while photo
+  email is queued and only through the owner's opt-in. Traffic over it is TLS (SMTP with hostname
+  verification, Gmail over HTTPS), so the network sees only encrypted data. Suggestions are removed after.
 
 **Protects against:** an opportunistic thief grabbing a charging phone (café, office, airport,
 bedside); someone unplugging a phone to take it; casual handling (chirps deter and alert).
@@ -699,6 +749,14 @@ armed while plugged in.
 - **Room mode left on when an alarm starts:** room mode ends and listeners are dropped (AC10.8).
 
 ## 8. Play policy posture (for later Play release)
+
+- **Round 3 additions.** Photo email: the play flavor requests the sensitive (not restricted) `gmail.send`
+  scope, which needs OAuth consent-screen verification once there are more than 100 users and an Android
+  OAuth client for `ws.crandell.fafo` with the debug and Play App Signing SHA-1s (no client secret in the
+  repo). Data safety: photos are shared with recipients the user chooses, sent from the user's own
+  account; the privacy policy must say so. Wi-Fi: `ACCESS_WIFI_STATE` / `CHANGE_WIFI_STATE` are normal
+  permissions; suggestions need the user's one-time approval. Torch: no permission. The `specialUse` FGS
+  justification gains "sends alarm photos the user configured".
 
 - Listing is about protecting your own device only. No hidden mode, no disguised icon, no "track anyone" wording.
 - Foreground service declarations in Play Console for `specialUse` and `camera`, each with a description,

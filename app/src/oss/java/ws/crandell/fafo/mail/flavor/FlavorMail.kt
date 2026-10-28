@@ -6,4 +6,7 @@ import ws.crandell.fafo.mail.MailProviderKind
 object FlavorMail {
     const val FLAVOR = "oss"
     val providers: List<MailProviderKind> = listOf(MailProviderKind.SMTP)
+
+    /** No Google libraries in this build: Gmail is never offered. */
+    fun gmailSender(context: android.content.Context, account: String, network: android.net.Network?): ws.crandell.fafo.mail.MailSender? = null
 }

@@ -45,6 +45,7 @@ import ws.crandell.fafo.core.ThreatLadder
 import ws.crandell.fafo.core.ThreatLevel
 import ws.crandell.fafo.motion.ChirpLimiter
 import ws.crandell.fafo.siren.TorchStrobe
+import ws.crandell.fafo.mail.MailDispatcher
 import ws.crandell.fafo.ui.status.statusLook
 
 /**
@@ -385,7 +386,10 @@ class ArmService : LifecycleService() {
 
     private var photos: PhotoController? = null
     private var store: PhotoStore? = null
-    private fun photoStore() = store ?: PhotoStore(PhotoStore.root(filesDir)).also { store = it }
+    private fun photoStore() = store ?: PhotoStore(PhotoStore.root(filesDir)).also {
+        it.pinned = { MailDispatcher.pinned(this) }
+        store = it
+    }
 
     /** F5. Only with the camera FGS type active and CE storage unlocked (never on the boot path). */
     private fun startPhotos() {
@@ -414,6 +418,7 @@ class ArmService : LifecycleService() {
                 postNotification()
             },
             beforeCapture = { torch.pauseForCapture() },
+            onSaved = { incident, name -> MailDispatcher.photoSaved(this, incident, name, ArmDeps.clock.now()) },
             afterCapture = { torch.resumeAfterCapture() },
         ).also { photos = it }
         pc.start(id, startedAt)
@@ -424,7 +429,10 @@ class ArmService : LifecycleService() {
      * keys are CE / Keystore). An armed phone can always be reset or disarmed by a circle that grants it.
      */
     private fun ensureNetwork() {
-        if (networkAttached || !DeviceStatus.isCeUnlocked(this)) return
+        if (!DeviceStatus.isCeUnlocked(this)) return
+        // Photo email (round 3) drains while the armed service runs.
+        if (!mailHost) { MailDispatcher.acquire(this, MailDispatcher.HOST_ARMED); mailHost = true }
+        if (networkAttached) return
         val n = network ?: ArmDeps.network(this).also { network = it }
         networkAttached = n.attach(commandTarget)
     }
@@ -589,7 +597,10 @@ class ArmService : LifecycleService() {
         stopSelf()
     }
 
+    private var mailHost = false
+
     private fun detachNetwork() {
+        if (mailHost) { MailDispatcher.release(MailDispatcher.HOST_ARMED); mailHost = false }
         if (networkAttached) network?.detach()
         networkAttached = false
     }

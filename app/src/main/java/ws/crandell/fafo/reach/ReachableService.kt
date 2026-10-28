@@ -54,6 +54,7 @@ class ReachableService : LifecycleService() {
             return START_NOT_STICKY
         }
         PeerNetwork.acquire(this, OWNER)
+        ws.crandell.fafo.mail.MailDispatcher.acquire(this, ws.crandell.fafo.mail.MailDispatcher.HOST_REACHABLE)
         lifecycleScope.launch {
             TrustGraph.circles(this@ReachableService).circles.collect { list ->
                 if (DeviceStatus.hasNotificationPermission(this@ReachableService)) {
@@ -79,6 +80,7 @@ class ReachableService : LifecycleService() {
 
     override fun onDestroy() {
         PeerNetwork.release(OWNER)
+        ws.crandell.fafo.mail.MailDispatcher.release(ws.crandell.fafo.mail.MailDispatcher.HOST_REACHABLE)
         super.onDestroy()
     }
 

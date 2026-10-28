@@ -10,12 +10,14 @@ Bill's phones never block the next milestone: list them in `docs/DEVICE-TESTS.md
 
 ## Rules (hard)
 
-- **No internet server, no analytics, no remote endpoints.** No backend, relay or cloud functions. The app
-  holds `INTERNET` only because Android needs it for local sockets (spec F9): traffic goes only to the
-  owner's paired devices on the same Wi-Fi or over Bluetooth. Enforced by `LocalAddressPolicy` (private
-  addresses only), `NoRemoteEndpointsTest` (no hardcoded non-local URLs/hosts), the Gradle task
-  `checkNoRemoteDeps` (no network or analytics libraries on the runtime classpath) and the manifest test.
-  No message type may arm, start room mode, open a mic or change circles on the receiving device.
+- **No server of ours, no analytics.** No backend, relay or cloud functions. Network traffic goes only to
+  (a) the owner's paired devices on the LAN/Bluetooth (spec F9) and (b) **opt-in, off by default** photo
+  email (spec F11): the user's own SMTP server (both flavors) or the Gmail API with the user's Google
+  account (play flavor only). Nothing else. Enforced by `LocalAddressPolicy` (peer traffic: private
+  addresses only), `NoRemoteEndpointsTest` (no URL or host literals in main/oss; play may hold only the
+  Gmail endpoint and scope), `EgressTest` (where sockets may be opened), the per-flavor Gradle task
+  `checkNoRemoteDeps` and the manifest test. No message type may arm, start room mode, open a mic or change
+  circles on the receiving device.
 - **No analytics, trackers, crash reporters or ad SDKs.** No Firebase, Crashlytics, Sentry, etc. Play Services:
   none in the `oss` flavor; the `play` flavor may use only the allowlisted `play-services-auth` modules
   (Gmail sign-in), enforced per flavor by `checkNoRemoteDeps`.

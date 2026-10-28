@@ -97,7 +97,7 @@ fun <T> ChoiceRow(
 
 @Composable
 fun fafoSwitchColors() = SwitchDefaults.colors(
-    checkedThumbColor = FafoColors.White,
+    checkedThumbColor = FafoBrand.White,
     checkedTrackColor = FafoColors.Red,
     checkedBorderColor = FafoColors.Red,
     uncheckedThumbColor = FafoColors.Steel,

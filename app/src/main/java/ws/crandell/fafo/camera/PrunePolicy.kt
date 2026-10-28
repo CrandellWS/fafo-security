@@ -27,22 +27,32 @@ data class PrunePlan(val deletes: List<PhotoInfo>, val fits: Boolean)
 object PrunePolicy {
     const val MAX_BIG_CHANGE = 20
 
-    fun protectedNames(incident: IncidentInfo): Set<String> {
+    /**
+     * [pinned] (round 3): photos still waiting in the email outbox, as (incident id, file name). They are
+     * protected until sent, so the cap never deletes a photo before it reached the owner's inbox.
+     */
+    fun protectedNames(incident: IncidentInfo, pinned: Set<Pair<String, String>> = emptySet()): Set<String> {
         val sorted = incident.photos.sortedBy { it.takenAt }
         if (sorted.isEmpty()) return emptySet()
         val out = mutableSetOf(sorted.first().name, sorted.last().name)
+        sorted.filter { (incident.id to it.name) in pinned }.forEach { out += it.name }
         sorted.filter { it.bigChange }.take(MAX_BIG_CHANGE).forEach { out += it.name }
         return out
     }
 
-    fun plan(incidents: List<IncidentInfo>, capBytes: Long, incomingBytes: Long): PrunePlan {
+    fun plan(
+        incidents: List<IncidentInfo>,
+        capBytes: Long,
+        incomingBytes: Long,
+        pinned: Set<Pair<String, String>> = emptySet(),
+    ): PrunePlan {
         var need = incidents.sumOf { inc -> inc.photos.sumOf { it.sizeBytes } } + incomingBytes - capBytes
         if (need <= 0) return PrunePlan(emptyList(), true)
         val deletes = mutableListOf<PhotoInfo>()
 
         // 1. Closed incidents, oldest first, their oldest unprotected photos first.
         for (inc in incidents.filter { it.closed }.sortedBy { it.startedAt }) {
-            val keep = protectedNames(inc)
+            val keep = protectedNames(inc, pinned)
             for (p in inc.photos.sortedBy { it.takenAt }.filter { it.name !in keep }) {
                 if (need <= 0) break
                 deletes += p
@@ -53,7 +63,7 @@ object PrunePolicy {
 
         // 2. Open (current) incidents: thin every other unprotected frame, repeatedly.
         for (inc in incidents.filter { !it.closed }.sortedBy { it.startedAt }) {
-            val keep = protectedNames(inc)
+            val keep = protectedNames(inc, pinned)
             var candidates = inc.photos.sortedBy { it.takenAt }.filter { it.name !in keep }
             while (need > 0 && candidates.isNotEmpty()) {
                 val round = candidates.filterIndexed { i, _ -> i % 2 == 0 }
