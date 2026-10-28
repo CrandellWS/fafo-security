@@ -1,16 +1,19 @@
 # FAFO Security: v1 Specification
 
 Status: draft for build, 2026-10-27. Owner: Bill Crandell.
-Scope source: Bill's v1 list of 2026-10-27 (six features), his 2026-10-27 pre-alarm addition, plus the
-2026-10-26 decisions. Bill has asked for additions or cuts, so the scope can still change; changes land
+Scope source: Bill's v1 list of 2026-10-27 (six features), his 2026-10-27 pre-alarm addition, his
+2026-10-27 evening additions (trusted devices over Bluetooth or the same Wi-Fi, trust circles, intercom
+and push-to-talk), plus the 2026-10-26 decisions. Bill has asked for additions or cuts, so the scope can still change; changes land
 here first.
 
 ## 1. Product summary
 
 FAFO Security ("Free Advanced Features Offline") is an Android anti-theft app for the owner's own
-phone. v1 is free and fully offline: no server, no account, no network calls, no analytics.
+phone. v1 is free and needs no internet: no server, no account, no analytics, no remote endpoints.
+The only network traffic is local, between the owner's own paired devices on the same Wi-Fi network or
+over Bluetooth, end-to-end encrypted with the paired keys.
 
-**v1 is done when a debug APK installed on a Samsung Galaxy A17 (Android 16) does all six:**
+**v1 is done when a debug APK installed on a Samsung Galaxy A17 (Android 16) does all nine:**
 
 1. Arms only while plugged in.
 2. Unplugging before the owner unlocks sets off a siren that runs until unlock, and returns after a reboot.
@@ -18,8 +21,15 @@ phone. v1 is free and fully offline: no server, no account, no network calls, no
    that beeps faster as the full siren gets closer; plugging back in or unlocking cancels it.
 3. The user picks unplug sensitivity from 0.1 s to 5 s.
 4. A bump chirps; picking the phone up chirps louder.
-5. Takes a photo on trigger, then one every 10 s (default), kept offline. Nothing is sent anywhere in v1.
+5. Takes a photo on trigger, then one every 10 s (default), kept offline. Photos are never sent anywhere in v1.
 6. Trusted devices pair over Bluetooth, and only the real screen lock (PIN/pattern/password) can approve a pairing.
+7. Trust circles: a device can be in several circles (Home, Work...), each with its own members,
+   user-chosen device labels ("Register", "Back room") and per-circle permissions (F8).
+8. Nearby trusted devices, over Bluetooth or the same Wi-Fi (no internet server), get an alert when this
+   phone triggers and can silence or disarm it, when their circle allows (F9).
+9. Intercom (remote speaker) and push-to-talk between devices in a circle on the same Wi-Fi or Bluetooth,
+   addressed to one device by label or to all; started openly on the listening phone, never remotely (F10).
+   This is the last feature milestone of the build.
 
 ### Platform
 
@@ -74,6 +84,12 @@ phone. v1 is free and fully offline: no server, no account, no network calls, no
 - **PRE_ALARM / TRIGGERED / INCIDENT_PERSISTED to DISARMED:** `ACTION_USER_PRESENT` (owner unlocked the
   device with the real credential or their biometric) or owner taps Disarm in the app after unlock.
   Warning or siren stops within 500 ms.
+- **Remote silence / disarm (F9):** a verified command from a trusted device whose circle grants
+  "Silence and disarm" can (a) **silence**: stop the warning/siren sound, keep the incident open, keep
+  photos going, keep the alarm notification ("Silenced by Register"), state stays PRE_ALARM/TRIGGERED with
+  `silenced=true` and the countdown stops; or (b) **disarm**: go to DISARMED, incident closed as "disarmed
+  by <label>", photos kept. Not available in INCIDENT_PERSISTED before the first unlock (the trust list
+  and keys are in CE storage / Keystore, which the boot path never touches).
 - **to INCIDENT_PERSISTED:** implicit. The `incident_active` flag is written to device-protected
   storage at the moment PRE_ALARM (or TRIGGERED when pre-alarm is 0 s) is entered, before any sound
   starts. Any reboot or process death with the flag set resumes as INCIDENT_PERSISTED with the full
@@ -202,8 +218,9 @@ phone. v1 is free and fully offline: no server, no account, no network calls, no
   Android 11 (API 30) a raw BLE scan needs location, so on API 30 the scanning side discovers the peer
   through `CompanionDeviceManager.associate()` with a `BluetoothLeDeviceFilter` on the FAFO service UUID
   (system picker, no location permission). Android 12+ may use either path.
-- AC6.6 v1 stores trust only. A trusted device has no remote powers in v1 (no silence, no photos,
-  no mic). It is the foundation for phase two.
+- AC6.6 Pairing alone grants no powers. What a trusted device may do (receive alerts, silence/disarm,
+  intercom) comes only from the circles it is in (F8). A paired device in no circle can do nothing.
+  Pairing ends with the device being added to the circle the owner started from (default "Home").
 - AC6.7 Unit tests: code derivation is identical on both sides and differs when either key or nonce
   changes; a reveal that does not match the commitment aborts pairing; pairing refused without
   credential success.
@@ -228,6 +245,164 @@ Screens, in order, each skippable but shown again as a checklist on the Home scr
    Check settings. FAFO is an add-on to those, not a replacement.
 8. Self-test: plays a 1 s chirp and a 1 s siren sample at alarm volume, takes a test photo.
 
+Nearby devices (Bluetooth + `NEARBY_WIFI_DEVICES`) are asked when the owner first opens Trusted devices,
+and the microphone when they first use intercom or push-to-talk, not during onboarding.
+
+### F8. Trust circles
+
+A circle is a named group of trusted devices with labels and permissions, for example Home or Work.
+
+- AC8.1 **Model.** Each install holds its own list of circles: `Circle(id: 128-bit random, name,
+  members: [Member(peerKeyFingerprint, label, permissions)])`. A trusted peer can be in several circles,
+  with a different label and different permissions in each. Circles live in CE storage. There is no
+  shared server copy; each device enforces its own view.
+- AC8.2 **Labels.** Each device has its own label ("This device is called: Back room", default the
+  model name), sent to peers on every session as a suggestion. The owner can rename any member locally;
+  the local label wins. Labels are 1-24 characters, unique within a circle.
+- AC8.3 **Permissions per circle**, enforced by the receiving device:
+  | Permission | Lets a member of this circle |
+  |---|---|
+  | Alerts | receive my "alarm triggered" alert (F9) |
+  | Silence and disarm | silence or disarm my pre-alarm / siren (F9) |
+  | Intercom | push-to-talk to me, and listen to me only while I have intercom room mode on (F10) |
+- AC8.4 **Defaults.** A built-in "Home" circle exists from first launch (empty) with Alerts + Silence and
+  disarm + Intercom. Any new circle defaults to Intercom only. The owner can change permissions per circle.
+- AC8.5 **Credential gates.** The owner's real lock-screen credential (`BiometricPrompt` with
+  `DEVICE_CREDENTIAL` only, as in AC6.1) is required to: add a member (pairing, or adding an already
+  trusted device to another circle), grant "Silence and disarm" to a circle, and remove a member or a
+  circle. Renaming and removing lesser permissions do not need it.
+- AC8.6 **Joining is mutual.** Adding a member sends a signed `CircleInvite(circleId, name, proposed
+  permissions, myLabel)` over a session (F9). The other device shows "Back room invites you to Work" and
+  the other owner accepts with their own device credential; their copy of the circle starts with the
+  invite's permissions, editable on their side. Declined or unanswered invites expire after 10 minutes.
+- AC8.7 **No transitive trust.** If A trusts B and C, B and C do not trust each other until they pair.
+  "All" in a circle means all members that this device itself trusts. (Introductions, where A vouches
+  for C to B, are a later idea, not in v1.)
+- AC8.8 Every message carries the `circleId` it acts under; the receiver checks that the sender is a
+  member of that circle and that the circle grants the permission. A device removed from every circle
+  stays paired but can do nothing; "Remove device" deletes the trust entirely (credential required).
+- AC8.9 Unit tests (pure Kotlin `CirclePolicy`): Home and new-circle defaults; permission checks per
+  circle for each message type; a member of two circles gets each circle's permissions only under that
+  circle's id; label uniqueness; credential gate required for add, grant-disarm and remove (fake gate).
+
+### F9. Local transport: Wi-Fi and Bluetooth, no internet server
+
+Trusted devices talk directly over the same Wi-Fi network or over Bluetooth LE. No relay, no cloud, no
+internet address is ever contacted.
+
+- AC9.1 **Wi-Fi discovery.** `NsdManager` (mDNS/DNS-SD, handled by the system, so no multicast lock or
+  `CHANGE_WIFI_MULTICAST_STATE`) registers service type `_fafo._tcp` on a random port. The instance name
+  is random per registration (never the device label, so a café network does not see "Register"). The
+  TXT record holds protocol version and `tag = first 8 bytes of HMAC-SHA256(beaconKey, timeSlot)` with
+  10-minute slots, so peers recognise each other without connecting and strangers cannot track a device
+  across slots. Peers check the current and previous slot.
+- AC9.2 **Wi-Fi only, local addresses only.** Sockets are bound to the Wi-Fi (or Ethernet) `Network`
+  from `ConnectivityManager`, never mobile data. A pure Kotlin `LocalAddressPolicy` refuses any address
+  outside 10/8, 172.16/12, 192.168/16, 169.254/16, IPv6 link-local fe80::/10 and ULA fc00::/7, for
+  both connect and accept. Routers with client isolation (common on public Wi-Fi) block peers; the app
+  then falls back to Bluetooth and says so.
+- AC9.3 **Bluetooth.** Commands and alerts also run over BLE GATT (the F6 service UUID). Audio over
+  Bluetooth uses an LE L2CAP connection-oriented channel (API 29+) and needs Opus (F10); Bluetooth audio
+  is best effort. Transport order: Wi-Fi if both are on the same network, else Bluetooth.
+- AC9.4 **Session handshake** (same for Wi-Fi and BLE, pure Kotlin `SessionHandshake` with injected
+  crypto): each side makes a fresh ephemeral ECDH P-256 key pair (software, in memory only; Keystore key
+  agreement needs API 31 and minSdk is 30), sends `version || ephemeralPub || nonce`, then signs the full
+  transcript hash with its Keystore identity key (ECDSA P-256 from F6) and sends the signature encrypted
+  under a handshake key. Each side verifies the signature against a stored trusted public key; unknown
+  keys are dropped without a reply. HKDF-SHA256 over the ECDH secret and transcript gives two
+  AES-256-GCM keys (one per direction) plus a 96-bit nonce base. Forward secrecy: ephemeral keys are
+  discarded when the session ends. Sessions expire after 1 hour or when the network changes.
+- AC9.5 **Messages.** Length-prefixed frames, each AES-GCM encrypted with a nonce built from a per-
+  direction 64-bit counter; the receiver rejects any counter at or below the last one seen (replay
+  protection). Message types: `Hello(label, beaconKey on first session)`, `CircleInvite`,
+  `CircleAccept`, `Alert`, `Silence`, `Disarm`, `IntercomListen`, `IntercomStop`, `PttStart`, `PttStop`,
+  `Ping`. Unknown types are ignored. Max frame 64 KiB.
+- AC9.6 **Beacon key.** Each install makes one random 256-bit beacon key, stored in CE storage encrypted
+  with a non-exportable Keystore AES-GCM key, and sends it to each peer in the first session after
+  pairing. It is used only for discovery tags (AC9.1) and BLE alert beacons (AC9.7). Removing a device
+  rotates the beacon key and re-sends it to the remaining peers.
+- AC9.7 **Alerts.** When this phone enters PRE_ALARM or TRIGGERED (after first unlock):
+  - Wi-Fi: send a signed `Alert(state, startedAt, myLabel)` to every reachable member of every circle with
+    Alerts, retry every 30 s while the incident is open.
+  - Bluetooth: advertise the F6 service UUID with service data = beacon tag (AC9.1, 2-minute slots
+    while alarming). Peers run a background BLE scan with a `PendingIntent` filtered on the service UUID
+    (works without a foreground service); the receiver checks the tag against its trusted peers' beacon
+    keys and, on a match, posts the alert and connects over GATT for details.
+  - The receiving device posts a high-priority notification "Back room: ALARM (unplugged 21:04)" with a
+    "Silence" action when the circle allows it. Alerts are "nearby" only; out of range means no alert.
+- AC9.8 **Silence and disarm from a trusted device.** Sending `Silence` or `Disarm` requires the sender's
+  own credential at the moment of sending (`BiometricPrompt` with `DEVICE_CREDENTIAL or BIOMETRIC_STRONG`),
+  so a stolen trusted phone cannot silence anything. The command carries a fresh challenge nonce from
+  the target (asked for in the same session) and the target's incident id; a stale or mismatched one is
+  refused. The target applies it within 500 ms and chirps once so the person there knows it was remote.
+- AC9.9 **Stay reachable.** To receive alerts and push-to-talk over Wi-Fi while the app is in the
+  background, the owner turns on "Stay reachable" (default off): `ReachableService`, a foreground service
+  of type `connectedDevice`, with a persistent notification "Reachable by: Home, Work". It may resume
+  from `BOOT_COMPLETED` (connectedDevice is not on Android 15's boot-blocked list; it is after first
+  unlock, so CE storage is open). Without it, Bluetooth alerts still arrive through the background scan.
+  The armed `ArmService` also listens while armed, so an armed phone can always be silenced by its circle.
+- AC9.10 **Android 16 / 17 local network protection.** Android 16 has an opt-in test mode
+  (`adb shell am compat enable RESTRICT_LOCAL_NETWORK ws.crandell.fafo`, then reboot) where local network
+  access needs `NEARBY_WIFI_DEVICES`; Android 17 enforces it for apps targeting SDK 37 with the new
+  `ACCESS_LOCAL_NETWORK` permission in the Nearby devices group. v1 declares `NEARBY_WIFI_DEVICES`
+  (`neverForLocation`) and requests it together with the Bluetooth permissions (same Nearby devices group,
+  one prompt). `ACCESS_LOCAL_NETWORK` is added when targetSdk moves to 37 (not in the SDK 36 platform).
+  Apps targeting below 37 that hold `INTERNET` get an implicit grant. Test the compat flag on the A17.
+- AC9.11 Unit tests: `LocalAddressPolicy` accepts every private range and refuses public IPv4/IPv6,
+  loopback, multicast, and IPv4-mapped public IPv6; `SessionHandshake` succeeds between two
+  trusted fakes, fails on an unknown key, a bad signature, a changed transcript byte and a version
+  downgrade; frame counter rejects replays and reordering below the window; beacon tags match across
+  slot edges and differ per key; Silence/Disarm refused without sender credential, with a stale
+  challenge, from a circle without the permission, or for the wrong incident id; Robolectric: NSD
+  registration uses `_fafo._tcp` and a random instance name.
+
+### F10. Intercom (remote speaker) and push-to-talk
+
+Plain voice between devices in a circle on the same Wi-Fi (or Bluetooth). Not labelled or marketed as a
+baby monitor or as a way to listen to anyone; it is an intercom/walkie-talkie for the owner's own devices.
+
+- AC10.1 **Room mode (listen).** The person at a phone turns on "Intercom room mode" in the visible app
+  and picks which circle(s) may listen (only circles with Intercom). This starts `IntercomService`, a
+  foreground service of type `microphone|connectedDevice`, from the visible app only. Members of those
+  circles can then tap that device's label and listen, and talk back.
+- AC10.2 **Never remote, never hidden.** Room mode cannot be turned on by any message, never starts from
+  boot or a `START_STICKY` restart (Android also blocks microphone services from boot and from the
+  background), and is off after a reboot. While room mode is on: persistent notification "Intercom on:
+  Home can listen" with a Stop action; when someone listens it changes to "Register is listening"; a
+  short chime plays on the room phone when a listener connects (setting "Chime when someone listens",
+  default on); the system mic indicator shows whenever the mic is open. Room mode refuses to start if
+  notifications are denied or the channel is blocked, and stops if that changes while running.
+- AC10.3 **Mic only while needed.** In room mode the mic opens only while at least one verified listener
+  is connected, and closes within 1 s after the last one leaves. Audio is live only: nothing is ever
+  recorded to a file, on either side.
+- AC10.4 **Push-to-talk.** Hold the big Talk button in the visible app to talk to one device (by label) or
+  "All" in the selected circle. Release stops. The sending phone's mic is open only while the button is
+  held (the app is in the foreground, so no microphone service is needed). Receivers must be reachable:
+  app open, room mode on, or "Stay reachable" on (F9). Receivers play it immediately with a short
+  start/end beep and show "Register is talking". Half duplex: if two people press at once, both hear a
+  busy tone and the later one is dropped.
+- AC10.5 **Targets.** "All" sends to every reachable member of the circle that grants Intercom (unicast
+  to each, no multicast). The target list shows labels with a reachable dot.
+- AC10.6 **Audio.** 16 kHz mono, 20 ms frames, `AudioRecord` with `VOICE_COMMUNICATION` source (echo
+  cancel / noise suppression where available), `AudioTrack` with `USAGE_VOICE_COMMUNICATION`. Codec: Opus
+  via `MediaCodec` (`audio/opus` encoder, check `MediaCodecList` at runtime) at about 24 kbps; fallback
+  16-bit PCM (256 kbps) on Wi-Fi only. Over Bluetooth only Opus is allowed; without an Opus encoder the
+  Bluetooth intercom is off and the UI says "Intercom needs Wi-Fi on this phone".
+- AC10.7 **Encrypted audio.** Audio frames go over UDP on Wi-Fi (or the L2CAP channel on Bluetooth), each
+  encrypted with AES-256-GCM using the session's per-direction key from AC9.4 (a separate HKDF label for
+  audio), nonce from a 64-bit frame counter, frames older than the 200 ms jitter window or replayed are
+  dropped. Control (listen, stop, PTT start/stop) goes over the encrypted session channel. Target
+  mouth-to-ear latency on Wi-Fi under 300 ms.
+- AC10.8 **Alarm takes priority.** If the phone enters PRE_ALARM or TRIGGERED, push-to-talk playback on it
+  stops and the siren plays. Intercom never opens the mic because of an alarm (remote listening during an
+  alarm stays phase two, section 10).
+- AC10.9 Unit tests: `IntercomPolicy` refuses listen when room mode is off, when the circle lacks
+  Intercom, or for an unknown key; room mode cannot be started by any message type; mic-open state
+  follows listener count; PTT floor control (busy on collision); audio frame crypto round-trip, replay
+  and late-frame drop; codec selection (Opus present / absent, Wi-Fi / Bluetooth). Robolectric:
+  `IntercomService` starts only with `microphone|connectedDevice` from an activity, posts the
+  notification first, and refuses to start when notifications are blocked.
+
 ## 4. Settings and defaults
 
 All settings live in DataStore. Settings needed at boot (marked DP) live in a device-protected DataStore.
@@ -246,6 +421,14 @@ All settings live in DataStore. Settings needed at boot (marked DP) live in a de
 | Photo storage cap | 25 / 50 / 100 / 200 MB | 100 MB | CE |
 | Low-storage floor | fixed | 500 MB free | n/a |
 | Trusted devices | list | empty | CE (public keys + metadata); private key in Keystore |
+| This device's label | 1-24 chars | model name | CE |
+| Circles | list of circles (name, members, labels, permissions) | "Home" (empty; Alerts + Silence and disarm + Intercom) | CE |
+| New circle permissions | Alerts / Silence and disarm / Intercom | Intercom only | n/a |
+| Stay reachable | on/off | off | CE (resumes after BOOT_COMPLETED) |
+| Intercom room mode | on/off, chosen circles | off; never persists across reboot | memory only |
+| Chime when someone listens | on/off | on | CE |
+| Intercom transport | Auto (Wi-Fi, then Bluetooth) | Auto | CE |
+| Intercom codec | Auto (Opus, PCM fallback on Wi-Fi) | Auto | CE |
 
 DP = device-protected storage (`createDeviceProtectedStorageContext()`), readable before first unlock.
 CE = credential-protected (default) storage, readable only after first unlock.
@@ -256,7 +439,9 @@ Runtime state in DP: `armed` (bool), `incident_active` (bool), `incident_id`, `i
 
 - **Device-protected storage holds only:** armed/incident flags, incident id + start time, DP settings.
   Never photos, keys or the trusted-device list.
-- **Credential-protected storage holds:** photos, sidecar metadata, CE settings, trusted-device list.
+- **Credential-protected storage holds:** photos, sidecar metadata, CE settings, trusted-device list,
+  circles and labels, the beacon key (encrypted with a Keystore AES key).
+- **Never stored:** intercom or push-to-talk audio (live only), session keys (memory only).
 - **Keys:** identity private key in Android Keystore (non-exportable). No secrets in the repo or in plain files.
 - **Photo cap:** default 100 MB for all incidents. When adding a photo would exceed the cap, prune in this
   order, never deleting the protected set:
@@ -284,14 +469,34 @@ Runtime state in DP: `armed` (bool), `incident_active` (bool), `incident_id`, `i
 | `WAKE_LOCK` | Keep the CPU awake while the siren plays and during the sensitivity window. |
 | `ACCESS_NOTIFICATION_POLICY` (user-granted access) | Set alarm volume while DND is on. |
 | `REQUEST_IGNORE_BATTERY_OPTIMIZATIONS` | Keep the armed service alive on Samsung. Play restricts this permission to apps whose core function breaks without it; declare it in Play Console with the anti-theft justification. |
-| `BLUETOOTH_SCAN` (`neverForLocation`), `BLUETOOTH_ADVERTISE`, `BLUETOOTH_CONNECT` | Trusted-device pairing. |
+| `BLUETOOTH_SCAN` (`neverForLocation`), `BLUETOOTH_ADVERTISE`, `BLUETOOTH_CONNECT` | Trusted-device pairing, Bluetooth alerts/commands (F9) and Bluetooth intercom (F10). |
 | `BLUETOOTH`, `BLUETOOTH_ADMIN` (`maxSdkVersion="30"`) | Legacy pairing on Android 11. |
 | `VIBRATE` | Chirps/siren vibration. |
+| `INTERNET` | Android requires it for **any** socket, including local Wi-Fi ones (F9, F10). Used only for the local network; see the enforced rule below. |
+| `ACCESS_NETWORK_STATE` | Find the Wi-Fi network and bind sockets to it (never mobile data). |
+| `CHANGE_NETWORK_STATE` | Satisfies the `connectedDevice` foreground service prerequisite when no Bluetooth permission is granted (Wi-Fi-only users). Install-time. |
+| `NEARBY_WIFI_DEVICES` (`neverForLocation`) | Android 16's opt-in local network protection gate (AC9.10). Same Nearby devices group as Bluetooth, so no extra prompt. |
+| `FOREGROUND_SERVICE_CONNECTED_DEVICE` | `ReachableService` (Stay reachable) and `IntercomService`: keep the local link to the owner's own devices. |
+| `RECORD_AUDIO` | Intercom room mode and push-to-talk only, asked just in time at first use, never at arm time. |
+| `FOREGROUND_SERVICE_MICROPHONE` | `IntercomService` room mode, started only from the visible app. |
+| `MODIFY_AUDIO_SETTINGS` | Voice-communication audio mode and speaker routing for intercom. |
 
-**Not requested in v1:** `INTERNET`, `RECORD_AUDIO`, `FOREGROUND_SERVICE_MICROPHONE`,
-`FOREGROUND_SERVICE_DATA_SYNC`, `SCHEDULE_EXACT_ALARM`, `USE_EXACT_ALARM`, any location permission,
-`SYSTEM_ALERT_WINDOW`, device admin, accessibility service. The manifest has no `INTERNET` permission;
-a test enforces this.
+Later: `ACCESS_LOCAL_NETWORK` when targetSdk moves to 37 (Android 17 enforces local network protection).
+
+**Enforced rule replacing "no INTERNET": no internet server, no analytics, no remote endpoints.**
+- No network or analytics libraries (OkHttp, Retrofit, Ktor, Cronet, Firebase, Play Services, Sentry,
+  ad SDKs); a test checks the version catalog and resolved runtime classpath.
+- No hardcoded non-local URLs or hosts: a test scans `app/src/main` for `http://`, `https://`, `ws://`,
+  `wss://`, `ftp://` literals and public IP literals, with an allowlist for XML namespace URIs
+  (`http://schemas.android.com/...`) only.
+- `LocalAddressPolicy` refuses non-private addresses at runtime (AC9.2). No `WebView`.
+- `network_security_config` with `cleartextTrafficPermitted="false"` as a belt-and-braces default.
+
+**Not requested in v1:** `FOREGROUND_SERVICE_DATA_SYNC`, `FOREGROUND_SERVICE_MEDIA_PLAYBACK`,
+`SCHEDULE_EXACT_ALARM`, `USE_EXACT_ALARM`, any location permission (including `ACCESS_BACKGROUND_LOCATION`),
+`CHANGE_WIFI_MULTICAST_STATE` (NSD does mDNS in the system), `SYSTEM_ALERT_WINDOW`, `READ_PHONE_STATE`,
+contacts, `CAPTURE_AUDIO_OUTPUT`, device admin, accessibility service. A manifest test enforces the
+exact permission list.
 
 ## 7. Threat model and known limits
 
@@ -313,9 +518,29 @@ armed while plugged in.
 - **DND "Total silence"** mutes alarms. The siren may be silent in that mode.
 - **Samsung battery management** may kill the service if onboarding steps are skipped or reverted by an update.
 - **SIM removal, factory reset, Faraday bag:** not addressed in v1. Factory reset wipes the app.
-- **No remote alerts in v1.** Photos stay on the phone; if the phone is never recovered, they are lost.
+- **No internet alerts in v1.** Only nearby trusted devices (same Wi-Fi or Bluetooth range) get an alert, and photos are never sent (alerts carry no photos). Photos stay on the phone; if the phone is never recovered, they are lost.
 - **Abuse:** the app protects only the device it runs on, shows a persistent notification whenever armed,
   uses a unique icon and name, never hides or disguises itself, and has no remote monitoring in v1.
+
+**Local network and circles (F8-F10):**
+- **Stranger on the same Wi-Fi:** sees a `_fafo._tcp` record with a random name and a rotating tag; cannot
+  complete a handshake without a trusted key; unknown keys get no reply. Can still flood or block (denial
+  of service); the alarm itself never depends on the network.
+- **Replay / man in the middle:** pairing is SAS-authenticated (F6); sessions are signed ephemeral ECDH
+  with per-direction AES-GCM and counters, so recorded traffic cannot be replayed or decrypted later.
+- **Stolen trusted phone:** cannot silence or disarm without its owner's credential at send time
+  (AC9.8). The owner removes it from the other devices (credential required).
+- **Thief with a trusted phone and its PIN:** can silence or disarm. That is why "Silence and disarm" is
+  per circle, needs the credential to grant, and Work circles default to intercom only.
+- **No remote help before first unlock:** after a reboot during an incident, alerts and remote
+  silence/disarm wait for the first unlock (CE storage and Keystore are off-limits in direct boot).
+- **Intercom misuse (listening to someone):** room mode is started only on the listening phone by the
+  person holding it unlocked, never remotely or from boot; persistent notification names who is
+  listening; a chime on connect; the system mic indicator; nothing is recorded; pairing and joining a
+  circle need both owners' credentials. Known limit: someone who knows a person's PIN and has their
+  phone in hand can set it up, as with any intercom app; the notification and indicator stay visible.
+- **Public Wi-Fi:** client isolation usually blocks peers; Bluetooth is the fallback. Labels are never
+  broadcast in clear.
 
 ## 8. Play policy posture (for later Play release)
 
@@ -329,6 +554,16 @@ armed while plugged in.
   alarm clock), so expect the user grant path in onboarding even after Play review.
 - `REQUEST_IGNORE_BATTERY_OPTIMIZATIONS` declaration (see section 6).
 - Position as an add-on to Android's built-in Theft Detection Lock, Offline Device Lock and Identity Check.
+- **Intercom must not look like stalkerware.** Name it "Intercom" and "Push-to-talk", never "baby
+  monitor", "listen in", "spy" or "monitor". The listing says it works only between your own devices that
+  you paired with your screen lock, only when someone turns on intercom on the listening phone, with a
+  notification and mic indicator the whole time, and that nothing is recorded. Screenshots show the
+  notification. No hidden mode, no remote start.
+- Foreground service declarations for `microphone` (intercom room mode, user-started, visible) and
+  `connectedDevice` (local link to the user's own paired devices), each with a screen recording.
+- Data safety: alerts and audio go only device-to-device on the local network, end-to-end encrypted, and
+  never reach the developer. Confirm the exact Data safety answers against Play's current definitions at
+  submission time.
 
 ## 9. Open items to test on the A17
 
@@ -342,25 +577,37 @@ armed while plugged in.
 - Whether "Lock network and security" blocks power off from the lock screen on One UI 8.
 - Whether the alarm notification / full-screen activity tap re-adds the camera type after a process death.
 - Whether Samsung's 2024 "foreground services work as intended since One UI 6" promise holds with default battery settings.
+- NSD discovery between two phones on Bill's home Wi-Fi; time to discover.
+- Local network with `adb shell am compat enable RESTRICT_LOCAL_NETWORK ws.crandell.fafo` (Android 16
+  opt-in): fails without `NEARBY_WIFI_DEVICES`, works with it.
+- Whether the A17 has an `audio/opus` `MediaCodec` encoder; intercom latency and echo on speaker.
+- Background BLE `PendingIntent` scan delivery for alert beacons under Samsung battery settings.
+- BLE L2CAP channel throughput for Opus audio between the A17 and a second phone.
+- Push-to-talk playback on a locked receiver with Stay reachable on.
 
 ## 10. Phase two (NOT v1)
 
-> **None of this is built in v1.** No server code, no `INTERNET` permission, no microphone in v1.
+> **None of this is built in v1.** No server code and no internet traffic in v1. v1 does have local-only
+> networking (F9) and an open-use intercom (F10); neither reaches beyond the local Wi-Fi or Bluetooth.
 > Listed here so v1 choices don't block it. Phase two is planned as paid later (about $5/month); v1 stays free.
 
 - **Relay alerts:** send incident alerts and queued photos to the owner's trusted devices through a small
   relay (for example a Cloudflare Worker) with end-to-end encryption using the paired public keys, so the
   relay never sees content. Alternatives: the owner's own email or Telegram. Photos are deleted from the
   phone only after a confirmed send. Uses a user-initiated data transfer job or the existing FGS, not `dataSync`.
-- **Remote silence:** a trusted device can silence (not disarm) the siren with a signed command.
-- **Remote mic (listen/speak), four rules, all mandatory:**
+- **Remote silence over the internet:** v1 does silence/disarm only nearby (F9); phase two carries the
+  same signed command through the relay.
+- **Remote mic during an alarm (listen/speak, over the relay or locally), four rules, all mandatory.**
+  This is separate from the v1 intercom (F10), which only works when someone turns on room mode on the
+  listening phone.
   1. The mic opens only while an alarm is sounding.
   2. Only the owner's own paired device can open it.
   3. The phone shows the system mic-in-use indicator the whole time.
   4. Mic access is obtained when the user arms (the service starts with the `microphone` type at arm time),
      because Android will not start the mic cold in the background. Consequence: after a reboot the mic
      is unavailable until the owner unlocks, same as the camera (boot cannot start mic services).
-  Listening to another person at any other time is spyware under Play policy and is never built.
+  Listening to another person at any other time without the open room mode of F10 is spyware under Play
+  policy and is never built.
 - **Bluetooth mesh store-and-forward:** nearby FAFO phones relay encrypted alerts when the stolen phone has no network.
 - **Lost-bond handling:** Android 16 `ACTION_KEY_MISSING` / `ACTION_ENCRYPTION_CHANGE` and
   `CompanionDeviceManager.removeBond()` for trusted-device repair.

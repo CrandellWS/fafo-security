@@ -59,7 +59,7 @@ jobs:
 
       - name: Lint
         if: steps.wrapper.outputs.present == 'true'
-        # Advisory until M10; the M10 commit removes continue-on-error so lint errors fail CI.
+        # Advisory until M12; the M12 commit removes continue-on-error so lint errors fail CI.
         continue-on-error: true
         run: ./gradlew --no-daemon lintDebug
 

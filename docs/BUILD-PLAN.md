@@ -121,8 +121,12 @@ show spec defaults; onboarding checklist reflects granted/missing permissions. C
 
 Done-checks: Robolectric: service starts foreground with correct types; receivers registered; simulated
 disconnect + elapsed window + locked keyguard drives the state machine to Triggered; reconnect inside the
-window does not. Manifest test asserts no `INTERNET`, no `RECORD_AUDIO`, no `dataSync`, no exact alarm
-permissions. Commit: `M4: armed foreground service and unplug detection`.
+window does not. Manifest test asserts no `dataSync`, no exact alarm permissions, no location, and (until
+their milestones) no `INTERNET` (added in M10) and no `RECORD_AUDIO` / `FOREGROUND_SERVICE_MICROPHONE`
+(added in M11). Add the "no remote endpoints" guard now so it holds for every later milestone:
+`NoRemoteEndpointsTest` scans `app/src/main` for `http(s)://`, `ws(s)://`, `ftp://` and public IP literals
+(allowlist: XML namespace URIs only) and checks the version catalog / runtime classpath has no network or
+analytics library (OkHttp, Retrofit, Ktor, Cronet, Firebase, Play Services, Sentry). Commit: `M4: armed foreground service and unplug detection`.
 
 ## M5. Siren
 
@@ -200,28 +204,87 @@ closed incident first, thins current incident); low-storage stops photos but not
   initiator verifies. `PairingCode.derive(pkA, pkB, nA, nB)` = 6 digits from SHA-256 of the role-ordered
   inputs; both users confirm; both sides pass CredentialGate; store peer public key + name + fingerprint in CE storage.
 - Remove device also behind CredentialGate.
+- Pairing grants no powers by itself (spec AC6.6); M10 adds circles. Until then the device is stored as
+  trusted with no circle.
 
 Done-checks: unit tests: PairingCode is symmetric, 6 digits, changes when any input changes; a reveal
 that does not match the commitment aborts; pairing flow refuses to persist without a credential success (fake gate); manifest has `neverForLocation`
 and legacy BT permissions capped at `maxSdkVersion=30`, and no location permissions. Manual on two
 phones (Bill). Commit: `M9: trusted-device pairing`.
 
-## M10. Hardening, tests and release candidate
+## M10. Trust circles and local transport (Wi-Fi + Bluetooth)
+
+Spec F8 and F9.
+- `CirclePolicy` + `CircleStore` (CE): built-in Home (Alerts + Silence and disarm + Intercom), new circles
+  Intercom only, labels unique per circle, `CredentialGate` on add member, grant Silence and disarm,
+  remove. Circles UI: list, members with labels, permission toggles, "This device is called".
+  "Add trusted device" now starts from a circle (default Home) and ends with a `CircleInvite`.
+- Manifest: add `INTERNET`, `ACCESS_NETWORK_STATE`, `CHANGE_NETWORK_STATE`, `NEARBY_WIFI_DEVICES`
+  (`neverForLocation`), `FOREGROUND_SERVICE_CONNECTED_DEVICE`; `network_security_config` with cleartext
+  off. Request Nearby devices together with Bluetooth.
+- `LocalAddressPolicy` (pure Kotlin), `SessionHandshake` (signed ephemeral ECDH P-256, HKDF-SHA256,
+  AES-256-GCM per direction, counters) with crypto behind an interface so tests run on the JVM;
+  `FrameCodec` for length-prefixed frames. Use JCA only (no new crypto dependency).
+- `BeaconKey` (random 256-bit, CE, wrapped by a Keystore AES-GCM key) and `BeaconTag` (HMAC slots).
+- Wi-Fi: `NsdManager` register/discover `_fafo._tcp`, random instance name, TXT tag; server and client
+  sockets bound to the Wi-Fi `Network`. Bluetooth: GATT command characteristic on the F6 service.
+- Alerts from `ArmService` on PRE_ALARM/TRIGGERED (Wi-Fi send + BLE alert beacon); background BLE scan
+  with `PendingIntent` on receivers; alert notification with Silence action.
+- Remote `Silence` / `Disarm`: sender `BiometricPrompt` (`DEVICE_CREDENTIAL or BIOMETRIC_STRONG`), target
+  challenge + incident id, state machine events `RemoteSilence(peer, circle)` / `RemoteDisarm(peer, circle)`
+  (refused in IncidentPersisted before first unlock).
+- `ReachableService` (`connectedDevice`, "Stay reachable", default off), may resume from `BOOT_COMPLETED`.
+
+Done-checks: spec AC8.9 and AC9.11 unit tests green; state-machine tests for RemoteSilence (sound stops,
+incident and photos continue) and RemoteDisarm (to Disarmed) plus refusal cases; `NoRemoteEndpointsTest`
+still green; manifest test updated (INTERNET now required, RECORD_AUDIO still absent); boot path still
+never opens CeStore (circles are CE). Manual (Bill, two phones on home Wi-Fi): discover, alert on unplug,
+silence from the other phone; Wi-Fi off on both, alert over Bluetooth; Android 16
+`RESTRICT_LOCAL_NETWORK` compat flag test. Commit: `M10: trust circles and local Wi-Fi/Bluetooth transport`.
+
+## M11. Intercom and push-to-talk (last feature milestone)
+
+Spec F10.
+- Manifest: `RECORD_AUDIO`, `FOREGROUND_SERVICE_MICROPHONE`, `MODIFY_AUDIO_SETTINGS`; `IntercomService`
+  with `foregroundServiceType="microphone|connectedDevice"`, not `directBootAware`, never started from a
+  receiver or `START_STICKY` (`START_NOT_STICKY`).
+- `IntercomPolicy` (pure Kotlin): room mode only from the local UI; listen allowed only for circles with
+  Intercom chosen in room mode; mic open iff at least one verified listener; PTT floor control.
+- Room mode UI: toggle + circle picker, notification ("Intercom on: Home can listen" / "Register is
+  listening") with Stop, chime on listener connect, refuse if notifications are blocked.
+- Push-to-talk UI: hold-to-talk button, target picker (labels + All) with reachable dots; mic permission
+  asked at first use.
+- Audio: `AudioRecord` (`VOICE_COMMUNICATION`) / `AudioTrack` (`USAGE_VOICE_COMMUNICATION`), 16 kHz mono
+  20 ms frames, `OpusCodec` via `MediaCodec` with PCM fallback on Wi-Fi only, 200 ms jitter buffer;
+  `AudioFrameCrypto` (AES-256-GCM, frame counter nonce, separate HKDF label). UDP on Wi-Fi, L2CAP CoC on
+  Bluetooth (Opus only). Siren preempts playback.
+
+Done-checks: spec AC10.9 tests green; a test that no message type can start room mode; a test that
+nothing under intercom writes audio to disk (fake file system / no `FileOutputStream` in the audio path);
+manifest test now requires `RECORD_AUDIO` + microphone type only on `IntercomService`. Manual (Bill, two
+phones): room mode + listen, PTT "Register" to "Back room" and to All, mic indicator visible, chime,
+latency feel, echo on speaker. Commit: `M11: intercom and push-to-talk`.
+
+## M12. Hardening, tests and release candidate
 
 - Lint clean (`./gradlew lint` with no errors), no `onBackPressed`, no hardcoded secrets.
-- Manifest guard test (one test file) asserting the full v1 permission list from the spec and the
-  absence of every "not requested in v1" permission.
+- Manifest guard test (one test file) asserting the full v1 permission list from the spec (section 6),
+  the absence of every "not requested in v1" permission, `neverForLocation` on `BLUETOOTH_SCAN` and
+  `NEARBY_WIFI_DEVICES`, and the service types (`ArmService` specialUse|camera, `ReachableService`
+  connectedDevice, `IntercomService` microphone|connectedDevice).
+- `NoRemoteEndpointsTest` and `LocalAddressPolicy` tests still green (the "no internet server" rule).
 - Update README with install instructions for the CI APK (enable install from unknown sources, A17 steps).
-- A17 manual test checklist in `docs/A17-TEST-CHECKLIST.md` covering the six done items and the spec's
-  "Open items to test on the A17".
+- A17 manual test checklist in `docs/A17-TEST-CHECKLIST.md` covering the nine done items and the spec's
+  "Open items to test on the A17" (two-phone steps for F8-F10).
 
 Done-checks: `./gradlew assembleDebug test lint` green locally and in CI; debug APK artifact downloadable
-from the Actions run. Commit: `M10: v1 release candidate`.
+from the Actions run. Commit: `M12: v1 release candidate`.
 
 ## Testing approach
 
 - No device or emulator in the cloud session. Push logic into pure Kotlin classes (state machine,
-  classifiers, prune policy, pairing code) and unit test them on the JVM.
+  classifiers, prune policy, pairing code, circle policy, address policy, session handshake, frame and
+  audio crypto, intercom policy) and unit test them on the JVM.
 - Use Robolectric (`@RunWith(AndroidJUnit4::class)`, `testOptions.unitTests.isIncludeAndroidResources = true`)
   for services, receivers, DataStore, manifest and Compose UI.
 - Hardware behavior (siren loudness, camera while locked, boot timing, Samsung battery behavior) is
@@ -231,6 +294,6 @@ from the Actions run. Commit: `M10: v1 release candidate`.
 
 `.github/workflows/android.yml` sets up JDK 17 and the Android SDK, and runs
 `./gradlew assembleDebug test` when `gradlew` exists, uploading `app-debug.apk` as the `fafo-debug-apk`
-artifact, then `./gradlew lintDebug` (reported, and blocking from M10 on: remove `continue-on-error` from
-the lint step in the M10 commit). Before M1 it skips cleanly. The repo has no remote yet; CI runs once
+artifact, then `./gradlew lintDebug` (reported, and blocking from M12 on: remove `continue-on-error` from
+the lint step in the M12 commit). Before M1 it skips cleanly. The repo has no remote yet; CI runs once
 Bill pushes it to GitHub.

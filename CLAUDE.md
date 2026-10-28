@@ -5,14 +5,23 @@ owner's own phone. This repo is built by a Claude Code cloud session. It is a se
 unrelated to gwaslots.com.
 
 Read in this order: `docs/SPEC-v1.md` (what to build, acceptance criteria), then
-`docs/BUILD-PLAN.md` (milestones M0-M10, done-checks). Work milestones in order.
+`docs/BUILD-PLAN.md` (milestones M0-M12, done-checks). Work milestones in order.
 
 ## Rules (hard)
 
-- **No server code in v1.** No backend, no relay, no cloud functions. The app has no `INTERNET` permission.
+- **No internet server, no analytics, no remote endpoints.** No backend, relay or cloud functions. The app
+  holds `INTERNET` only because Android needs it for local sockets (spec F9): traffic goes only to the
+  owner's paired devices on the same Wi-Fi or over Bluetooth. Enforced by `LocalAddressPolicy` (private
+  addresses only), `NoRemoteEndpointsTest` (no hardcoded non-local URLs/hosts, no network or analytics
+  libraries) and the manifest test.
 - **No analytics, trackers, crash reporters or ad SDKs.** No Firebase, Crashlytics, Play Services, Sentry, etc.
-- **No remote listening in v1.** No `RECORD_AUDIO`, no microphone foreground service type, no remote
-  control of any kind. Phase two (spec section 10) is not built until Bill says so.
+- **Intercom is open-use only (spec F10).** The mic opens only in room mode turned on by the person at that
+  phone (persistent notification naming listeners, system mic indicator) or while someone holds
+  push-to-talk in the visible app. Never started by a remote message, from boot or from a sticky restart;
+  nothing is recorded. No remote listening during alarms and nothing over the internet: that is phase
+  two (spec section 10) and is not built until Bill says so. Never call it a baby monitor.
+- **Every network message is end-to-end encrypted and authenticated** with the paired keys (spec AC9.4);
+  each circle's permissions are checked by the receiving device (spec F8).
 - **Own device only.** Never add hidden modes, disguised icons, or anything that monitors another person.
   The persistent notification must show whenever the app is armed or alarming.
 - **Keep secrets out of the repo.** No keystores, signing configs, API keys or `local.properties`
@@ -57,6 +66,11 @@ checked by Bill on his Samsung Galaxy A17 (Android 16) using the APK from CI
   Keystore. No WorkManager.
 - v1 has a pre-alarm countdown (0-60 s, default 5 s) between unplug and the full siren; see spec F2.
 - Pairing uses commit-then-reveal before showing the 6-digit code (spec AC6.2).
+- Any socket needs `INTERNET`, even on the LAN. Android 16 has an opt-in local network restriction
+  (`NEARBY_WIFI_DEVICES`); Android 17 / targetSdk 37 needs `ACCESS_LOCAL_NETWORK` (spec AC9.10).
+- Microphone foreground services cannot start from boot or the background; `connectedDevice` can start
+  from `BOOT_COMPLETED`. Keystore key agreement needs API 31, so ECDH keys are ephemeral software keys
+  signed by the Keystore identity key.
 - `ACTION_POWER_DISCONNECTED` must be registered at runtime inside the armed service.
 - Boot path is `directBootAware` and reads only device-protected storage.
 - Siren uses `AudioAttributes.USAGE_ALARM`; timers run inside the service (no exact alarms, no WorkManager while armed).
