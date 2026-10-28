@@ -45,6 +45,62 @@ class ManifestTest {
         "android.permission.READ_SMS",
     )
 
+    /** Spec section 6: the full v1 permission list, nothing more (M13 manifest guard). */
+    private val v1Permissions = setOf(
+        "android.permission.FOREGROUND_SERVICE",
+        "android.permission.FOREGROUND_SERVICE_SPECIAL_USE",
+        "android.permission.FOREGROUND_SERVICE_CAMERA",
+        "android.permission.CAMERA",
+        "android.permission.POST_NOTIFICATIONS",
+        "android.permission.USE_FULL_SCREEN_INTENT",
+        "android.permission.RECEIVE_BOOT_COMPLETED",
+        "android.permission.WAKE_LOCK",
+        "android.permission.ACCESS_NOTIFICATION_POLICY",
+        "android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS",
+        "android.permission.BLUETOOTH_SCAN",
+        "android.permission.BLUETOOTH_ADVERTISE",
+        "android.permission.BLUETOOTH_CONNECT",
+        "android.permission.VIBRATE",
+        "android.permission.INTERNET",
+        "android.permission.ACCESS_NETWORK_STATE",
+        "android.permission.CHANGE_NETWORK_STATE",
+        "android.permission.NEARBY_WIFI_DEVICES",
+        "android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.FOREGROUND_SERVICE_MICROPHONE",
+        "android.permission.MODIFY_AUDIO_SETTINGS",
+    )
+
+    /** Capped at API 30 (may be dropped from the parsed list on newer SDKs). */
+    private val legacy = setOf("android.permission.BLUETOOTH", "android.permission.BLUETOOTH_ADMIN")
+
+    /**
+     * Merged in from AndroidX: core's app-private signature permission for `RECEIVER_NOT_EXPORTED` on old
+     * APIs, and androidx.biometric's normal permissions for BiometricPrompt (spec section 6 lists them).
+     */
+    private val libraryInternal = setOf(
+        "ws.crandell.fafo.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION",
+        "android.permission.USE_BIOMETRIC",
+        "android.permission.USE_FINGERPRINT",
+    )
+
+    @Test fun exactV1PermissionList() {
+        assertThat(permissions).containsAtLeastElementsIn(v1Permissions)
+        assertThat(permissions - v1Permissions - legacy - libraryInternal).isEmpty()
+        val xml = sourceManifest()
+        val declared = Regex("<uses-permission\\s+android:name=\"([^\"]+)\"").findAll(xml).map { it.groupValues[1] }.toSet()
+        assertThat(declared).isEqualTo(v1Permissions + legacy)
+    }
+
+    @Test fun serviceTypes() {
+        val types = info.services.associate { it.name to it.foregroundServiceType }
+        assertThat(types).containsExactly(
+            "ws.crandell.fafo.arm.ArmService", ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE or ServiceInfo.FOREGROUND_SERVICE_TYPE_CAMERA,
+            "ws.crandell.fafo.reach.ReachableService", ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE,
+            "ws.crandell.fafo.intercom.IntercomService", ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE or ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE,
+        )
+    }
+
     @Test fun noForbiddenPermissions() {
         notRequested.forEach { assertThat(permissions).doesNotContain(it) }
     }

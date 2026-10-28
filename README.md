@@ -21,6 +21,21 @@ stays between your own paired devices on the local network or Bluetooth, end-to-
 - Build plan: [docs/BUILD-PLAN.md](docs/BUILD-PLAN.md)
 - Build agent front door: [CLAUDE.md](CLAUDE.md)
 
+## Install the test build (debug APK from CI)
+
+1. Open the repository's **Actions** tab on GitHub, pick the latest green **Android CI** run on `main`,
+   and download the **fafo-debug-apk** artifact (a zip). Unzip it to get `app-debug.apk`.
+2. Copy the APK to the phone (USB, or download it on the phone from the same Actions page while signed in).
+3. On the Samsung Galaxy A17 (Android 16): open the APK from **My Files**. When asked, allow
+   **Install unknown apps** for My Files (Settings > Apps > My Files > Install unknown apps), then install.
+   If Play Protect warns about an unknown developer, choose **More details > Install anyway**: it is a
+   debug build signed with a CI debug key.
+4. Open FAFO Security and work through the setup checklist (notifications, camera, full-screen alarm,
+   Do Not Disturb access, battery Unrestricted, Samsung sleeping-apps steps).
+5. Updating: install the newer APK over the old one. Each CI run signs with its own debug key, so if Android
+   says the package conflicts, uninstall first (this deletes FAFO's photos, trusted devices and keys).
+6. What to test, step by step: [docs/DEVICE-TESTS.md](docs/DEVICE-TESTS.md).
+
 FAFO Security protects the device it is installed on. It is not a tool for tracking or monitoring
 another person, and it never hides itself: while armed it always shows a persistent notification.
 The intercom only works when someone turns it on at the listening phone, shows a notification naming

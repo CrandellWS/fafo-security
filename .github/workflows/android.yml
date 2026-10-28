@@ -67,7 +67,7 @@ jobs:
 
       - name: Lint
         if: steps.wrapper.outputs.present == 'true'
-        # Advisory until M13; the M13 commit removes continue-on-error so lint errors fail CI.
+        # Blocking since M13. On failure the plain-text report is printed so every issue shows in the log.
         run: |
           ./gradlew --no-daemon lintDebug || { cat app/build/reports/lint-results-debug.txt; exit 1; }
 
