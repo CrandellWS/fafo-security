@@ -6,7 +6,7 @@ Usage: python3 tools/make-icons.py <fafo-shield-1024.png> [repo root]
 Writes (committed, so the build never needs this script or Pillow):
   app/src/main/res/mipmap-<density>/ic_launcher_foreground.webp   adaptive foreground, 108dp canvas
   app/src/main/res/mipmap-<density>/ic_launcher_monochrome.webp   themed-icon layer (white silhouette)
-  app/src/main/res/drawable-nodpi/fafo_shield.webp                in-app logo (alarm screen, top bar, heroes)
+  app/src/main/res/drawable-nodpi/fafo_shield.webp                bitmap fallback (in-app art is the vector ShieldMark, tools/trace-shield.py)
 
 The shield is scaled as large as possible while every opaque pixel stays inside the 66dp safe circle
 (radius 33dp) of the 108dp adaptive-icon canvas, so no launcher mask (circle, squircle, teardrop) clips it.

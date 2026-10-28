@@ -60,6 +60,7 @@ import ws.crandell.fafo.ui.theme.FafoBrand
 import ws.crandell.fafo.ui.components.FafoWordmark
 import ws.crandell.fafo.ui.components.FafoLockup
 import ws.crandell.fafo.ui.components.WordmarkVariant
+import ws.crandell.fafo.ui.components.ShieldMark
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -204,6 +205,16 @@ class ScreenshotTest {
             }
             Row(Modifier.fillMaxWidth().background(DarkTokens.bg).padding(20.dp), horizontalArrangement = Arrangement.SpaceEvenly) {
                 FafoLockup(stacked = true, wordmarkHeight = 30.dp, variant = WordmarkVariant.DARK_WHITE)
+            }
+        }
+    }
+
+    @Test fun s75_shield_layers() = shot("75_shield_layers") {
+        val stripes = listOf(FafoBrand.StatusGreen, FafoBrand.StatusYellow, FafoBrand.StatusOrange, FafoBrand.StatusRed)
+        Column(Modifier.fillMaxSize().padding(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            for (eye in listOf(FafoBrand.White, FafoBrand.Red)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) { stripes.forEach { ShieldMark(100.dp, stripes = it, eye = eye) } }
+                Row(Modifier.background(LightTokens.bg), horizontalArrangement = Arrangement.spacedBy(8.dp)) { stripes.forEach { ShieldMark(100.dp, stripes = it, eye = eye) } }
             }
         }
     }

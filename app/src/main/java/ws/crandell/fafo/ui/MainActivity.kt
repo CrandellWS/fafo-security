@@ -71,6 +71,9 @@ import ws.crandell.fafo.ui.screens.SettingsScreen
 import ws.crandell.fafo.ui.screens.TrustedScreen
 import ws.crandell.fafo.ui.theme.FafoColors
 import ws.crandell.fafo.ui.theme.FafoTheme
+import ws.crandell.fafo.ui.components.LocalShieldEye
+import ws.crandell.fafo.ui.components.shieldEyeFor
+import androidx.compose.runtime.CompositionLocalProvider
 import ws.crandell.fafo.ui.theme.ThemeMode
 import ws.crandell.fafo.ui.theme.isDark
 import ws.crandell.fafo.ui.theme.applySystemBars
@@ -115,7 +118,10 @@ class MainActivity : FragmentActivity() {
             val mode = ThemeMode.parse(dp.theme)
             val dark = mode.isDark()
             LaunchedEffect(dark) { applySystemBars(this@MainActivity, dark) }
-            FafoTheme(mode) { AppRoot() }
+            val home by vm.home.collectAsStateWithLifecycle()
+            FafoTheme(mode) {
+                CompositionLocalProvider(LocalShieldEye provides shieldEyeFor(home.alarmState)) { AppRoot() }
+            }
         }
         if (savedInstanceState == null) takeDisarmRequest(intent)
     }

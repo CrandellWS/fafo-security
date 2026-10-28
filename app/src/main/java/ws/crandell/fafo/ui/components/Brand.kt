@@ -25,20 +25,25 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import ws.crandell.fafo.R
+import ws.crandell.fafo.core.isAlarming
 import ws.crandell.fafo.ui.theme.Barlow
 import ws.crandell.fafo.ui.theme.FafoBrand
 import ws.crandell.fafo.ui.theme.FafoColors
 import ws.crandell.fafo.ui.theme.LocalFafoTokens
 
-/** Width / height of the shield art (fafo_shield.webp). */
-private const val SHIELD_ASPECT = 0.908f
 
 /**
- * The approved FAFO shield. [haloOnRed] adds a soft dark glow behind it so the white sticker edge stands out
+ * The approved FAFO shield, drawn from vector layers ([ShieldMark]). [haloOnRed] adds a soft dark glow behind it so the white sticker edge stands out
  * on the red alarm screen.
  */
 @Composable
-fun ShieldLogo(height: Dp, modifier: Modifier = Modifier, haloOnRed: Boolean = false) {
+fun ShieldLogo(
+    height: Dp,
+    modifier: Modifier = Modifier,
+    haloOnRed: Boolean = false,
+    stripes: Color = FafoBrand.Red,
+    eye: Color = LocalShieldEye.current,
+) {
     Box(modifier, contentAlignment = Alignment.Center) {
         if (haloOnRed) {
             Box(
@@ -47,13 +52,19 @@ fun ShieldLogo(height: Dp, modifier: Modifier = Modifier, haloOnRed: Boolean = f
                 ),
             )
         }
-        Image(
-            painterResource(R.drawable.fafo_shield),
-            contentDescription = "FAFO Security shield",
-            modifier = Modifier.height(height).size(height * SHIELD_ASPECT, height),
-        )
+        ShieldMark(height, stripes = stripes, eye = eye)
     }
 }
+
+/**
+ * Eye color of the in-app shield (Bill 2026-10-28): white while disarmed, red once armed. MainActivity
+ * provides it from the live state; the default (previews, tests, the launcher look) is red.
+ */
+val LocalShieldEye = androidx.compose.runtime.staticCompositionLocalOf { FafoBrand.Red }
+
+/** Eye color for a state: white when disarmed (and while ARMING), red when armed or alarming. */
+fun shieldEyeFor(state: ws.crandell.fafo.core.AlarmState): Color =
+    if (state is ws.crandell.fafo.core.AlarmState.Armed || state.isAlarming) FafoBrand.Red else FafoBrand.White
 
 /** Which hand-built wordmark (~/Pictures/fafo-logo/wordmark, converted by tools/svg2vd.py) to draw. */
 enum class WordmarkVariant { AUTO, DARK_WHITE, LIGHT, MONO_WHITE }
@@ -115,4 +126,4 @@ fun FafoLockup(
 }
 
 @Composable
-private fun LockupShield(height: Dp, eye: androidx.compose.ui.graphics.Color?) = ShieldLogo(height)
+private fun LockupShield(height: Dp, eye: androidx.compose.ui.graphics.Color?) = ShieldMark(height, eye = eye ?: LocalShieldEye.current, contentDescription = null)
