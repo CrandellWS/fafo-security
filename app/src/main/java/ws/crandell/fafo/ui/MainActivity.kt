@@ -54,6 +54,7 @@ import java.io.File
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
 import ws.crandell.fafo.arm.ArmService
+import ws.crandell.fafo.arm.Notifications
 import ws.crandell.fafo.siren.AndroidAudioBackend
 import ws.crandell.fafo.siren.Siren
 import ws.crandell.fafo.storage.CeStore
@@ -168,7 +169,10 @@ class MainActivity : FragmentActivity() {
                 if (Build.VERSION.SDK_INT >= 33) requestPermissions(Manifest.permission.POST_NOTIFICATIONS)
                 else launch(OnboardingIntents.notificationSettings(this))
             OnboardingStep.CAMERA -> requestPermissions(Manifest.permission.CAMERA)
-            OnboardingStep.FULL_SCREEN -> launch(OnboardingIntents.fullScreen(this))
+            OnboardingStep.FULL_SCREEN -> {
+                Notifications.ensureChannels(this)
+                launch(OnboardingIntents.fullScreenStep(this, vm.onboarding.value))
+            }
             OnboardingStep.DND -> launch(OnboardingIntents.dnd())
             OnboardingStep.BATTERY -> launch(OnboardingIntents.ignoreBatteryOptimization(this))
             OnboardingStep.BUILT_IN -> {

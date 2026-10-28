@@ -18,7 +18,11 @@ enum class OnboardingStep(val title: String, val detail: String) {
     SECURE_LOCK("Screen lock", "A PIN, pattern or password is required. Without one a thief just swipes to unlock."),
     NOTIFICATIONS("Notifications", "Needed for the armed and alarm notifications."),
     CAMERA("Camera", "Takes photos of whoever unplugs the phone. Photos stay on this phone."),
-    FULL_SCREEN("Full-screen alarm", "Shows the alarm over the lock screen."),
+    FULL_SCREEN(
+        "Full-screen alarm",
+        "Shows the red alarm screen over the lock screen by itself when the alarm goes off. Allow " +
+            "\"Full screen notifications\" for FAFO, and keep the \"Alarm screen\" notification category on.",
+    ),
     DND("Do Not Disturb access", "Lets FAFO raise the alarm volume under Do Not Disturb. \"Total silence\" still mutes alarms."),
     BATTERY(
         "Battery",
@@ -41,6 +45,8 @@ data class OnboardingStatus(
     val notifications: Boolean = false,
     val camera: Boolean = false,
     val fullScreen: Boolean = false,
+    /** The full-screen alarm channel is on and at HIGH importance (see DeviceStatus.alarmChannelOk). */
+    val alarmChannel: Boolean = true,
     val dnd: Boolean = false,
     val battery: Boolean = false,
     val builtInSeen: Boolean = false,
@@ -51,7 +57,7 @@ data class OnboardingStatus(
         OnboardingStep.SECURE_LOCK -> secureLock
         OnboardingStep.NOTIFICATIONS -> notifications
         OnboardingStep.CAMERA -> camera
-        OnboardingStep.FULL_SCREEN -> fullScreen
+        OnboardingStep.FULL_SCREEN -> fullScreen && alarmChannel
         OnboardingStep.DND -> dnd
         OnboardingStep.BATTERY -> battery
         OnboardingStep.BUILT_IN -> builtInSeen
@@ -67,6 +73,7 @@ data class OnboardingStatus(
             notifications = DeviceStatus.hasNotificationPermission(context) && DeviceStatus.notificationsEnabled(context),
             camera = DeviceStatus.hasCamera(context),
             fullScreen = DeviceStatus.canUseFullScreenIntent(context),
+            alarmChannel = DeviceStatus.alarmChannelOk(context),
             dnd = DeviceStatus.hasDndAccess(context),
             battery = DeviceStatus.ignoresBatteryOptimizations(context),
             builtInSeen = builtInSeen,
@@ -88,6 +95,16 @@ object OnboardingIntents {
         } else {
             appDetails(context)
         }
+
+    /** The full-screen alarm notification channel's own settings page (to turn it back on / up). */
+    fun alarmChannel(context: Context): Intent =
+        Intent(Settings.ACTION_CHANNEL_NOTIFICATION_SETTINGS)
+            .putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
+            .putExtra(Settings.EXTRA_CHANNEL_ID, ws.crandell.fafo.arm.Notifications.CH_ALARM_SCREEN)
+
+    /** FULL_SCREEN step: the permission page first; once granted, the alarm channel if it was lowered. */
+    fun fullScreenStep(context: Context, status: OnboardingStatus): Intent =
+        if (!status.fullScreen) fullScreen(context) else alarmChannel(context)
 
     fun dnd() = Intent(Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS)
 

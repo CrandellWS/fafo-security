@@ -64,6 +64,9 @@ class ArmService : LifecycleService() {
     private var cameraType = false
     /** Started from boot / sticky restart: no camera until a visible-app start (notification tap). */
     private var startedWithoutCamera = false
+    /** True while the separate full-screen alarm notification ([Notifications.ID_ALARM]) is posted. */
+    private var alarmPosted = false
+    private var alarmPhotosPaused = false
 
     /** Foreground service type last passed to startForeground, for tests. */
     var currentFgsType: Int = 0
@@ -124,6 +127,11 @@ class ArmService : LifecycleService() {
                 events.send(AlarmEvent.DisarmTapped)
             }
             ACTION_REPOST -> postNotification()
+            ACTION_REPOST_ALARM -> {
+                // The alarm notification was swiped away: post it again as new, so the alarm screen returns.
+                alarmPosted = false
+                postNotification()
+            }
             ACTION_NOTIFICATION_TAP -> {
                 // Visible-app start (alarm activity / notification tap). The camera type may be added only
                 // when CE storage is unlocked, i.e. after a process death, never in direct boot.
@@ -408,6 +416,44 @@ class ArmService : LifecycleService() {
         notify(Notifications.ID_ARMED) {
             Notifications.forState(this, s, AlarmStatusBus.photosPaused.value, startedWithoutCamera && !cameraType)
         }
+        syncAlarmNotification(s)
+    }
+
+    /**
+     * Full-screen alarm: SystemUI launches a full-screen intent only when a notification is first posted
+     * (an update, like the ongoing [Notifications.ID_ARMED] one, never launches it). So on entering
+     * TRIGGERED (or after a reboot during an incident) post [Notifications.ID_ALARM] fresh, once; cancel it
+     * when the alarm ends.
+     */
+    private fun syncAlarmNotification(s: AlarmState) {
+        val alarming = s is AlarmState.Triggered || s is AlarmState.IncidentPersisted
+        val paused = AlarmStatusBus.photosPaused.value
+        when {
+            alarming && !alarmPosted -> {
+                cancelNotification(Notifications.ID_ALARM)
+                notify(Notifications.ID_ALARM) { Notifications.alarm(this, paused) }
+                alarmPosted = true
+                alarmPhotosPaused = paused
+            }
+            alarming && paused != alarmPhotosPaused -> {
+                notify(Notifications.ID_ALARM) { Notifications.alarm(this, paused, update = true) }
+                alarmPhotosPaused = paused
+            }
+            !alarming && alarmPosted -> cancelAlarmNotification()
+        }
+    }
+
+    private fun cancelAlarmNotification() {
+        cancelNotification(Notifications.ID_ALARM)
+        alarmPosted = false
+    }
+
+    private fun cancelNotification(id: Int) {
+        try {
+            NotificationManagerCompat.from(this).cancel(id)
+        } catch (e: SecurityException) {
+            Log.w(TAG, "cancel failed", e)
+        }
     }
 
     private inline fun notify(id: Int, build: () -> android.app.Notification) {
@@ -427,6 +473,7 @@ class ArmService : LifecycleService() {
         preAlarmJob?.cancel()
         sound.stop()
         AlarmStatusBus.setCameraActive(false)
+        cancelAlarmNotification()
         ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE)
         inForeground = false
         stopSelf()
@@ -454,6 +501,7 @@ class ArmService : LifecycleService() {
         const val ACTION_ARM = "ws.crandell.fafo.action.ARM"
         const val ACTION_DISARM = "ws.crandell.fafo.action.DISARM"
         const val ACTION_REPOST = "ws.crandell.fafo.action.REPOST"
+        const val ACTION_REPOST_ALARM = "ws.crandell.fafo.action.REPOST_ALARM"
         const val ACTION_NOTIFICATION_TAP = "ws.crandell.fafo.action.NOTIFICATION_TAP"
         const val ACTION_BOOT = "ws.crandell.fafo.action.BOOT"
         private const val WAKE_LOCK_TIMEOUT_MS = 10 * 60 * 1000L

@@ -58,6 +58,16 @@ object DeviceStatus {
             true
         }
 
+    /**
+     * The full-screen alarm channel can still alert: not blocked or lowered below HIGH (the user or One UI
+     * can lower it in system settings; an app can never raise it again). Not created yet counts as fine.
+     */
+    fun alarmChannelOk(context: Context): Boolean {
+        val nm = context.getSystemService(NotificationManager::class.java) ?: return false
+        val ch = nm.getNotificationChannel(ws.crandell.fafo.arm.Notifications.CH_ALARM_SCREEN) ?: return true
+        return ch.importance >= NotificationManager.IMPORTANCE_HIGH
+    }
+
     fun hasDndAccess(context: Context): Boolean =
         context.getSystemService(NotificationManager::class.java)?.isNotificationPolicyAccessGranted ?: false
 

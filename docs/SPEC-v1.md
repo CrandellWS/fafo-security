@@ -244,6 +244,11 @@ Screens, in order, each skippable but shown again as a checklist on the Home scr
 3. Camera permission.
 4. Full-screen alarm: check `NotificationManager.canUseFullScreenIntent()`; if false, deep-link to
    `Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT`.
+   Also check that the "Alarm screen" notification channel is on at HIGH importance (a channel can be
+   lowered by the user or One UI but never raised by the app); if not, deep-link to that channel's settings.
+   Implementation note (2026-10-28): Android launches a full-screen intent only when a notification is
+   first posted, never on an update, so TRIGGERED posts a separate new alarm notification (own ID, own
+   HIGH channel, `CATEGORY_ALARM`) rather than adding the intent to the ongoing armed notification.
 5. Do Not Disturb access (`ACCESS_NOTIFICATION_POLICY`) so alarm volume can be set under DND;
    explain that "Total silence" mutes alarms.
 6. Battery: request ignore battery optimization (`REQUEST_IGNORE_BATTERY_OPTIMIZATIONS` intent) and the

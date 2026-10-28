@@ -154,6 +154,39 @@ Tick each once the detailed steps below pass on the A17.
       (note whether the A17 has one); otherwise the app says "Intercom needs Wi-Fi on this phone".
 - [ ] Notifications turned off for FAFO while room mode is on: room mode stops.
 
+## Fix 2026-10-28: full-screen alarm opens by itself (build after M13)
+
+Bill's report on the M13 APK: the red alarm screen opened when he tapped the notification (locked or
+unlocked) but never by itself. Cause: the full-screen intent was added to an update of the "armed"
+notification, and Android only launches a full-screen intent when a notification is first posted. Now
+a separate "ALARM" notification (category "Alarm screen") is posted new when the siren starts.
+
+Install the new debug APK over the old one (no uninstall needed), then:
+
+1. Open FAFO. The setup checklist must not list "Full-screen alarm". If it does, tap it: the first tap
+   opens Settings > Apps > FAFO Security > "Full screen notifications" (turn it on); if it is still listed
+   after you come back, the next tap opens the "Alarm screen" notification category (turn it on, set it
+   to "Sound/Alert", not Silent). Coming back to FAFO re-checks it.
+2. Optional check over USB: `adb shell appops get ws.crandell.fafo USE_FULL_SCREEN_INTENT` says `allow`.
+3. **Screen off, locked:** arm while charging, press power to turn the screen off, wait 5 s, unplug.
+   - [ ] Pre-alarm beeps play with the screen still off (no red screen yet, that is expected).
+   - [ ] When the full siren starts, the screen turns on by itself and shows the red alarm screen over
+         the lock screen, without touching the phone.
+4. **Screen on, locked (lock screen showing):** repeat with the lock screen visible when you unplug.
+   - [ ] The red alarm screen replaces the lock screen by itself when the siren starts.
+5. Note: if the phone is unlocked and in use when an alarm notification arrives, Android 13+ shows a
+   heads-up "ALARM" banner instead of the full screen. That is Android's rule, not a bug (and FAFO's
+   alarm only starts while the phone is locked, so it should not normally happen).
+6. - [ ] Swipe the "ALARM" notification away while the siren runs (One UI allows this on a locked
+         phone from the notification shade): it comes back, and the red screen opens again.
+7. - [ ] Unlock with your PIN: siren stops and both FAFO alarm notifications go away.
+8. - [ ] Remote Reset from a paired phone during the alarm: the "ALARM" notification goes away; the
+         "FAFO Security is armed" notification stays.
+9. - [ ] Reboot during the alarm (M6 test): after boot the red screen opens by itself once the siren
+         returns (screen off and locked).
+
+Note what happens on the A17 in step 3 and 4 under Results (date, screen state, whether it opened).
+
 ## Results
 
 (Bill: write findings here, newest first.)

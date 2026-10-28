@@ -270,4 +270,79 @@ class ArmServiceTest {
         ServiceTestSupport.idleUntil { svc.state == AlarmState.Disarmed }
         ServiceTestSupport.idleUntil { java.io.File(dir, "incident.json").readText().contains("UNLOCKED") }
     }
+
+    private fun nm() = app.getSystemService(android.app.NotificationManager::class.java)
+    private fun posted(id: Int): android.app.Notification? = shadowOf(nm()).getNotification(id)
+
+    private fun triggerNow(svc: ArmService) {
+        ServiceTestSupport.setPlugged(app, false)
+        app.sendBroadcast(Intent(Intent.ACTION_POWER_DISCONNECTED))
+        ServiceTestSupport.idleUntil { (svc.state as? AlarmState.Armed)?.unplugPendingSince != null }
+        ServiceTestSupport.advance(150)
+        ServiceTestSupport.idleUntil { svc.state is AlarmState.Triggered && posted(Notifications.ID_ALARM) != null }
+    }
+
+    /** Bug 2026-10-28: the full-screen intent rode on an UPDATE of the armed notification, which never launches. */
+    @Test fun triggerPostsSeparateFullScreenAlarmNotification() {
+        runBlocking { dp.update { it.copy(preAlarmS = 0, sensitivityMs = 100) } }
+        val svc = startArm()
+        assertThat(posted(Notifications.ID_ALARM)).isNull()
+        triggerNow(svc)
+        val alarm = posted(Notifications.ID_ALARM)!!
+        assertThat(alarm.fullScreenIntent).isNotNull()
+        assertThat(alarm.channelId).isEqualTo(Notifications.CH_ALARM_SCREEN)
+        assertThat(alarm.category).isEqualTo(android.app.Notification.CATEGORY_ALARM)
+        assertThat(alarm.flags and android.app.Notification.FLAG_ONLY_ALERT_ONCE).isEqualTo(0)
+        assertThat(alarm.flags and android.app.Notification.FLAG_ONGOING_EVENT).isNotEqualTo(0)
+        assertThat(alarm.visibility).isEqualTo(android.app.Notification.VISIBILITY_PUBLIC)
+        assertThat(alarm.actions.map { it.title.toString() }).contains("Disarm")
+        assertThat(alarm.deleteIntent).isNotNull()
+        // The ongoing service notification is only updated and carries no full-screen intent.
+        assertThat(posted(Notifications.ID_ARMED)!!.fullScreenIntent).isNull()
+        val channel = nm().getNotificationChannel(Notifications.CH_ALARM_SCREEN)
+        assertThat(channel.importance).isEqualTo(android.app.NotificationManager.IMPORTANCE_HIGH)
+        assertThat(channel.canBypassDnd()).isTrue()
+    }
+
+    @Test fun alarmNotificationPostedOnceThenCancelledOnUnlock() {
+        runBlocking { dp.update { it.copy(preAlarmS = 0, sensitivityMs = 100) } }
+        val svc = startArm()
+        triggerNow(svc)
+        val first = posted(Notifications.ID_ALARM)!!
+        ServiceTestSupport.idleUntil { svc.photosTaken >= 1 }
+        ServiceTestSupport.advance(100)
+        // Later state changes (photos, IncidentPersisted) do not re-post the alarm notification.
+        assertThat(posted(Notifications.ID_ALARM)).isSameInstanceAs(first)
+        app.sendBroadcast(Intent(Intent.ACTION_USER_PRESENT))
+        ServiceTestSupport.idleUntil { svc.state == AlarmState.Disarmed && posted(Notifications.ID_ALARM) == null }
+    }
+
+    @Test fun remoteResetCancelsAlarmNotification() {
+        runBlocking { dp.update { it.copy(preAlarmS = 0, sensitivityMs = 100) } }
+        val svc = startArm()
+        triggerNow(svc)
+        runBlocking { network.target!!.apply(ws.crandell.fafo.net.Command.RESET, "Register", "home") }
+        ServiceTestSupport.idleUntil { svc.state == AlarmState.Armed(awaitingPower = true) && posted(Notifications.ID_ALARM) == null }
+        assertThat(posted(Notifications.ID_ARMED)).isNotNull()
+    }
+
+    @Test fun preAlarmHasNoFullScreenNotification() {
+        runBlocking { dp.update { it.copy(preAlarmS = 5, sensitivityMs = 100) } }
+        val svc = startArm()
+        ServiceTestSupport.setPlugged(app, false)
+        app.sendBroadcast(Intent(Intent.ACTION_POWER_DISCONNECTED))
+        ServiceTestSupport.idleUntil { (svc.state as? AlarmState.Armed)?.unplugPendingSince != null }
+        ServiceTestSupport.advance(150)
+        ServiceTestSupport.idleUntil { svc.state is AlarmState.PreAlarm }
+        assertThat(posted(Notifications.ID_ALARM)).isNull()
+    }
+
+    @Test fun swipedAlarmNotificationIsPostedAgain() {
+        runBlocking { dp.update { it.copy(preAlarmS = 0, sensitivityMs = 100) } }
+        val svc = startArm()
+        triggerNow(svc)
+        nm().cancel(Notifications.ID_ALARM)
+        controller!!.withIntent(Intent(app, ArmService::class.java).setAction(ArmService.ACTION_REPOST_ALARM)).startCommand(0, 2)
+        ServiceTestSupport.idleUntil { posted(Notifications.ID_ALARM)?.fullScreenIntent != null }
+    }
 }
