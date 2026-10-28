@@ -177,11 +177,12 @@ Install the new debug APK over the old one (no uninstall needed), then:
 5. Note: if the phone is unlocked and in use when an alarm notification arrives, Android 13+ shows a
    heads-up "ALARM" banner instead of the full screen. That is Android's rule, not a bug (and FAFO's
    alarm only starts while the phone is locked, so it should not normally happen).
-6. - [ ] Swipe the "ALARM" notification away while the siren runs (One UI allows this on a locked
-         phone from the notification shade): it comes back, and the red screen opens again.
-7. - [ ] Unlock with your PIN: siren stops and both FAFO alarm notifications go away.
-8. - [ ] Remote Reset from a paired phone during the alarm: the "ALARM" notification goes away; the
-         "FAFO Security is armed" notification stays.
+6. - [ ] If One UI lets you swipe the "ALARM" notification away on the locked phone while the siren
+         runs (Android 14+ usually does not), it comes back and the red screen opens again.
+7. - [ ] Unlock with your PIN: siren stops, both FAFO alarm notifications go away, and the red screen
+         closes by itself (it no longer stays on top of the home screen).
+8. - [ ] Remote Reset from a paired phone during the alarm: the "ALARM" notification and the red screen
+         go away; the "FAFO Security is armed" notification stays.
 9. - [ ] Reboot during the alarm (M6 test): after boot the red screen opens by itself once the siren
          returns (screen off and locked).
 

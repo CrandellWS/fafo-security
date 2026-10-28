@@ -23,13 +23,17 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.launch
+import ws.crandell.fafo.core.AlarmState
 import ws.crandell.fafo.core.AlarmStatusBus
 import ws.crandell.fafo.core.stateLabel
 
 /**
  * Full-screen alarm over the lock screen. directBootAware, showWhenLocked, turnScreenOn (manifest).
  * Opening it is a visible-app start, so it tells the service it may re-add the camera type (spec section 2).
- * It never stops the alarm itself: only the owner's unlock or Disarm after unlock does.
+ * It never stops the alarm itself: only the owner's unlock or Disarm after unlock does. It closes itself
+ * once the alarm has ended.
  */
 class AlarmActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -39,6 +43,15 @@ class AlarmActivity : ComponentActivity() {
         setTurnScreenOn(true)
         tapService()
         setContent { AlarmContent() }
+        // The full-screen intent opens this screen by itself on every alarm, so close it once the alarm
+        // ends (owner unlock, Disarm, remote Reset) instead of leaving a stale red screen on top. Only after
+        // the alarm was seen here: a tap in a fresh process starts before the service publishes its state.
+        lifecycleScope.launch {
+            var sawAlarm = false
+            AlarmStatusBus.state.collect { s ->
+                if (isAlarming(s)) sawAlarm = true else if (sawAlarm) finish()
+            }
+        }
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -56,6 +69,9 @@ class AlarmActivity : ComponentActivity() {
     }
 
     companion object {
+        fun isAlarming(s: AlarmState): Boolean =
+            s is AlarmState.PreAlarm || s is AlarmState.Triggered || s is AlarmState.IncidentPersisted
+
         fun pendingIntent(context: Context): PendingIntent = PendingIntent.getActivity(
             context, 10,
             Intent(context, AlarmActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP),

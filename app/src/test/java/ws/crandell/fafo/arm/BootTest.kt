@@ -111,6 +111,18 @@ class BootTest {
         assertThat(ce.touched).isFalse()
     }
 
+    /** Bug 2026-10-28: a reboot during an incident posts the full-screen alarm notification new. */
+    @Test fun bootDuringIncidentPostsFullScreenAlarm() {
+        runBlocking { dp.setArmed(true, false); dp.setIncident(true, "inc", 1L) }
+        val svc = startBootService()
+        val nm = shadowOf(app.getSystemService(android.app.NotificationManager::class.java))
+        ServiceTestSupport.idleUntil { svc.state is AlarmState.IncidentPersisted && nm.getNotification(Notifications.ID_ALARM) != null }
+        val alarm = nm.getNotification(Notifications.ID_ALARM)
+        assertThat(alarm.fullScreenIntent).isNotNull()
+        assertThat(alarm.channelId).isEqualTo(Notifications.CH_ALARM_SCREEN)
+        assertThat(ce.touched).isFalse()
+    }
+
     @Test fun bootArmedUnpluggedLockedRunsNormalWindowThenPreAlarm() {
         runBlocking { dp.setArmed(true, false); dp.update { it.copy(sensitivityMs = 100, preAlarmS = 1) } }
         val svc = startBootService()
