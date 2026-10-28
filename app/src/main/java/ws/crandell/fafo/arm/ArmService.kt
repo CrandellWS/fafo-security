@@ -39,6 +39,11 @@ import ws.crandell.fafo.net.Command
 import ws.crandell.fafo.net.CommandTarget
 import ws.crandell.fafo.net.android.AlarmNetwork
 import ws.crandell.fafo.core.wireName
+import ws.crandell.fafo.core.LadderEffect
+import ws.crandell.fafo.core.Motion
+import ws.crandell.fafo.core.ThreatLadder
+import ws.crandell.fafo.core.ThreatLevel
+import ws.crandell.fafo.motion.ChirpLimiter
 
 /**
  * The armed foreground service (spec F1, F2). `specialUse|camera`, directBootAware, START_STICKY.
@@ -108,7 +113,7 @@ class ArmService : LifecycleService() {
         Notifications.ensureChannels(this)
         dp = ArmDeps.dpStore(this)
         sound = ArmDeps.sound(this, lifecycleScope) { dpSettings ?: DpSettings() }
-        motion = MotionMonitor(this, sound) { ArmDeps.clock.now() }
+        motion = MotionMonitor(this) { m -> lifecycleScope.launch { onMotion(m) } }
         machine = AlarmStateMachine(ArmDeps.clock, { (dpSettings ?: DpSettings()).alarmConfig() })
         lifecycleScope.launch {
             dp.settings.collect {
@@ -211,7 +216,14 @@ class ArmService : LifecycleService() {
 
     private suspend fun process(e: AlarmEvent) {
         if (dpSettings == null) dpSettings = dp.readSettings()
+        val before = machine.state
         val effects = machine.handle(e)
+        // The ladder starts GREEN on every change into or out of ARMED.
+        if ((before is AlarmState.Armed) != (machine.state is AlarmState.Armed)) {
+            ladder.reset()
+            coolJob?.cancel()
+            publishThreat()
+        }
         var stop = false
         for (fx in effects) {
             if (fx == AlarmEffect.StopService) stop = true else run(fx)
@@ -322,6 +334,39 @@ class ArmService : LifecycleService() {
         }
     }
 
+    /** Bump escalation while ARMED (Bill 2026-10-28): colors, chirps, cool-down and the motion pre-alarm. */
+    private val ladder = ThreatLadder()
+    private val chirpLimiter = ChirpLimiter()
+    private var coolJob: Job? = null
+
+    private suspend fun onMotion(m: Motion) {
+        val s = machine.state
+        if (s !is AlarmState.Armed || s.awaitingPower) return
+        val settings = dpSettings ?: DpSettings()
+        val locked = DeviceStatus.isDeviceLocked(this)
+        val now = ArmDeps.clock.now()
+        for (fx in ladder.onMotion(m, now, mayAlarm = locked && settings.motionCanAlarm)) {
+            when (fx) {
+                is LadderEffect.Chirp -> if (chirpLimiter.allow(now)) sound.chirp(if (fx.loud) ChirpKind.PICKUP else ChirpKind.BUMP)
+                LadderEffect.Escalate -> events.send(AlarmEvent.MotionEscalated(locked = locked))
+            }
+        }
+        publishThreat()
+        coolJob?.cancel()
+        coolJob = lifecycleScope.launch {
+            delay(ThreatLadder.COOL_MS)
+            if (ladder.tick(ArmDeps.clock.now())) publishThreat()
+        }
+    }
+
+    private fun publishThreat() {
+        AlarmStatusBus.setThreat(ladder.level)
+        hooks.forEach { it.onThreat(ladder.level) }
+    }
+
+    /** Current ladder level (tests). */
+    val threat: ThreatLevel get() = ladder.level
+
     private var photos: PhotoController? = null
     private var store: PhotoStore? = null
     private fun photoStore() = store ?: PhotoStore(PhotoStore.root(filesDir)).also { store = it }
@@ -395,7 +440,10 @@ class ArmService : LifecycleService() {
     val photosTaken: Int get() = photos?.shots ?: 0
 
     /** Later milestones (photos, alerts, intercom) attach here. */
-    fun interface EffectHook { fun onEffect(fx: AlarmEffect) }
+    interface EffectHook {
+        fun onEffect(fx: AlarmEffect)
+        fun onThreat(level: ThreatLevel) {}
+    }
     private val hooks = mutableListOf<EffectHook>()
     fun addHook(h: EffectHook) { hooks += h }
 
@@ -511,6 +559,8 @@ class ArmService : LifecycleService() {
         motion.stop()
         windowJob?.cancel()
         armingJob?.cancel()
+        coolJob?.cancel()
+        AlarmStatusBus.setThreat(ThreatLevel.GREEN)
         preAlarmJob?.cancel()
         sound.stop()
         AlarmStatusBus.setCameraActive(false)

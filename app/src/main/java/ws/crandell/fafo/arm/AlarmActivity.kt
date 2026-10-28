@@ -6,6 +6,7 @@ import android.content.Intent
 import android.os.Bundle
 import android.graphics.Color as AndroidColor
 import androidx.activity.ComponentActivity
+import android.view.WindowManager
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -46,8 +47,14 @@ class AlarmActivity : ComponentActivity() {
         // the alarm was seen here: a tap in a fresh process starts before the service publishes its state.
         lifecycleScope.launch {
             var sawAlarm = false
+            var sawProtected = false
             AlarmStatusBus.state.collect { s ->
                 if (isAlarming(s)) sawAlarm = true else if (sawAlarm) finish()
+                // Opened as the calm status screen: close once FAFO is disarmed.
+                if (s != AlarmState.Disarmed) sawProtected = true else if (sawProtected) finish()
+                // Keep the screen on only for the pre-alarm and the alarm (calm green must not burn it).
+                if (isAlarming(s)) window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                else window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
             }
         }
     }
@@ -55,6 +62,26 @@ class AlarmActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         tapService()
+    }
+
+    /**
+     * Disarm from the status screen (it shows over the lock screen): first ask Android to dismiss the
+     * keyguard, then the app runs the Disarm confirmation (an unlock right now, after arming, counts).
+     */
+    fun requestDisarm() {
+        val km = getSystemService(android.app.KeyguardManager::class.java)
+        val open = {
+            startActivity(
+                Intent(ws.crandell.fafo.ui.MainActivity.ACTION_REQUEST_DISARM)
+                    .setClassName(this, ws.crandell.fafo.ui.MainActivity.DISARM_ALIAS)
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP),
+            )
+        }
+        if (km?.isKeyguardLocked == true) {
+            km.requestDismissKeyguard(this, object : android.app.KeyguardManager.KeyguardDismissCallback() {
+                override fun onDismissSucceeded() = open()
+            })
+        } else open()
     }
 
     private fun tapService() {
@@ -78,17 +105,18 @@ class AlarmActivity : ComponentActivity() {
     }
 }
 
-/** Thin wrapper: live state and a clock for the countdown and pulse; the drawing is [AlarmScreen]. */
+/** Thin wrapper: live state, the ladder and a clock for the countdown and flash; the drawing is [StatusScreen]. */
 @Composable
 private fun AlarmContent() {
     val state by AlarmStatusBus.state.collectAsStateWithLifecycle()
+    val threat by AlarmStatusBus.threat.collectAsStateWithLifecycle()
     val camera by AlarmStatusBus.cameraActive.collectAsStateWithLifecycle()
     val paused by AlarmStatusBus.photosPaused.collectAsStateWithLifecycle()
     val now by produceState(System.currentTimeMillis(), state) {
         while (true) {
             value = System.currentTimeMillis()
-            // The countdown needs 4 updates/s; the alarm pulse 10/s for a smooth 1 Hz fade.
-            delay(if (AlarmActivity.isAlarming(state) && state !is AlarmState.PreAlarm) 100 else 250)
+            // Countdowns need 4 updates/s; the 2 Hz alarm flash 20/s for a smooth fade.
+            delay(if (AlarmActivity.isAlarming(state) && state !is AlarmState.PreAlarm) 50 else 250)
         }
     }
     val ctx = androidx.compose.ui.platform.LocalContext.current
@@ -96,5 +124,12 @@ private fun AlarmContent() {
     val mode = ThemeMode.parse(theme?.theme)
     val dark = mode.isDark()
     LaunchedEffect(dark) { (ctx as? ComponentActivity)?.let { applySystemBars(it, dark) } }
-    FafoTheme(mode) { AlarmScreen(state, now, photosOn = camera && !paused) }
+    val activity = ctx as? AlarmActivity
+    FafoTheme(mode) {
+        StatusScreen(
+            state, threat, now, photosOn = camera && !paused,
+            onDisarm = activity?.let { a -> { a.requestDisarm() } },
+            onCancelArming = { ArmService.cancelArming(ctx) },
+        )
+    }
 }

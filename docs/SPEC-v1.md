@@ -199,14 +199,26 @@ over Bluetooth, end-to-end encrypted with the paired keys.
 - AC3.2 Stored in device-protected storage so it is readable at boot.
 - AC3.3 Settings screen shows a one-line hint: "Longer = fewer false alarms from loose cables or plug swaps."
 
-### F4. Motion chirps (ARMED only)
+### F4. Motion chirps and the bump ladder (ARMED only)
 
 - AC4.1 While ARMED (not PRE_ALARM or TRIGGERED), the service listens to the accelerometer (`SENSOR_DELAY_UI` or a batched
   equivalent) and classifies:
   - **Bump:** short spike above the bump threshold, phone stays roughly in place → one short chirp.
   - **Pick-up:** sustained change in orientation/gravity vector or displacement over ~0.5 s → louder,
     longer chirp (3 pulses).
-- AC4.2 Motion never starts the full siren in v1. Only unplug does.
+- AC4.2 **Changed 2026-10-28 (Bill's bump ladder; was "motion never starts the siren").** Motion feeds a
+  threat ladder shown on the traffic-light status screen: one bump goes YELLOW with a short chirp; repeated
+  bumps within 8 s go ORANGE with the louder chirp; one more close bump, or a pickup, starts a MOTION
+  pre-alarm, but only while the phone is locked and the setting "Motion can sound the alarm" is on
+  (default on). Unlocked, or with the setting off, the ladder stops at ORANGE (chirps only). Left untouched
+  for 60 s the ladder cools back to GREEN. A MOTION pre-alarm lasts at least 5 s whatever the pre-alarm
+  setting, and plugging in does not cancel it (unlock or Disarm does). Motion Off disables the ladder.
+- AC4.6 Status screen (round 3): a big centered shield (about 75% of the width in portrait, 75% of the
+  height in landscape) with the wordmark under or beside it. Stripes carry the status color: brand red
+  disarmed, YELLOW arming or one bump, GREEN armed and calm, ORANGE repeated bumps or the pre-alarm, RED
+  the siren, when the whole background flashes red at 2 Hz. The beak is always red; the eagle's eye is
+  white until armed, then red. The state word is always shown, so color never carries the state alone.
+  The screen stays on only during the pre-alarm and the alarm.
 - AC4.3 Chirps use `USAGE_ALARM` at a lower gain than the siren. Rate-limited to one chirp per 1.5 s.
 - AC4.4 Motion sensitivity: Low / Medium (default) / High, plus an Off switch.
 - AC4.5 Unit tests feed recorded sample sequences into the classifier: resting, table bump, pick-up,

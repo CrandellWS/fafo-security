@@ -32,6 +32,9 @@ object IncidentIds {
  * Spec section 2 state machine. Pure Kotlin: it returns effects in the order they must run. The service
  * executes them sequentially, so [AlarmEffect.PersistIncident] always lands before any sound starts.
  */
+/** Shortest pre-alarm after a motion escalation, whatever the pre-alarm setting (Bill 2026-10-28 ladder). */
+const val MIN_MOTION_PRE_ALARM_MS = 5_000L
+
 class AlarmStateMachine(
     private val clock: Clock,
     private val config: () -> AlarmConfig = { AlarmConfig() },
@@ -55,6 +58,7 @@ class AlarmStateMachine(
         is AlarmEvent.PowerConnected -> onConnect(s)
         is AlarmEvent.WindowElapsed -> onWindowElapsed(s, e)
         AlarmEvent.PreAlarmElapsed -> onPreAlarmElapsed(s)
+        is AlarmEvent.MotionEscalated -> onMotionEscalated(s, e)
         AlarmEvent.UserPresent -> onUserPresent(s)
         AlarmEvent.DisarmTapped -> when (s) {
             AlarmState.Disarmed -> s to emptyList()
@@ -108,7 +112,8 @@ class AlarmStateMachine(
             s.unplugPendingSince != null -> s.copy(unplugPendingSince = null) to listOf(AlarmEffect.CancelWindowTimer)
             else -> s to emptyList()
         }
-        is AlarmState.PreAlarm -> AlarmState.Armed() to listOf(
+        // A MOTION pre-alarm is not about the cable: only unlock or Disarm ends it.
+        is AlarmState.PreAlarm -> if (s.cause == IncidentCause.MOTION) s to emptyList() else AlarmState.Armed() to listOf(
             AlarmEffect.StopSound,
             AlarmEffect.StopPhotos,
             AlarmEffect.StopAlerts,
@@ -127,10 +132,17 @@ class AlarmStateMachine(
         return startIncident()
     }
 
-    private fun startIncident(): Pair<AlarmState, List<AlarmEffect>> {
+    private fun onMotionEscalated(s: AlarmState, e: AlarmEvent.MotionEscalated): Pair<AlarmState, List<AlarmEffect>> {
+        if (s !is AlarmState.Armed || s.awaitingPower || !e.locked) return s to emptyList()
+        val (next, fx) = startIncident(IncidentCause.MOTION)
+        return next to (if (s.unplugPendingSince != null) listOf(AlarmEffect.CancelWindowTimer) + fx else fx)
+    }
+
+    private fun startIncident(cause: IncidentCause = IncidentCause.UNPLUG): Pair<AlarmState, List<AlarmEffect>> {
         val now = clock.now()
         val id = newIncidentId()
-        val pre = config().preAlarmMs
+        // A motion pre-alarm always leaves time to unlock after a false bump (at least 5 s).
+        val pre = if (cause == IncidentCause.MOTION) maxOf(config().preAlarmMs, MIN_MOTION_PRE_ALARM_MS) else config().preAlarmMs
         val persist = AlarmEffect.PersistIncident(active = true, id = id, startedAt = now)
         return if (pre <= 0L) {
             AlarmState.Triggered(id, now) to listOf(
@@ -141,7 +153,7 @@ class AlarmStateMachine(
                 AlarmEffect.StartAlerts(id),
             )
         } else {
-            AlarmState.PreAlarm(id, now, now + pre) to listOf(
+            AlarmState.PreAlarm(id, now, now + pre, cause) to listOf(
                 persist,
                 AlarmEffect.EndIntercom,
                 AlarmEffect.StartPreAlarm(pre, now + pre),

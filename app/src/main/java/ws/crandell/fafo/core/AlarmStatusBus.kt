@@ -21,6 +21,11 @@ object AlarmStatusBus {
 
     fun publish(state: AlarmState) { _state.value = state }
 
+    /** The bump ladder while ARMED (status screen stripes). GREEN in every other state. */
+    private val _threat = MutableStateFlow(ThreatLevel.GREEN)
+    val threat: StateFlow<ThreatLevel> = _threat
+    fun setThreat(level: ThreatLevel) { _threat.value = level }
+
     /**
      * AC10.8: set by the intercom while it runs; the armed service calls it on entering PRE_ALARM / TRIGGERED
      * (EndIntercom) so room mode ends and listeners drop before the siren. In memory only, direct-boot safe.
@@ -34,6 +39,6 @@ fun stateLabel(state: AlarmState, now: Long): String = when (state) {
     AlarmState.Disarmed -> "Disarmed"
     is AlarmState.Arming -> "Arming (${((state.endsAt - now).coerceAtLeast(0) + 999) / 1000} s)"
     is AlarmState.Armed -> if (state.awaitingPower) "Armed, waiting for power" else "Armed"
-    is AlarmState.PreAlarm -> "Plug me back in (${((state.endsAt - now).coerceAtLeast(0) + 999) / 1000} s)"
+    is AlarmState.PreAlarm -> (if (state.cause == IncidentCause.MOTION) "Unlock to stop (" else "Plug me back in (") + "${((state.endsAt - now).coerceAtLeast(0) + 999) / 1000} s)"
     is AlarmState.Triggered, is AlarmState.IncidentPersisted -> "ALARM"
 }

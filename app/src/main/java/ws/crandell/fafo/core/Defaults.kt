@@ -24,6 +24,8 @@ object Defaults {
     const val UNLOCK_GRACE_S = 30
 
     const val MOTION = "MEDIUM" // OFF / LOW / MEDIUM / HIGH
+    /** Round 3 (Bill's bump ladder): continued handling or a pickup while locked starts the pre-alarm. */
+    const val MOTION_CAN_ALARM = true
 
     const val PHOTO_ON_TRIGGER = true
     val PHOTO_INTERVAL_CHOICES_S = listOf(5, 10, 15, 20, 25, 30)

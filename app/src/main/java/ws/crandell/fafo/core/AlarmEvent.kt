@@ -18,6 +18,12 @@ sealed interface AlarmEvent {
 
     data object PreAlarmElapsed : AlarmEvent
 
+    /**
+     * The bump ladder escalated (continued handling or a pickup) while ARMED. Starts a MOTION pre-alarm only
+     * when [locked]; the owner handling the unlocked phone never sets it off.
+     */
+    data class MotionEscalated(val locked: Boolean) : AlarmEvent
+
     /** ACTION_USER_PRESENT: the owner unlocked with the real credential or biometric. */
     data object UserPresent : AlarmEvent
 

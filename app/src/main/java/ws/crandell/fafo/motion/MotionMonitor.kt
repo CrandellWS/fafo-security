@@ -5,18 +5,17 @@ import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
-import ws.crandell.fafo.arm.AlarmSound
-import ws.crandell.fafo.arm.ChirpKind
+import ws.crandell.fafo.core.Motion
 
 /**
- * Accelerometer listener while ARMED only (AC4.1). Motion never starts the siren (AC4.2); it only chirps,
- * rate-limited to one chirp per 1.5 s (AC4.3).
+ * Accelerometer listener while ARMED only (AC4.1). It only classifies: the armed service feeds each bump or
+ * pickup into the ThreatLadder, which picks the chirp (rate-limited, AC4.3), the status color and, while
+ * locked, the escalation to the pre-alarm (AC4.2, round 3).
  */
-class MotionMonitor(context: Context, private val sound: AlarmSound, private val nowMs: () -> Long) : SensorEventListener {
+class MotionMonitor(context: Context, private val onMotion: (Motion) -> Unit) : SensorEventListener {
     private val sm = context.getSystemService(SensorManager::class.java)
     private var classifier: MotionClassifier? = null
     private var current: MotionSensitivity? = null
-    private val limiter = ChirpLimiter()
 
     val running: Boolean get() = classifier != null
 
@@ -41,8 +40,8 @@ class MotionMonitor(context: Context, private val sound: AlarmSound, private val
         val c = classifier ?: return
         val t = event.timestamp / 1_000_000L
         when (c.add(t, event.values[0].toDouble(), event.values[1].toDouble(), event.values[2].toDouble())) {
-            MotionEvent.BUMP -> if (limiter.allow(nowMs())) sound.chirp(ChirpKind.BUMP)
-            MotionEvent.PICKUP -> if (limiter.allow(nowMs())) sound.chirp(ChirpKind.PICKUP)
+            MotionEvent.BUMP -> onMotion(Motion.BUMP)
+            MotionEvent.PICKUP -> onMotion(Motion.PICKUP)
             null -> Unit
         }
     }

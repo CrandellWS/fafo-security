@@ -86,7 +86,11 @@ fun SettingsScreen(
         ChoiceRow(
             "Motion chirps", listOf("OFF", "LOW", "MEDIUM", "HIGH"), dp.motion,
             { it.lowercase().replaceFirstChar(Char::uppercase) }, { v -> onDp { it.copy(motion = v) } }, "motion",
-            hint = "Chirps when the armed phone is bumped or picked up. Never the full siren.",
+            hint = "A bump chirps and turns the status yellow; repeated bumps go orange. Left alone for a minute it goes back to green.",
+        )
+        SwitchRow(
+            "Motion can sound the alarm", dp.motionCanAlarm, { v -> onDp { it.copy(motionCanAlarm = v) } }, "motionCanAlarm",
+            subtitle = "While locked, continued handling or a pickup starts the pre-alarm (at least 5 s to unlock). Off: chirps only.",
         )
 
         SectionHeader("Display")

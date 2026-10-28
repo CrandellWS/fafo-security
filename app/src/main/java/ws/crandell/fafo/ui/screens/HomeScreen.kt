@@ -83,7 +83,7 @@ private fun stateWord(s: HomeUiState): String = when (s.alarmState.kind()) {
     StateKind.DISARMED -> if (s.armed) "Armed" else "Disarmed"
     StateKind.ARMING -> "Arming"
     StateKind.ARMED -> "Armed"
-    StateKind.PRE_ALARM -> "Plug me back in"
+    StateKind.PRE_ALARM -> if ((s.alarmState as? AlarmState.PreAlarm)?.cause == ws.crandell.fafo.core.IncidentCause.MOTION) "Hands off" else "Plug me back in"
     StateKind.TRIGGERED -> "Alarm"
 }
 
@@ -99,6 +99,7 @@ fun HomeScreen(
     onStep: (OnboardingStep) -> Unit,
     modifier: Modifier = Modifier,
     onCancelArming: () -> Unit = {},
+    onOpenStatus: (() -> Unit)? = null,
 ) {
     val kind = state.kindShown()
     Column(
@@ -163,6 +164,11 @@ fun HomeScreen(
                 armButtonLabel(state), ActionKind.ARM, onArm, Modifier.testTag("armButton"),
                 enabled = state.plugged && state.secureLock, busy = state.confirming,
             )
+        }
+        if (onOpenStatus != null && (state.arming || state.armed || state.alarming)) {
+            androidx.compose.material3.OutlinedButton(
+                onClick = onOpenStatus, modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp).testTag("openStatus"),
+            ) { Text("Full-screen status (traffic light)", style = MaterialTheme.typography.titleMedium, color = FafoColors.White) }
         }
         Text(
             when {

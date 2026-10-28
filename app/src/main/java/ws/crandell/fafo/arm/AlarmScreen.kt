@@ -1,10 +1,13 @@
 package ws.crandell.fafo.arm
 
-import androidx.compose.foundation.Canvas
+import android.content.res.Configuration
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -12,29 +15,37 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
-import androidx.compose.material3.HorizontalDivider
+import androidx.compose.foundation.layout.width
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.min
 import androidx.compose.ui.unit.sp
 import ws.crandell.fafo.core.AlarmState
+import ws.crandell.fafo.core.ThreatLevel
+import ws.crandell.fafo.ui.components.ActionKind
 import ws.crandell.fafo.ui.components.AutoFitText
 import ws.crandell.fafo.ui.components.FafoWordmark
-import ws.crandell.fafo.ui.components.ShieldLogo
+import ws.crandell.fafo.ui.components.PrimaryActionButton
+import ws.crandell.fafo.ui.components.SHIELD_MARK_ASPECT
+import ws.crandell.fafo.ui.components.ShieldMark
+import ws.crandell.fafo.ui.components.WordmarkVariant
+import ws.crandell.fafo.ui.status.StatusLook
+import ws.crandell.fafo.ui.status.StripeColor
+import ws.crandell.fafo.ui.status.statusLook
 import ws.crandell.fafo.ui.theme.FafoBrand
 import ws.crandell.fafo.ui.theme.FafoColors
 import ws.crandell.fafo.ui.theme.FafoType
@@ -43,98 +54,145 @@ import ws.crandell.fafo.ui.theme.FafoType
 fun secondsLeft(s: AlarmState.PreAlarm, now: Long): Long = ((s.endsAt - now).coerceAtLeast(0) + 999) / 1000
 
 /**
- * What [AlarmActivity] draws. Pure (state in, nothing out) so it can be screenshot-tested; the activity
- * keeps all the logic. Pre-alarm: dark field with an amber countdown ring. Alarm: the full red field with
- * a slow 1 Hz pulse (no strobe), the shield and "ALARM".
- */
-@Composable
-fun AlarmScreen(state: AlarmState, now: Long, photosOn: Boolean, animate: Boolean = true) {
-    when (state) {
-        is AlarmState.PreAlarm -> PreAlarm(state, now)
-        is AlarmState.Triggered, is AlarmState.IncidentPersisted -> Triggered(photosOn, if (animate) now else null)
-        // Shown only for a moment before the activity closes itself (or when opened with no alarm).
-        else -> Box(Modifier.fillMaxSize().background(FafoColors.Ink), contentAlignment = Alignment.Center) {
-            ShieldLogo(120.dp)
-        }
-    }
-}
-
-@Composable
-private fun PreAlarm(s: AlarmState.PreAlarm, now: Long) {
-    val left = secondsLeft(s, now)
-    val total = (s.endsAt - s.startedAt).coerceAtLeast(1)
-    val fraction = ((s.endsAt - now).coerceIn(0, total)).toFloat() / total
-    Column(
-        Modifier.fillMaxSize().background(FafoColors.Ink).safeDrawingPadding().padding(24.dp),
-        verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        ShieldLogo(112.dp)
-        Spacer(Modifier.height(28.dp))
-        Box(Modifier.size(240.dp), contentAlignment = Alignment.Center) {
-            val track = FafoColors.Surface2
-            val ring = FafoColors.Amber
-            Canvas(Modifier.fillMaxSize()) {
-                val w = 16.dp.toPx()
-                val inset = w / 2
-                val arc = Size(size.width - w, size.height - w)
-                drawArc(track, 0f, 360f, false, Offset(inset, inset), arc, style = Stroke(w))
-                drawArc(ring, -90f, 360f * fraction, false, Offset(inset, inset), arc, style = Stroke(w, cap = StrokeCap.Round))
-            }
-            AutoFitText(
-                "$left", style = FafoType.countdown, color = FafoColors.White, sample = "88",
-                modifier = Modifier.testTag("countdown").semantics { liveRegion = LiveRegionMode.Polite },
-            )
-        }
-        Spacer(Modifier.height(28.dp))
-        AutoFitText("PLUG ME BACK IN", style = MaterialTheme.typography.displaySmall, color = FafoColors.Amber, textAlign = TextAlign.Center, minFontSize = 18.sp)
-        Spacer(Modifier.height(10.dp))
-        Text(
-            "The alarm sounds in $left ${if (left == 1L) "second" else "seconds"}.\nPlug the charger back in, or unlock.",
-            style = MaterialTheme.typography.bodyLarge, color = FafoColors.White, textAlign = TextAlign.Center,
-        )
-    }
-}
-
-/**
- * Background of the alarm at [now]: a slow 1 Hz pulse between Red and RedDeep (a triangle wave, 500 ms each
- * way), far below the 3 flashes/s seizure threshold. Driven by the activity's clock rather than an infinite
- * animation, so it costs nothing when the screen is off and tests can idle the main looper.
+ * Background of the alarm at [now]: Red and RedDeep alternate twice a second (a triangle wave, 250 ms each
+ * way; Bill: "at red the whole background flashes"). 2 Hz stays under the 3 flashes/s photosensitivity
+ * limit. Driven by the activity's clock, so it costs nothing with the screen off and tests stay idle.
  */
 fun alarmPulse(now: Long): Color {
-    val phase = (now % 1000L).toFloat() / 1000f
+    val phase = (now % 500L).toFloat() / 500f
     val t = if (phase < 0.5f) phase * 2f else 2f - phase * 2f
-    return lerp(FafoColors.Red, FafoColors.RedDeep, t)
+    return lerp(FafoBrand.Red, FafoBrand.RedDeep, t)
+}
+
+fun StripeColor.color(): Color = when (this) {
+    StripeColor.BRAND -> FafoBrand.Red
+    StripeColor.GREEN -> FafoBrand.StatusGreen
+    StripeColor.YELLOW -> FafoBrand.StatusYellow
+    StripeColor.ORANGE -> FafoBrand.StatusOrange
+    StripeColor.RED -> FafoBrand.StatusRed
 }
 
 @Composable
-private fun Triggered(photosOn: Boolean, now: Long?) {
-    val bg = if (now != null) alarmPulse(now) else FafoColors.Red
-    Column(
-        Modifier.fillMaxSize().background(bg).safeDrawingPadding().padding(horizontal = 28.dp, vertical = 24.dp),
-        verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        ShieldLogo(240.dp, haloOnRed = true)
-        Spacer(Modifier.height(20.dp))
-        AutoFitText(
-            "ALARM", style = FafoType.stateDisplay.copy(fontSize = 88.sp, lineHeight = 92.sp), color = FafoBrand.White,
-            modifier = Modifier.testTag("alarmWord").semantics { liveRegion = LiveRegionMode.Assertive },
-        )
-        Spacer(Modifier.height(12.dp))
-        Text("This phone is protected by", style = MaterialTheme.typography.titleLarge, color = FafoBrand.White, textAlign = TextAlign.Center)
-        FafoWordmark(height = 30.dp, onRed = true, modifier = Modifier.padding(top = 6.dp))
-        Spacer(Modifier.height(16.dp))
-        Text(
-            "Only the owner can stop the alarm, by unlocking this phone.",
-            style = MaterialTheme.typography.bodyLarge, color = FafoBrand.White.copy(alpha = 0.92f), textAlign = TextAlign.Center,
-        )
-        if (photosOn) {
-            HorizontalDivider(Modifier.fillMaxWidth().padding(vertical = 18.dp), color = FafoBrand.White.copy(alpha = 0.35f))
-            Text(
-                "Photos are being taken.", style = MaterialTheme.typography.titleMedium, color = FafoBrand.White,
-                modifier = Modifier.testTag("photosLine"),
+private fun StripeColor.textColor(): Color = when (this) {
+    StripeColor.BRAND -> FafoColors.Steel
+    StripeColor.GREEN -> FafoColors.Guard
+    StripeColor.YELLOW -> FafoColors.Yellow
+    StripeColor.ORANGE -> FafoColors.OrangeText
+    StripeColor.RED -> FafoBrand.White
+}
+
+/** Round-2 entry point, kept for the alarm path and existing tests: the status screen with a calm ladder. */
+@Composable
+fun AlarmScreen(state: AlarmState, now: Long, photosOn: Boolean, animate: Boolean = true) =
+    StatusScreen(state, ThreatLevel.GREEN, now, photosOn, animate)
+
+/**
+ * The traffic-light status screen (Bill 2026-10-28). A big shield in the middle, about 75% of the width in
+ * portrait and 75% of the height in landscape, with the wordmark under it (beside it in landscape). The
+ * stripes carry the status color, the beak is always red, the eye is white until armed. At RED the whole
+ * background flashes. Pure (state in, callbacks out) so it is screenshot tested; [AlarmActivity] has the logic.
+ */
+@Composable
+fun StatusScreen(
+    state: AlarmState,
+    threat: ThreatLevel,
+    now: Long,
+    photosOn: Boolean,
+    animate: Boolean = true,
+    onDisarm: (() -> Unit)? = null,
+    onCancelArming: (() -> Unit)? = null,
+) {
+    val look = statusLook(state, threat, now)
+    val bg = when {
+        look.flash -> if (animate) alarmPulse(now) else FafoBrand.Red
+        else -> FafoColors.Ink
+    }
+    val landscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
+    BoxWithConstraints(Modifier.fillMaxSize().background(bg).safeDrawingPadding().padding(20.dp)) {
+        if (landscape) {
+            val shieldH = min(maxHeight * 0.75f, maxWidth * 0.45f / SHIELD_MARK_ASPECT)
+            Row(Modifier.fillMaxSize(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(24.dp)) {
+                StatusShield(look, shieldH)
+                Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
+                    StatusText(look, photosOn, onDisarm, onCancelArming, state)
+                }
+            }
+        } else {
+            // 75% of the width, but leave room for the words and buttons on short screens.
+            val shieldH = min(maxWidth * 0.75f / SHIELD_MARK_ASPECT, maxHeight * 0.48f)
+            Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+                StatusShield(look, shieldH)
+                Spacer(Modifier.height(16.dp))
+                StatusText(look, photosOn, onDisarm, onCancelArming, state)
+            }
+        }
+    }
+}
+
+@Composable
+private fun StatusShield(look: StatusLook, height: Dp) {
+    Box(contentAlignment = Alignment.Center) {
+        when {
+            // On the red field: a dark halo so the white sticker edge and red stripes stay visible.
+            look.flash -> Box(
+                Modifier.size(height * 1.2f).background(
+                    Brush.radialGradient(listOf(Color.Black.copy(alpha = 0.5f), Color.Black.copy(alpha = 0.2f), Color.Transparent)),
+                ),
+            )
+            look.glow -> Box(
+                Modifier.size(height * 1.25f).background(
+                    Brush.radialGradient(listOf(FafoBrand.StatusOrange.copy(alpha = 0.45f), FafoBrand.StatusOrange.copy(alpha = 0.12f), Color.Transparent)),
+                ),
             )
         }
+        ShieldMark(
+            height, Modifier.testTag("statusShield"), stripes = look.stripes.color(),
+            eye = if (look.eyeRed) FafoBrand.Red else FafoBrand.White,
+            contentDescription = "FAFO Security shield, ${look.stripes.name.lowercase()}",
+        )
+    }
+}
+
+@Composable
+private fun ColumnScope.StatusText(
+    look: StatusLook,
+    photosOn: Boolean,
+    onDisarm: (() -> Unit)?,
+    onCancelArming: (() -> Unit)?,
+    state: AlarmState,
+) {
+    val onRed = look.flash
+    val text = if (onRed) FafoBrand.White else FafoColors.White
+    FafoWordmark(height = 38.dp, variant = if (onRed) WordmarkVariant.MONO_WHITE else WordmarkVariant.AUTO)
+    Spacer(Modifier.height(14.dp))
+    AutoFitText(
+        look.label, style = FafoType.stateDisplay, color = look.stripes.textColor(), minFontSize = 20.sp,
+        textAlign = TextAlign.Center,
+        modifier = Modifier.fillMaxWidth().testTag(if (look.flash) "alarmWord" else "statusWord")
+            .semantics { liveRegion = if (look.flash) LiveRegionMode.Assertive else LiveRegionMode.Polite },
+    )
+    look.countdown?.let { n ->
+        AutoFitText(
+            "$n", style = FafoType.countdown.copy(fontSize = 96.sp, lineHeight = 100.sp), color = text, sample = "88",
+            textAlign = TextAlign.Center,
+            modifier = Modifier.fillMaxWidth().testTag("countdown").semantics { liveRegion = LiveRegionMode.Polite },
+        )
+    }
+    look.detail?.let {
+        Spacer(Modifier.height(6.dp))
+        Text(it, style = MaterialTheme.typography.bodyLarge, color = if (onRed) FafoBrand.White else FafoColors.TextMuted, textAlign = TextAlign.Center)
+    }
+    if (photosOn && (state is AlarmState.PreAlarm || look.flash)) {
+        Spacer(Modifier.height(10.dp))
+        Text("Photos are being taken.", style = MaterialTheme.typography.titleMedium, color = text, modifier = Modifier.testTag("photosLine"))
+    }
+    val button = when {
+        state is AlarmState.Arming && onCancelArming != null -> Triple("Cancel arming", onCancelArming, "statusCancel")
+        state != AlarmState.Disarmed && state !is AlarmState.Arming && onDisarm != null -> Triple("Disarm", onDisarm, "statusDisarm")
+        else -> null
+    }
+    if (button != null) {
+        Spacer(Modifier.height(20.dp))
+        PrimaryActionButton(button.first, ActionKind.DISARM, button.second, Modifier.width(320.dp).testTag(button.third))
     }
 }

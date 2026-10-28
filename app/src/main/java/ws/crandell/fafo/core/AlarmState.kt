@@ -20,12 +20,20 @@ sealed interface AlarmState {
         val unplugPendingSince: Long? = null,
     ) : AlarmState
 
-    data class PreAlarm(val incidentId: String, val startedAt: Long, val endsAt: Long) : AlarmState
+    /** [cause]: unplugged (replug cancels) or continued handling / pickup while locked (replug does not). */
+    data class PreAlarm(
+        val incidentId: String,
+        val startedAt: Long,
+        val endsAt: Long,
+        val cause: IncidentCause = IncidentCause.UNPLUG,
+    ) : AlarmState
 
     data class Triggered(val incidentId: String, val startedAt: Long) : AlarmState
 
     data class IncidentPersisted(val incidentId: String, val startedAt: Long) : AlarmState
 }
+
+enum class IncidentCause { UNPLUG, MOTION }
 
 /** True for every state with an open incident (the alarm states). */
 val AlarmState.incidentId: String?

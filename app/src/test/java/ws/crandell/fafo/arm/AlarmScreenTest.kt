@@ -6,11 +6,11 @@ import ws.crandell.fafo.core.AlarmState
 import ws.crandell.fafo.ui.theme.FafoColors
 
 class AlarmScreenTest {
-    @Test fun pulseIsSlowOneHertz() {
+    @Test fun backgroundFlashesTwiceASecond() {
         assertThat(alarmPulse(0)).isEqualTo(FafoColors.Red)
-        assertThat(alarmPulse(500)).isEqualTo(FafoColors.RedDeep)
-        assertThat(alarmPulse(1_000)).isEqualTo(FafoColors.Red) // one full cycle per second, no strobe
-        assertThat(alarmPulse(1_250)).isEqualTo(alarmPulse(250))
+        assertThat(alarmPulse(250)).isEqualTo(FafoColors.RedDeep)
+        assertThat(alarmPulse(500)).isEqualTo(FafoColors.Red) // 2 Hz: under the 3 flashes/s limit
+        assertThat(alarmPulse(1_125)).isEqualTo(alarmPulse(125))
     }
 
     @Test fun countdownRoundsUpLikeTheStateLabel() {

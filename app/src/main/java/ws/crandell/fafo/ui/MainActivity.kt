@@ -465,6 +465,9 @@ class MainActivity : FragmentActivity() {
                             onStep = { tab = Tab.SETUP },
                             modifier = m,
                             onCancelArming = ::onCancelArming,
+                            onOpenStatus = {
+                                startActivity(android.content.Intent(this, ws.crandell.fafo.arm.AlarmActivity::class.java))
+                            },
                         )
                     }
                     Tab.SETUP -> OnboardingScreen(

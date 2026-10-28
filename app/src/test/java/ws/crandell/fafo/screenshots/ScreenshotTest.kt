@@ -20,6 +20,8 @@ import org.junit.runner.RunWith
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 import ws.crandell.fafo.arm.AlarmScreen
+import ws.crandell.fafo.arm.StatusScreen
+import ws.crandell.fafo.core.ThreatLevel
 import ws.crandell.fafo.camera.IncidentSidecar
 import ws.crandell.fafo.camera.PhotoMeta
 import ws.crandell.fafo.circles.Circle
@@ -187,6 +189,48 @@ class ScreenshotTest {
         Home(ready.copy(alarmState = AlarmState.Arming(0, 5_000), arming = true, armingLeftS = 4, stateLabel = "Arming (4 s)"))
     }
 
+    // ---- Status screen (traffic light), dark then light -------------------------------------------
+
+    private val statusCases = listOf<Triple<String, AlarmState, ThreatLevel>>(
+        Triple("46_status_disarmed", AlarmState.Disarmed, ThreatLevel.GREEN),
+        Triple("47_status_arming", AlarmState.Arming(0, 5_000), ThreatLevel.GREEN),
+        Triple("48_status_green", AlarmState.Armed(), ThreatLevel.GREEN),
+        Triple("49_status_yellow", AlarmState.Armed(), ThreatLevel.YELLOW),
+        Triple("50_status_orange_bumps", AlarmState.Armed(), ThreatLevel.ORANGE),
+        Triple("51_status_prealarm_orange", AlarmState.PreAlarm("i", 0, 5_000), ThreatLevel.GREEN),
+        Triple("52_status_red", AlarmState.Triggered("i", 0), ThreatLevel.GREEN),
+    )
+
+    private fun status(i: Int, light: Boolean) {
+        val (name, st, threat) = statusCases[i]
+        val content: @Composable () -> Unit = {
+            StatusScreen(st, threat, now = 1_200, photosOn = true, animate = false, onDisarm = {}, onCancelArming = {})
+        }
+        if (light) shotLight(name.replaceFirst(Regex("^\\d+"), (53 + i).toString()) + "_light", content) else shot(name, content)
+    }
+
+    @Test fun s46() = status(0, false)
+    @Test fun s47() = status(1, false)
+    @Test fun s48() = status(2, false)
+    @Test fun s49() = status(3, false)
+    @Test fun s50() = status(4, false)
+    @Test fun s51() = status(5, false)
+    @Test fun s52() = status(6, false)
+    @Test fun s53() = status(0, true)
+    @Test fun s54() = status(1, true)
+    @Test fun s55() = status(2, true)
+    @Test fun s56() = status(3, true)
+    @Test fun s57() = status(4, true)
+    @Test fun s58() = status(5, true)
+    @Test fun s59() = status(6, true)
+    @Test fun s60_status_red_flash_low() = shot("60_status_red_flash_low") {
+        StatusScreen(AlarmState.Triggered("i", 0), ThreatLevel.GREEN, now = 250, photosOn = true, animate = true)
+    }
+    @Config(qualifiers = "w891dp-h411dp-land-420dpi")
+    @Test fun s60b_status_green_landscape() = shot("60b_status_green_landscape") {
+        StatusScreen(AlarmState.Armed(), ThreatLevel.GREEN, now = 0, photosOn = false, animate = false, onDisarm = {})
+    }
+
     // ---- Brand ------------------------------------------------------------------------------------
 
     @Config(qualifiers = TALL)
@@ -229,7 +273,7 @@ class ScreenshotTest {
     @Test fun s63b_home_disarmed_320dp_fs15() = shotFs("63b_home_disarmed_320dp_fs15", 1.5f) { Home(ready.copy(checklist = threeLeft)) }
     @Config(qualifiers = NARROW)
     @Test fun s64_status_prealarm_360dp_fs15() = shotFs("64_status_prealarm_360dp_fs15", 1.5f) {
-        AlarmScreen(AlarmState.PreAlarm("i", 0, 15_000), now = 0, photosOn = true)
+        StatusScreen(AlarmState.PreAlarm("i", 0, 15_000), ThreatLevel.GREEN, now = 0, photosOn = true, onDisarm = {})
     }
     @Config(qualifiers = NARROW)
     @Test fun s65_buttons_360dp_fs15() = shotFs("65_buttons_360dp_fs15", 1.5f) {
