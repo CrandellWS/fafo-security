@@ -40,6 +40,10 @@ jobs:
       - name: Set up Android SDK
         if: steps.wrapper.outputs.present == 'true'
         uses: android-actions/setup-android@v3
+        with:
+          # The action's default list includes the removed 'tools' package, which now fails.
+          packages: 'platform-tools'
+          log-accepted-android-sdk-licenses: false
 
       - name: Install SDK packages
         if: steps.wrapper.outputs.present == 'true'
