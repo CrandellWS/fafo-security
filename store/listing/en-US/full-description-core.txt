@@ -1,0 +1,35 @@
+FAFO Security turns your own charging phone into an alarm. Arm it while it is plugged in. If someone unplugs it before you unlock it, a countdown starts, then a loud siren sounds until you unlock the phone. FAFO stands for Free Advanced Features Offline: no ads, no account, no analytics, and no server of ours.
+
+HOW IT WORKS
+• Arm only while plugged in, with your fingerprint or screen lock.
+• Unplug before unlock: an adjustable warning countdown (none, 1, 5, 10, 30 or 60 seconds) beeps faster, then the full siren plays at alarm volume.
+• Plug back in or unlock during the countdown to cancel it.
+• The siren comes back after a restart until you unlock the phone.
+• Unplug sensitivity from 0.1 to 5 seconds, for loose cables.
+• Motion: a bump chirps; picking the phone up chirps louder.
+
+TRIGGER PHOTOS
+• The phone takes a photo when the alarm starts, then one every few seconds (5 to 30, your choice).
+• Photos stay on the phone in app-private storage. You can view, share or delete them. They are never sent anywhere by the app.
+
+TRUSTED DEVICES AND CIRCLES
+• Pair your own phones over Bluetooth. Both phones show a six-digit code to compare, and pairing needs your real screen lock.
+• Put devices in circles such as Home and Work, each with its own labels and permissions.
+• Nearby trusted devices on the same Wi-Fi or over Bluetooth get an alert when this phone's alarm goes off. A circle can be allowed to reset the alarm (siren off, stays armed) or to fully disarm it. New circles start with intercom only.
+• Messages between devices are end-to-end encrypted with the paired keys and stay on your local network or Bluetooth.
+
+INTERCOM AND PUSH-TO-TALK
+• Hold a button to talk to one paired device by its label, or to all of them, on the same Wi-Fi or Bluetooth.
+• Room mode lets the chosen circles listen and talk back. It is turned on only by the person at that phone, shows a notification naming who is listening and the system microphone indicator the whole time, and records nothing. It can never be started remotely, and it ends when an alarm starts.
+
+PRIVACY
+• No ads, no tracking, no account, no server.
+• Your settings, devices and photos stay on your phone. Nothing reaches the developer.
+• A notification shows whenever the app is armed, alarming, reachable by your devices or in room mode. FAFO protects the phone it runs on; it has no hidden mode.
+
+GOOD TO KNOW
+• Someone can still turn the phone off. The siren returns when it starts again, but a phone that stays off is silent.
+• Photos are not taken after a restart until you unlock the phone, because Android keeps the camera and storage locked until then.
+• Alerts reach only your devices that are nearby. There is no internet alert service.
+• Some phones need battery settings changed so the alarm keeps running. The app walks you through it.
+• FAFO is an alarm, not a guarantee. Keep a secure screen lock and Android's built-in theft protection turned on.
