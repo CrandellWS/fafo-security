@@ -153,6 +153,8 @@ object PeerNetwork {
         w.onNetworkChanged = { h.disconnectAll() } // AC9.4: sessions end when the network changes
         wifi = w
         hub = h
+        ws.crandell.fafo.intercom.Intercom.attach(app)
+        h.intercom = ws.crandell.fafo.intercom.Intercom
         w.start()
         b?.start()
         if (b != null && trusted.all().isNotEmpty()) BleAlertScan.register(app)

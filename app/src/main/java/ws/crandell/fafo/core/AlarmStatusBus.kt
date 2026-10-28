@@ -20,6 +20,12 @@ object AlarmStatusBus {
     fun setVolumeRefused(v: Boolean) { _volumeRefused.value = v }
 
     fun publish(state: AlarmState) { _state.value = state }
+
+    /**
+     * AC10.8: set by the intercom while it runs; the armed service calls it on entering PRE_ALARM / TRIGGERED
+     * (EndIntercom) so room mode ends and listeners drop before the siren. In memory only, direct-boot safe.
+     */
+    @Volatile var endIntercom: (() -> Unit)? = null
     fun setPhotosPaused(paused: Boolean) { _photosPaused.value = paused }
     fun setCameraActive(active: Boolean) { _cameraActive.value = active }
 }

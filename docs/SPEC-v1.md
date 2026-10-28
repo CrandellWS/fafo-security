@@ -459,6 +459,11 @@ baby monitor or as a way to listen to anyone; it is an intercom/walkie-talkie fo
   reset within a session. Control (listen, stop, PTT start/stop) goes over the encrypted session channel.
   Target mouth-to-ear latency on Wi-Fi under 300 ms. The Opus decoder needs its `csd-0/1/2` (OpusHead +
   pre-skip/seek-preroll) sent once per stream inside the encrypted `PttStart` / `IntercomListen` reply.
+- Build notes M12: the receiver of a `PttStart` accepts it with an `IntercomListenReply` that carries its
+  own audio port (UDP port on Wi-Fi, L2CAP PSM on Bluetooth), or refuses with `PttBusy`; the room phone
+  answers `IntercomListen` the same way, with its codec csd. One audio crypto context per session keeps the
+  64-bit send counter running across all streams of that session. The Opus decoder is configured at 48 kHz
+  (what Android's decoder outputs) and played at that rate.
 - AC10.8 **Alarm takes priority, and ends room mode.** If the phone enters PRE_ALARM or TRIGGERED,
   push-to-talk playback on it stops, **room mode is turned off and every listener is disconnected**, the
   mic closes, and the siren plays. Room mode cannot be turned on again until the incident ends. Otherwise

@@ -103,6 +103,23 @@ exact steps, and the next build session fixes it.
 - [ ] Reboot A with Stay reachable on and do not unlock: no "Reachable" notification until the first unlock.
 - [ ] Both on the same Wi-Fi again: alerts and reset use Wi-Fi (faster than Bluetooth).
 
+## M12 Intercom and push-to-talk (two phones, same Wi-Fi, then Bluetooth only)
+
+- [ ] Intercom screen asks for the microphone the first time (not during onboarding or arming).
+- [ ] B: Intercom room mode on (Home). Notification "Intercom on: Home can listen" with Stop.
+- [ ] A: "Listen to B": B chimes, B's notification changes to "A is listening", B's status bar shows the
+      green mic indicator. A hears B's room. Stop on A: B's mic indicator goes away within about a second.
+- [ ] Push-to-talk A to B (hold Talk): B beeps, shows "A is talking", plays it; release: end beep.
+      Latency feels under a third of a second on Wi-Fi; check echo with both on speaker.
+- [ ] Push-to-talk to "All" with three phones.
+- [ ] A and C press Talk to B at the same time: busy tone, the later one is dropped.
+- [ ] Room mode on B, A listening; unplug B while armed and locked: room mode ends, A is dropped, mic
+      indicator off, siren plays. Room mode cannot be turned on during the alarm.
+- [ ] Reboot B with room mode on: room mode is off after the reboot.
+- [ ] Bluetooth only (Wi-Fi off): listen and push-to-talk work if both phones have an Opus encoder
+      (note whether the A17 has one); otherwise the app says "Intercom needs Wi-Fi on this phone".
+- [ ] Notifications turned off for FAFO while room mode is on: room mode stops.
+
 ## Results
 
 (Bill: write findings here, newest first.)
