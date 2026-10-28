@@ -25,10 +25,18 @@ class NoRemoteEndpointsTest {
     private fun isPrivateOrUnspecified(a: Int, b: Int): Boolean =
         a == 10 || (a == 172 && b in 16..31) || (a == 192 && b == 168) || (a == 169 && b == 254) || a == 0
 
+    /**
+     * Bundled font licenses must be shipped verbatim, and the SIL OFL text names its own web pages. Allowed
+     * only inside assets/licenses/ and only these exact URLs: license text, never fetched by the app.
+     */
+    private val licenseUrls = setOf("http://scripts.sil.org/OFL", "https://github.com/jpt/barlow")
+    private fun isLicenseText(f: File, url: String) =
+        f.invariantSeparatorsPath.contains("assets/licenses/") && url in licenseUrls
+
     @Test fun noRemoteUrls() {
         val offenders = sourceFiles().flatMap { f ->
             urlPattern.findAll(f.readText()).map { it.value }
-                .filterNot { url -> allowedUrlPrefixes.any { url.startsWith(it) } }
+                .filterNot { url -> allowedUrlPrefixes.any { url.startsWith(it) } || isLicenseText(f, url) }
                 .map { "${f.path}: $it" }
         }.toList()
         assertThat(offenders).isEmpty()
