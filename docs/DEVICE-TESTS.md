@@ -188,6 +188,24 @@ Install the new debug APK over the old one (no uninstall needed), then:
 
 Note what happens on the A17 in step 3 and 4 under Results (date, screen state, whether it opened).
 
+## UI batch 2026-10-28 (arm/disarm confirmation, navigation, icon, design)
+
+Install only after Bill approves the screenshots.
+
+- [ ] Launcher: the FAFO shield on navy in the app drawer and home screen (circle mask), nothing clipped.
+- [ ] Themed icons on (Settings > Wallpaper and style > Themed icons, if One UI offers it): a one-color shield silhouette.
+- [ ] Launch: dark from the first frame (no white flash), shield on the splash.
+- [ ] Grace window, default 30 s: lock, unlock with PIN or fingerprint, plug in, tap ARM within 30 s: arms with **no** prompt.
+- [ ] Wait 40 s after unlocking, tap DISARM: the fingerprint / screen lock prompt shows; Cancel: "Still armed. Confirmation cancelled." and it stays armed; confirm: disarms.
+- [ ] Settings > Security > Unlock grace window > Off: asks for the confirmation first (Cancel keeps 30 s); with Off every Arm and Disarm prompts, even right after unlocking.
+- [ ] Unlock with Smart Lock / face only (if enabled): Arm still prompts (those unlocks don't count).
+- [ ] Notification Disarm while armed (phone unlocked): opens FAFO; inside the window it disarms without a prompt, outside it prompts.
+- [ ] Remote Reset / Disarm from a second phone still work as in M10 (no change).
+- [ ] Regression (fix 2026-10-28): armed, locked, unplug: the new countdown screen (amber ring) then the red ALARM screen with the big shield opens **by itself** over the lock screen; the pulse is a slow fade, not a flash; unlocking stops the siren and the red screen closes.
+- [ ] Bottom bar: Home, Devices, Intercom, Setup (badge with the number of missing steps), Help; the gear opens Settings from every tab; back goes to Home, then leaves the app.
+- [ ] Setup: "Learn more" opens the matching Help topic; Samsung steps expand under Battery; done steps stay listed.
+- [ ] Help > Samsung Galaxy settings: the three buttons open the full-screen, battery and DND pages.
+
 ## Results
 
 (Bill: write findings here, newest first.)

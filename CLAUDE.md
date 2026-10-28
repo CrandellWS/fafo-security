@@ -55,6 +55,8 @@ export PATH="$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools
 ./gradlew assembleDebug        # APK: app/build/outputs/apk/debug/app-debug.apk
 ./gradlew test                 # JVM unit tests + Robolectric
 ./gradlew lint
+./gradlew recordRoborazziDebug # screenshots of every screen: app/build/outputs/roborazzi/*.png
+python3 tools/make-icons.py <shield.png>  # regenerate launcher icon / logo bitmaps (Pillow)
 ```
 
 No emulator is available in the cloud (no KVM). Keep logic in pure Kotlin classes and test them on the
