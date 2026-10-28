@@ -63,8 +63,10 @@ object ArmDeps {
     var freeBytes: (Context) -> Long = { DeviceStatus.freeBytes(it) }
     /** Local network (F9): only attached after the first unlock, never on the boot path. */
     var network: (Context) -> AlarmNetwork = { PeerNetwork.ForAlarm(it) }
+    var torch: (Context) -> ws.crandell.fafo.siren.TorchBackend = { ws.crandell.fafo.siren.AndroidTorch(it) }
 
     fun reset() {
+        torch = { ws.crandell.fafo.siren.AndroidTorch(it) }
         network = { PeerNetwork.ForAlarm(it) }
         capturer = { c, o -> CameraXCapturer(c, o) }
         freeBytes = { DeviceStatus.freeBytes(it) }

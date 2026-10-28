@@ -26,6 +26,8 @@ object Defaults {
     const val MOTION = "MEDIUM" // OFF / LOW / MEDIUM / HIGH
     /** Round 3 (Bill's bump ladder): continued handling or a pickup while locked starts the pre-alarm. */
     const val MOTION_CAN_ALARM = true
+    /** Camera torch as the alarm light (Bill 2026-10-28, approved). */
+    const val FLASH_ALARM = true
 
     const val PHOTO_ON_TRIGGER = true
     val PHOTO_INTERVAL_CHOICES_S = listOf(5, 10, 15, 20, 25, 30)

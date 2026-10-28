@@ -193,6 +193,14 @@ over Bluetooth, end-to-end encrypted with the paired keys.
 - AC2.8 Unit tests: trigger decision function (plugged history, window, keyguard state) covered for
   every sensitivity value and for reconnect inside/outside the window.
 
+- AC2.10 (round 3, Bill 2026-10-28) Alarm light: the back camera torch (`CameraManager.setTorchMode`, no
+  CAMERA permission) strobes about 4 Hz (120 ms on / 130 ms off) in TRIGGERED / INCIDENT_PERSISTED and
+  blinks slowly (300 ms on / 1.2 s off) at ORANGE (repeated bumps, pre-alarm). It goes dark 300 ms before
+  each trigger photo and resumes after. Torch unavailable (camera busy, thermal) skips that flash and
+  retries; it never throws into the alarm path. Setting "Flash as alarm light" (DP, default on; hidden
+  when the phone has no flash). Disarm, cancel and service shutdown leave it off; it never switches off a
+  flashlight the owner turned on.
+
 ### F3. Sensitivity options
 
 - AC3.1 Choices: 0.1, 0.25, 0.5, 1, 2, 5 s. Default 0.5 s.
@@ -539,6 +547,8 @@ All settings live in DataStore. Settings needed at boot (marked DP) live in a de
 | Disarm on unlock (while armed, not triggered) | on/off | off | DP |
 | Unlock grace window (Arm skips the prompt this long after an unlock; Disarm only after a lock and unlock after arming, AC1.7) | Off, 15, 30, 60, 120 s | 30 s | DP (the key itself lives in Keystore) |
 | Arming countdown (ARMING before ARMED) | 3, 5, 10 s | 5 s | DP |
+| Flash as alarm light (AC2.10) | on/off | on | DP |
+| Motion can sound the alarm (AC4.2) | on/off | on | DP |
 | Theme (app and status screen; round 3 replaces dark-only) | System / Light / Dark | System (follows the phone) | DP (the lock-screen status screen reads it before first unlock) |
 | Motion chirps | Off / Low / Medium / High | Medium | DP |
 | Photo on trigger | on/off | on | CE |

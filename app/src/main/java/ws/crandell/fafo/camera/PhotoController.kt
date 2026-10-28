@@ -41,6 +41,11 @@ class PhotoController(
     private val device: () -> DeviceSnapshot,
     private val clock: Clock,
     private val onPaused: (Boolean) -> Unit = {},
+    /** Called around each capture (the torch strobe pauses so it and the camera don't collide). */
+    private val beforeCapture: suspend () -> Unit = {},
+    private val afterCapture: () -> Unit = {},
+    /** Each saved photo file name, for photo email (round 3). */
+    private val onSaved: (incidentId: String, name: String) -> Unit = { _, _ -> },
 ) {
     private var job: Job? = null
     private var lastKeptThumb: IntArray? = null
@@ -82,10 +87,13 @@ class PhotoController(
             else -> Lens.FRONT
         }
         val now = clock.now()
+        beforeCapture()
         val photo = try {
             capturer.capture(lens)
         } catch (e: Exception) {
             null
+        } finally {
+            afterCapture()
         }
         if (photo == null) {
             st.log(id, "$now: capture failed (${lens.name}), retrying next tick")
@@ -106,6 +114,7 @@ class PhotoController(
         if (st.add(id, startedAt, photo.jpeg, meta, s.capMb * 1024L * 1024L)) {
             shots++
             lastKeptThumb = photo.thumbnail
+            onSaved(id, meta.file)
         }
     }
 

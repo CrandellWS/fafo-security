@@ -44,6 +44,8 @@ import ws.crandell.fafo.core.Motion
 import ws.crandell.fafo.core.ThreatLadder
 import ws.crandell.fafo.core.ThreatLevel
 import ws.crandell.fafo.motion.ChirpLimiter
+import ws.crandell.fafo.siren.TorchStrobe
+import ws.crandell.fafo.ui.status.statusLook
 
 /**
  * The armed foreground service (spec F1, F2). `specialUse|camera`, directBootAware, START_STICKY.
@@ -242,6 +244,7 @@ class ArmService : LifecycleService() {
             }
         }
         AlarmStatusBus.publish(s)
+        updateTorch()
         if (s != AlarmState.Disarmed) {
             registerReceivers()
             ensureNetwork()
@@ -359,7 +362,20 @@ class ArmService : LifecycleService() {
         }
     }
 
+    /** Alarm light (round 3): follows the status screen's level. */
+    private val torch by lazy {
+        TorchStrobe(lifecycleScope, ArmDeps.torch(this)) { (dpSettings ?: DpSettings()).flashAlarm }
+    }
+
+    private fun updateTorch() {
+        torch.setLevel(statusLook(machine.state, ladder.level, ArmDeps.clock.now()).light)
+    }
+
+    /** True while the torch pattern runs (tests). */
+    val torchRunning: Boolean get() = torch.running
+
     private fun publishThreat() {
+        updateTorch()
         AlarmStatusBus.setThreat(ladder.level)
         hooks.forEach { it.onThreat(ladder.level) }
     }
@@ -397,6 +413,8 @@ class ArmService : LifecycleService() {
                 AlarmStatusBus.setPhotosPaused(it)
                 postNotification()
             },
+            beforeCapture = { torch.pauseForCapture() },
+            afterCapture = { torch.resumeAfterCapture() },
         ).also { photos = it }
         pc.start(id, startedAt)
     }
@@ -560,6 +578,7 @@ class ArmService : LifecycleService() {
         windowJob?.cancel()
         armingJob?.cancel()
         coolJob?.cancel()
+        torch.stop()
         AlarmStatusBus.setThreat(ThreatLevel.GREEN)
         preAlarmJob?.cancel()
         sound.stop()
@@ -576,6 +595,7 @@ class ArmService : LifecycleService() {
     }
 
     override fun onDestroy() {
+        torch.stop()
         detachNetwork()
         if (::motion.isInitialized) motion.stop()
         if (receiverRegistered) unregisterReceiver(systemReceiver)

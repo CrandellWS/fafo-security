@@ -444,6 +444,7 @@ class MainActivity : FragmentActivity() {
                     },
                     onGrace = { vm.changeGrace(it) },
                     version = appVersion(),
+                    hasFlash = remember { ws.crandell.fafo.siren.AndroidTorch.hasFlash(this) },
                 )
                 Pushed.INCIDENTS -> {
                     LaunchedEffect(Unit) { vm.loadIncidents() }

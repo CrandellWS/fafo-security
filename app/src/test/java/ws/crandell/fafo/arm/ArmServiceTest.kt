@@ -294,6 +294,38 @@ class ArmServiceTest {
         assertThat(sound.calls).doesNotContain("siren")
     }
 
+    @Test fun torchStrobesDuringTheAlarmAndStopsOnUnlock() {
+        val torch = ws.crandell.fafo.siren.FakeTorch()
+        ArmDeps.torch = { torch }
+        runBlocking { dp.update { it.copy(preAlarmS = 0, sensitivityMs = 100) } }
+        val svc = startArm()
+        assertThat(svc.torchRunning).isFalse()
+        ServiceTestSupport.setPlugged(app, false)
+        app.sendBroadcast(Intent(Intent.ACTION_POWER_DISCONNECTED))
+        ServiceTestSupport.idleUntil { (svc.state as? AlarmState.Armed)?.unplugPendingSince != null }
+        ServiceTestSupport.advance(150)
+        ServiceTestSupport.idleUntil { svc.state is AlarmState.Triggered && svc.torchRunning }
+        ServiceTestSupport.advance(600)
+        assertThat(torch.calls).contains(true)
+        app.sendBroadcast(Intent(Intent.ACTION_USER_PRESENT))
+        ServiceTestSupport.idleUntil { svc.state == AlarmState.Disarmed }
+        assertThat(torch.on).isFalse()
+    }
+
+    @Test fun torchSettingOffKeepsItDark() {
+        val torch = ws.crandell.fafo.siren.FakeTorch()
+        ArmDeps.torch = { torch }
+        runBlocking { dp.update { it.copy(preAlarmS = 0, sensitivityMs = 100, flashAlarm = false) } }
+        val svc = startArm()
+        ServiceTestSupport.setPlugged(app, false)
+        app.sendBroadcast(Intent(Intent.ACTION_POWER_DISCONNECTED))
+        ServiceTestSupport.idleUntil { (svc.state as? AlarmState.Armed)?.unplugPendingSince != null }
+        ServiceTestSupport.advance(150)
+        ServiceTestSupport.idleUntil { svc.state is AlarmState.Triggered }
+        ServiceTestSupport.advance(600)
+        assertThat(torch.calls).isEmpty()
+    }
+
     @Test fun unlockStopsAlarm() {
         runBlocking { dp.update { it.copy(preAlarmS = 0, sensitivityMs = 100) } }
         val svc = startArm()

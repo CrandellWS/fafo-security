@@ -51,6 +51,7 @@ fun SettingsScreen(
     onStayReachable: (Boolean) -> Unit = {},
     onGrace: (Int) -> Unit = {},
     version: String = "",
+    hasFlash: Boolean = true,
 ) {
     Column(modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = FafoDims.Gutter, vertical = 4.dp)) {
         SectionHeader("Alarm")
@@ -65,6 +66,10 @@ fun SettingsScreen(
             hint = "A quieter countdown before the full siren. Plugging back in or unlocking cancels it.",
         )
         ChoiceRow("Siren sound", Defaults.SIREN_SOUNDS, dp.sirenSound, { it }, { v -> onDp { it.copy(sirenSound = v) } }, "siren")
+        if (hasFlash) SwitchRow(
+            "Flash as alarm light", dp.flashAlarm, { v -> onDp { it.copy(flashAlarm = v) } }, "flashAlarm",
+            subtitle = "Fast strobe during the alarm, slow blink at orange. It pauses for photos.",
+        )
         SwitchRow("Force max alarm volume", dp.forceMaxVolume, { v -> onDp { it.copy(forceMaxVolume = v) } }, "forceMax")
         SwitchRow(
             "Disarm on unlock", dp.disarmOnUnlock, { v -> onDp { it.copy(disarmOnUnlock = v) } }, "disarmOnUnlock",
