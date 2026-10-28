@@ -206,6 +206,42 @@ Install only after Bill approves the screenshots.
 - [ ] Setup: "Learn more" opens the matching Help topic; Samsung steps expand under Battery; done steps stay listed.
 - [ ] Help > Samsung Galaxy settings: the three buttons open the full-screen, battery and DND pages.
 
+## Round 3 2026-10-28 (shared key, arming, status screen, theme, flash, email, open Wi-Fi)
+
+- [ ] **Uninstall the current FAFO once** (it was signed with a different key). Install the round-3 APK (oss
+  or play). Later CI or local debug builds now install over it without uninstalling.
+- [ ] ARMING: plug in, tap ARM (confirm): yellow ARMING with a countdown on Home and in the notification
+  ("Arming in 5 s", Cancel); after it, ARMED. Cancel arming (Home or notification) needs no fingerprint.
+  Unplug during ARMING: arming is cancelled, no siren.
+- [ ] Disarm right after arming (no lock in between): **always asks** for fingerprint / screen lock (Bill's bug).
+- [ ] Arm, lock the phone (screen off), unlock with PIN/fingerprint, tap Disarm within 30 s: no prompt.
+  Wait past 30 s after that unlock: Disarm asks.
+- [ ] With Samsung Extend Unlock / Smart Lock on (if you use it): lock, let it unlock without PIN, Disarm: asks.
+- [ ] Reboot while ARMING: comes back DISARMED.
+- [ ] Status screen (Home > Full-screen status): green shield, red eye; bump the phone once: yellow + chirp;
+  bump again within 8 s: orange + louder chirp + slow flash blink; leave it a minute: back to green.
+  With the phone locked, keep handling it or pick it up: orange countdown (at least 5 s) then the siren;
+  unlock stops it. Turn off "Motion can sound the alarm": handling only chirps.
+- [ ] At RED the whole screen flashes red, the torch strobes; both stop on unlock. Torch goes dark briefly
+  when a photo is taken. Settings > Alarm > Flash as alarm light off: no torch.
+- [ ] If your own flashlight is on when FAFO disarms, it stays on (FAFO only switches off its own flash).
+- [ ] Theme: phone in light mode -> FAFO light; Settings > Display > Theme Dark / Light forces it (the
+  launch screen follows from the next start). The lock-screen status screen uses the same theme.
+- [ ] Largest font size and largest display size: DISARMED, ARMED, PLUG ME BACK IN, buttons and titles stay
+  on one line (they shrink instead of wrapping).
+- [ ] Photo email (SMTP): Settings > Photo email, your provider's server, SSL/TLS 465, username, an app
+  password; Send test email arrives with the shield picture. Wrong password shows the 535 message.
+- [ ] Trigger an alarm with email on: the first photo arrives within about a minute, then batches. Turn on
+  airplane mode during the alarm, then off: queued photos go out when the network is back.
+- [ ] Play build: Send with Google account > Sign in with Google (account picker + consent), test email
+  arrives. (Needs the OAuth client set up first; before that it shows a sign-in error.)
+- [ ] Open Wi-Fi (Android 13+ / A17): Setup > Allow open Wi-Fi fallback: Android's "Allow FAFO to suggest
+  Wi-Fi networks?" appears; Allow. Then with mobile data off, no known Wi-Fi and an open network nearby,
+  queued mail goes out over it. **Check whether scan results arrive without location on Android 16**; if
+  not, tell me and the feature stays off. After disarm, Settings > Wi-Fi shows no FAFO suggestions left.
+- [ ] Wordmark: dark-white on dark, navy on light, all white on the red screen; Help and Setup headers show
+  the shield + wordmark lockup.
+
 ## Results
 
 (Bill: write findings here, newest first.)
