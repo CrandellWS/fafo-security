@@ -93,6 +93,7 @@ licensed under GPL-3.0-or-later. Build-agent notes for AI-assisted work live in 
 
 The code is free software: you can redistribute it and/or modify it under the terms of the
 **GNU General Public License, version 3 or (at your option) any later version** ([LICENSE](LICENSE)).
+The `play` flavor links Google Play services under an additional permission per GPL section 7; see [LICENSE-EXCEPTION.md](LICENSE-EXCEPTION.md).
 Copyright (C) 2026 Bill Crandell. Third-party components: [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
 
 "FAFO", "FAFO Security", the FAFO shield and the FAFO wordmark are trademarks of Bill Crandell and are
