@@ -4,30 +4,22 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
+import android.graphics.Color as AndroidColor
 import androidx.activity.ComponentActivity
+import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeDrawingPadding
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import androidx.compose.runtime.produceState
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import ws.crandell.fafo.core.AlarmState
 import ws.crandell.fafo.core.AlarmStatusBus
-import ws.crandell.fafo.core.stateLabel
+import ws.crandell.fafo.ui.theme.FafoTheme
 
 /**
  * Full-screen alarm over the lock screen. directBootAware, showWhenLocked, turnScreenOn (manifest).
@@ -37,7 +29,7 @@ import ws.crandell.fafo.core.stateLabel
  */
 class AlarmActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
-        enableEdgeToEdge()
+        enableEdgeToEdge(SystemBarStyle.dark(AndroidColor.TRANSPARENT), SystemBarStyle.dark(AndroidColor.TRANSPARENT))
         super.onCreate(savedInstanceState)
         setShowWhenLocked(true)
         setTurnScreenOn(true)
@@ -80,16 +72,18 @@ class AlarmActivity : ComponentActivity() {
     }
 }
 
+/** Thin wrapper: live state and a clock for the countdown and pulse; the drawing is [AlarmScreen]. */
 @Composable
 private fun AlarmContent() {
     val state by AlarmStatusBus.state.collectAsStateWithLifecycle()
-    Column(
-        Modifier.fillMaxSize().background(Color(0xFFB71C1C)).safeDrawingPadding().padding(24.dp),
-        verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        Text(stateLabel(state, System.currentTimeMillis()), color = Color.White, fontSize = 40.sp)
-        Text("This phone is protected by FAFO Security.", color = Color.White, fontSize = 18.sp)
-        Text("Only the owner can stop the alarm, by unlocking the phone.", color = Color.White, fontSize = 18.sp)
+    val camera by AlarmStatusBus.cameraActive.collectAsStateWithLifecycle()
+    val paused by AlarmStatusBus.photosPaused.collectAsStateWithLifecycle()
+    val now by produceState(System.currentTimeMillis(), state) {
+        while (true) {
+            value = System.currentTimeMillis()
+            // The countdown needs 4 updates/s; the alarm pulse 10/s for a smooth 1 Hz fade.
+            delay(if (AlarmActivity.isAlarming(state) && state !is AlarmState.PreAlarm) 100 else 250)
+        }
     }
+    FafoTheme { AlarmScreen(state, now, photosOn = camera && !paused) }
 }
