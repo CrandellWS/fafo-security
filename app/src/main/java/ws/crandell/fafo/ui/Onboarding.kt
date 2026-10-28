@@ -6,8 +6,12 @@ import android.net.Uri
 import android.provider.Settings
 import ws.crandell.fafo.system.DeviceStatus
 
-/** Spec F7 onboarding steps, in order. Each is skippable and stays on the Home checklist until done. */
-enum class OnboardingStep(val title: String, val detail: String) {
+/**
+ * Spec F7 onboarding steps, in order. Each is skippable and stays on the Home checklist until done.
+ * [optional] steps (round 3: photo email, open Wi-Fi, flash) are "Recommended": they never count toward
+ * the Setup badge or the "N steps left" banner.
+ */
+enum class OnboardingStep(val title: String, val detail: String, val optional: Boolean = false) {
     INTRO(
         "What FAFO does",
         "Protects this phone only. A notification shows whenever it is armed. A thief can still power the " +
@@ -36,6 +40,18 @@ enum class OnboardingStep(val title: String, val detail: String) {
             "those, not a replacement.",
     ),
     SELF_TEST("Self-test", "Plays a 1 s chirp and a 1 s siren at alarm volume and takes a test photo."),
+    PHOTO_EMAIL(
+        "Photo email",
+        "Optional: email trigger photos to up to five addresses from your own mail account. Done when a test email went through.",
+        optional = true,
+    ),
+    OPEN_WIFI(
+        "Allow open Wi-Fi fallback",
+        "Optional, Android 13+: lets FAFO suggest open Wi-Fi when queued photos have no connection. Android asks once; " +
+            "answer Allow now, because nobody can answer it during a theft.",
+        optional = true,
+    ),
+    FLASH("Flash alarm light", "The camera flash strobes during the alarm and blinks at orange. Turn it off in Settings.", optional = true),
 }
 
 /** Snapshot of what is granted / done; pure data so the checklist can be tested. */
@@ -51,6 +67,12 @@ data class OnboardingStatus(
     val battery: Boolean = false,
     val builtInSeen: Boolean = false,
     val selfTestDone: Boolean = false,
+    /** Photo email is on and a test email went through. */
+    val mailReady: Boolean = false,
+    /** Photo email is on with the open Wi-Fi fallback, on Android 13+ (the OPEN_WIFI step shows). */
+    val openWifiWanted: Boolean = false,
+    val openWifiApproved: Boolean = false,
+    val hasFlash: Boolean = true,
 ) {
     fun isDone(step: OnboardingStep): Boolean = when (step) {
         OnboardingStep.INTRO -> introSeen
@@ -62,12 +84,30 @@ data class OnboardingStatus(
         OnboardingStep.BATTERY -> battery
         OnboardingStep.BUILT_IN -> builtInSeen
         OnboardingStep.SELF_TEST -> selfTestDone
+        OnboardingStep.PHOTO_EMAIL -> mailReady
+        OnboardingStep.OPEN_WIFI -> openWifiApproved
+        // Information only: nothing to grant. Done when the phone has a flash (or there is nothing to do).
+        OnboardingStep.FLASH -> true
     }
 
-    val missing: List<OnboardingStep> get() = OnboardingStep.entries.filterNot(::isDone)
+    /** Steps shown in Setup (OPEN_WIFI only when photo email wants it). */
+    val shown: List<OnboardingStep> get() = OnboardingStep.entries.filter { it != OnboardingStep.OPEN_WIFI || openWifiWanted }
+
+    /** Required steps still to do: the badge and the Home banner. */
+    val missing: List<OnboardingStep> get() = shown.filterNot { it.optional || isDone(it) }
+
+    /** Optional steps not done yet ("Recommended"). */
+    val recommended: List<OnboardingStep> get() = shown.filter { it.optional && !isDone(it) }
 
     companion object {
-        fun read(context: Context, introSeen: Boolean, builtInSeen: Boolean, selfTestDone: Boolean) = OnboardingStatus(
+        fun read(
+            context: Context,
+            introSeen: Boolean,
+            builtInSeen: Boolean,
+            selfTestDone: Boolean,
+            mailReady: Boolean = false,
+            openWifiWanted: Boolean = false,
+        ) = OnboardingStatus(
             introSeen = introSeen,
             secureLock = DeviceStatus.isDeviceSecure(context),
             notifications = DeviceStatus.hasNotificationPermission(context) && DeviceStatus.notificationsEnabled(context),
@@ -78,6 +118,10 @@ data class OnboardingStatus(
             battery = DeviceStatus.ignoresBatteryOptimizations(context),
             builtInSeen = builtInSeen,
             selfTestDone = selfTestDone,
+            mailReady = mailReady,
+            openWifiWanted = openWifiWanted && android.os.Build.VERSION.SDK_INT >= 33,
+            openWifiApproved = ws.crandell.fafo.mail.OpenWifiFallback.approved(context),
+            hasFlash = ws.crandell.fafo.siren.AndroidTorch.hasFlash(context),
         )
     }
 }

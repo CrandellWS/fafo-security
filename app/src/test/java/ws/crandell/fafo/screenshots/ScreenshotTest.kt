@@ -56,6 +56,13 @@ import ws.crandell.fafo.ui.screens.SettingsScreen
 import ws.crandell.fafo.ui.screens.TrustedScreen
 import ws.crandell.fafo.ui.theme.FafoTheme
 import ws.crandell.fafo.ui.theme.ThemeMode
+import ws.crandell.fafo.ui.screens.MailActions
+import ws.crandell.fafo.ui.screens.MailSettings
+import ws.crandell.fafo.ui.screens.MailTestUi
+import ws.crandell.fafo.mail.MailProviderKind
+import ws.crandell.fafo.mail.MailStatus
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import ws.crandell.fafo.ui.theme.DarkTokens
 import ws.crandell.fafo.ui.theme.LightTokens
 import ws.crandell.fafo.ui.theme.FafoBrand
@@ -230,6 +237,49 @@ class ScreenshotTest {
     @Test fun s60b_status_green_landscape() = shot("60b_status_green_landscape") {
         StatusScreen(AlarmState.Armed(), ThreatLevel.GREEN, now = 0, photosOn = false, animate = false, onDisarm = {})
     }
+
+    // ---- Photo email, flash, theme, Setup and Help (round 3) ---------------------------------------
+
+    private val mailCe = CeSettings(
+        deviceLabel = "Kitchen phone", mailEnabled = true, mailRecipients = listOf("bill@example.org", "rob@example.org"),
+        smtpHost = "smtp.example.org", smtpUser = "bill@example.org", mailSecret = "sealed",
+    )
+    private object NoMail : MailActions {
+        override fun update(t: (CeSettings) -> CeSettings) {}
+        override fun savePassword(password: String) {}
+        override fun removePassword() {}
+        override fun sendTest() {}
+    }
+
+    @Composable
+    private fun MailShell(ce: CeSettings, providers: List<MailProviderKind>, test: MailTestUi, status: MailStatus = MailStatus()) =
+        Shell(Tab.HOME, Pushed.SETTINGS) { m ->
+            Column(m.verticalScroll(rememberScrollState()).padding(horizontal = 20.dp)) {
+                MailSettings(ce, providers, test, status, NoMail, showOpenWifi = true)
+            }
+        }
+
+    @Config(qualifiers = TALL)
+    @Test fun s67_settings_email_smtp() = shot("67_settings_email_smtp") { MailShell(mailCe, listOf(MailProviderKind.SMTP), MailTestUi.Ok) }
+    @Config(qualifiers = TALL)
+    @Test fun s68_settings_email_play_gmail() = shot("68_settings_email_play_gmail") {
+        MailShell(mailCe.copy(mailProvider = "GMAIL", gmailAccount = "bill@gmail.example"), listOf(MailProviderKind.SMTP, MailProviderKind.GMAIL), MailTestUi.Idle)
+    }
+    @Config(qualifiers = TALL)
+    @Test fun s69_settings_email_test_error() = shot("69_settings_email_test_error") {
+        MailShell(
+            mailCe.copy(mailSecret = ""), listOf(MailProviderKind.SMTP),
+            MailTestUi.Error("Server refused the username or app password (535). Gmail, Outlook and Yahoo need an app password."),
+            MailStatus(pending = 3, lastError = "No connection to smtp.example.org:465"),
+        )
+    }
+    @Test fun s70_settings_flash_theme() = shot("70_settings_flash_theme") { Settings(DpSettings(theme = "DARK")) }
+    @Config(qualifiers = TALL)
+    @Test fun s71_setup_email_wifi_steps() = shot("71_setup_email_wifi_steps") { Setup(allDone.copy(openWifiWanted = true)) }
+    @Config(qualifiers = TALL)
+    @Test fun s72_help_open_wifi() = shot("72_help_open_wifi") { Shell(Tab.HELP) { m -> HelpScreen("open-wifi", {}, {}, m) } }
+    @Config(qualifiers = TALL)
+    @Test fun s73_help_status() = shot("73_help_status") { Shell(Tab.HELP) { m -> HelpScreen("status", {}, {}, m) } }
 
     // ---- Brand ------------------------------------------------------------------------------------
 

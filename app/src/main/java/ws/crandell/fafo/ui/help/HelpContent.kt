@@ -1,6 +1,8 @@
 package ws.crandell.fafo.ui.help
 
 import ws.crandell.fafo.ui.OnboardingStep
+import ws.crandell.fafo.mail.MailProviderKind
+import ws.crandell.fafo.mail.flavor.FlavorMail
 
 /** System settings a help topic can open (the same deep links the Setup checklist uses). */
 enum class HelpLink(val label: String) {
@@ -12,7 +14,7 @@ enum class HelpLink(val label: String) {
     NOTIFICATIONS("Open notification settings"),
 }
 
-enum class HelpIcon { START, SHIELD, GRACE, SIREN, MOTION, CAMERA, POWER, PAIR, CIRCLES, REMOTE, MIC, WIFI, LOCK, SAMSUNG, LIMITS, PRIVACY }
+enum class HelpIcon { MAIL, FLASH, THEME, STATUS, START, SHIELD, GRACE, SIREN, MOTION, CAMERA, POWER, PAIR, CIRCLES, REMOTE, MIC, WIFI, LOCK, SAMSUNG, LIMITS, PRIVACY }
 
 /** A titled block inside a topic; [steps] render as a numbered list under [text]. */
 data class HelpSection(val heading: String? = null, val text: String = "", val steps: List<String> = emptyList())
@@ -28,7 +30,9 @@ data class HelpTopic(
 
 /** The Help guide: every feature, every permission and the Samsung-specific settings. Pure data, unit tested. */
 object HelpContent {
-    val topics: List<HelpTopic> = listOf(
+    val topics: List<HelpTopic> get() = all.filter { it.id != "gmail" || MailProviderKind.GMAIL in FlavorMail.providers }
+
+    private val all: List<HelpTopic> = listOf(
         HelpTopic(
             "start", "Getting started", "Three things to do before the first night", HelpIcon.START,
             listOf(
@@ -49,9 +53,16 @@ object HelpContent {
             listOf(
                 HelpSection(text = "ARM works only while the phone is charging and has a PIN, pattern or password. A notification shows the whole time FAFO is armed."),
                 HelpSection(
+                    "The ARMING countdown",
+                    "After you confirm Arm, a yellow ARMING countdown runs (5 s by default; 3 or 10 s in Settings > Security), then FAFO is ARMED. " +
+                        "Cancel arming needs no fingerprint, because cancelling leaves the phone unprotected. Unplugging during the countdown cancels it; nothing goes off.",
+                ),
+                HelpSection(
                     "Confirming it's you",
                     "Arm and Disarm ask for your fingerprint or screen lock, so someone who picks up your unlocked phone can't turn FAFO off. " +
-                        "If you unlocked the phone a moment ago, FAFO doesn't ask again (see Unlock grace window).",
+                        "Arm skips the prompt if you unlocked the phone a moment ago. Disarm is stricter: it skips the prompt only if you locked " +
+                        "the phone after arming, then unlocked it with your PIN, pattern, password or fingerprint, within the grace window. " +
+                        "Otherwise Disarm always asks.",
                 ),
                 HelpSection("Disarm from the notification", "The Disarm button on the notification opens FAFO and asks the same way."),
                 HelpSection("Stopping an alarm", "Unlock the phone with your PIN, pattern, password or fingerprint. That ends the alarm. Volume buttons and swiping the notification don't."),
@@ -61,8 +72,13 @@ object HelpContent {
             "grace", "Unlock grace window", "When Arm and Disarm skip the fingerprint prompt", HelpIcon.GRACE,
             listOf(
                 HelpSection(
-                    text = "After you unlock the phone, Arm and Disarm work without asking again for the time you choose in Settings > Security: " +
+                    text = "After you unlock the phone, Arm works without asking again for the time you choose in Settings > Security: " +
                         "Off, 15 s, 30 s (default), 1 min or 2 min.",
+                ),
+                HelpSection(
+                    "Disarm needs an unlock after arming",
+                    "Disarm skips the prompt only when the phone was locked after you armed it and then unlocked within the window. " +
+                        "Tapping Disarm right after arming always asks: otherwise anyone holding the phone in those seconds could disarm it.",
                 ),
                 HelpSection("Off", "Every Arm and Disarm asks for your fingerprint or screen lock."),
                 HelpSection(
@@ -230,11 +246,83 @@ object HelpContent {
             ),
         ),
         HelpTopic(
-            "privacy", "Privacy", "Nothing leaves your devices", HelpIcon.PRIVACY,
+            "status", "Status screen colors", "Green, yellow, orange, red and the eagle's eye", HelpIcon.STATUS,
+            listOf(
+                HelpSection(
+                    text = "While armed, the full-screen status shows the FAFO shield. Its stripes are a traffic light; the state word under it always says the same thing in words.",
+                    steps = listOf(
+                        "Green: armed and calm.",
+                        "Yellow: ARMING, or one bump (a short chirp).",
+                        "Orange: repeated bumps close together (a louder chirp), or the countdown before the siren.",
+                        "Red: the siren. The whole screen flashes red.",
+                    ),
+                ),
+                HelpSection("The eagle's eye", "White while disarmed, red once armed. The beak is always red."),
+                HelpSection(
+                    "Bumps can set off the alarm",
+                    "While the phone is locked, continued handling or picking it up starts the countdown (at least 5 s, so you can unlock). " +
+                        "Left alone for about a minute it goes back to green. Turn off \"Motion can sound the alarm\" in Settings for chirps only.",
+                ),
+            ),
+        ),
+        HelpTopic(
+            "flash", "Flash alarm light", "Strobe at red, blink at orange", HelpIcon.FLASH,
+            listOf(
+                HelpSection(text = "The camera flash strobes about four times a second during the alarm and blinks slowly at orange. It goes dark for a moment while FAFO takes a photo."),
+                HelpSection("Turn it off", "Settings > Alarm > Flash as alarm light. Phones without a flash skip it."),
+                HelpSection("Flashing lights", "If flashing light can affect you or people nearby, turn it off. The screen flash during the alarm stays at 2 times a second."),
+            ),
+        ),
+        HelpTopic(
+            "email", "Photo email", "Send trigger photos to your inbox", HelpIcon.MAIL,
+            listOf(
+                HelpSection(text = "Off by default. When it's on, FAFO emails trigger photos to up to five addresses from your own mail account: the first photo at once, then a batch about every minute."),
+                HelpSection(
+                    "Set it up",
+                    steps = listOf(
+                        "Settings > Photo email: turn on Email photos on alarm and enter the addresses.",
+                        "Enter your provider's mail server, choose SSL/TLS (465) or STARTTLS (587), and your username.",
+                        "Create an app password with your provider and paste it. Gmail, Outlook and Yahoo require one when two-step verification is on.",
+                        "Tap Send test email and check the inbox (and spam).",
+                    ),
+                ),
+                HelpSection("Why an app password", "It works only for sending mail, you can revoke it any time, and your main password never goes into FAFO. It is stored encrypted on the phone."),
+                HelpSection("No connection", "Photos wait in a queue and go out when the phone is online again while FAFO is armed or open. They are kept until sent."),
+            ),
+        ),
+        HelpTopic(
+            "open-wifi", "Open Wi-Fi fallback", "When queued photos have no connection", HelpIcon.WIFI,
+            listOf(
+                HelpSection(text = "Optional, Android 13 and later. If photos are waiting, there is no mobile data and no known Wi-Fi, FAFO suggests nearby open Wi-Fi networks to Android, and sends only once the network really reaches the internet."),
+                HelpSection("Allow it in advance", "Android asks once whether FAFO may suggest Wi-Fi networks. Nobody can answer that during a theft, so Setup asks now."),
+                HelpSection("Sign-in pages", "Hotel, airport and cafe networks with a sign-in page can't be passed automatically. FAFO skips them."),
+                HelpSection("Afterwards", "FAFO removes its suggestions once the photos are sent, after 30 minutes, or when you disarm. Mail is always encrypted, so an open network sees nothing readable."),
+            ),
+        ),
+        HelpTopic(
+            "theme", "Light and dark", "Follow the phone, or choose", HelpIcon.THEME,
+            listOf(
+                HelpSection(text = "FAFO follows your phone's dark mode. Settings > Display > Theme forces Light or Dark. The lock-screen status screen uses the same choice."),
+            ),
+        ),
+        HelpTopic(
+            "gmail", "Gmail sign-in", "Play version: send with your Google account", HelpIcon.MAIL,
+            listOf(
+                HelpSection(text = "In the Play version, Settings > Photo email > Send with: Google account, then Sign in with Google. FAFO asks only for permission to send email as you; it cannot read your mail."),
+                HelpSection("Disconnect", "Remove FAFO in your Google Account > Security > Third-party access, or switch back to a mail server in Settings."),
+            ),
+        ),
+        HelpTopic(
+            "privacy", "Privacy", "No FAFO server, no analytics", HelpIcon.PRIVACY,
             listOf(
                 HelpSection(
                     text = "FAFO has no account, no server, no analytics and no ads. Photos, keys and settings stay on your phone. " +
                         "Messages between your paired phones are end-to-end encrypted and travel only over your Wi-Fi or Bluetooth.",
+                ),
+                HelpSection(
+                    "Photo email is the one exception, and it is off by default",
+                    "If you turn on Photo email, trigger photos are sent from your own mail account (your mail server, or your Google account " +
+                        "in the Play version) to the addresses you chose. FAFO never runs a server and never sees them.",
                 ),
                 HelpSection("Your own phones only", "FAFO has no hidden mode and always shows a notification while it runs. Use it only on phones you own."),
                 HelpSection("Fonts", "The Barlow Condensed font is used under the SIL Open Font License 1.1."),
@@ -244,6 +332,9 @@ object HelpContent {
 
     fun topic(id: String): HelpTopic? = topics.firstOrNull { it.id == id }
 
+    /** Every topic, including flavor-specific ones (tests). */
+    val allTopics: List<HelpTopic> get() = all
+
     /** The Help topic behind each Setup step's "Learn more". */
     fun topicFor(step: OnboardingStep): String = when (step) {
         OnboardingStep.INTRO -> "start"
@@ -252,5 +343,8 @@ object HelpContent {
         OnboardingStep.FULL_SCREEN, OnboardingStep.DND, OnboardingStep.BATTERY -> "samsung"
         OnboardingStep.BUILT_IN -> "reboots"
         OnboardingStep.SELF_TEST -> "prealarm"
+        OnboardingStep.PHOTO_EMAIL -> "email"
+        OnboardingStep.OPEN_WIFI -> "open-wifi"
+        OnboardingStep.FLASH -> "flash"
     }
 }

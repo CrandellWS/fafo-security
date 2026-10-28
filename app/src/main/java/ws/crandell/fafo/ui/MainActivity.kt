@@ -229,6 +229,24 @@ class MainActivity : FragmentActivity() {
                 launch(OnboardingIntents.builtInProtections())
             }
             OnboardingStep.SELF_TEST -> runSelfTest()
+            OnboardingStep.PHOTO_EMAIL -> openSettings?.invoke()
+            OnboardingStep.OPEN_WIFI -> {
+                ws.crandell.fafo.mail.OpenWifiFallback.requestApproval(this)
+                lifecycleScope.launch { kotlinx.coroutines.delay(1_500); vm.refresh() }
+            }
+            OnboardingStep.FLASH -> testFlash()
+        }
+    }
+
+    /** Settings opener set by the composition (Setup's photo email step pushes Settings). */
+    private var openSettings: (() -> Unit)? = null
+
+    /** Setup > Flash: three slow blinks so the owner sees the alarm light. */
+    private fun testFlash() {
+        val torch = ws.crandell.fafo.siren.AndroidTorch(this)
+        if (!torch.available) { Toast.makeText(this, "No flash on this phone", Toast.LENGTH_SHORT).show(); return }
+        lifecycleScope.launch {
+            repeat(3) { torch.set(true); kotlinx.coroutines.delay(300); torch.set(false); kotlinx.coroutines.delay(500) }
         }
     }
 
@@ -423,6 +441,7 @@ class MainActivity : FragmentActivity() {
         val devices by vm.trustedDevices.collectAsStateWithLifecycle()
         val snackbar = remember { SnackbarHostState() }
 
+        openSettings = { pushed = Pushed.SETTINGS }
         fun open(screen: Screen) {
             when (screen) {
                 Screen.HOME -> { pushed = null; tab = Tab.HOME }

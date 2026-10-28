@@ -56,6 +56,9 @@ fun actionLabel(step: OnboardingStep): String = when (step) {
     OnboardingStep.BATTERY -> "Allow"
     OnboardingStep.BUILT_IN -> "Open settings"
     OnboardingStep.SELF_TEST -> "Run self-test"
+    OnboardingStep.PHOTO_EMAIL -> "Set up email"
+    OnboardingStep.OPEN_WIFI -> "Allow"
+    OnboardingStep.FLASH -> "Test flash"
 }
 
 /** One short line per step; the full story is in Help ("Learn more"). */
@@ -69,6 +72,9 @@ fun stepSummary(step: OnboardingStep): String = when (step) {
     OnboardingStep.BATTERY -> "Stops the phone from putting FAFO to sleep."
     OnboardingStep.BUILT_IN -> "Turn on Theft Detection Lock, Offline Device Lock and Identity Check."
     OnboardingStep.SELF_TEST -> "A 1 s chirp, a 1 s siren and a test photo (not saved)."
+    OnboardingStep.PHOTO_EMAIL -> "Optional. Trigger photos go to your inbox through your own mail account. Send a test email to finish."
+    OnboardingStep.OPEN_WIFI -> "Optional, Android 13+. Android asks once whether FAFO may suggest Wi-Fi networks: allow it now."
+    OnboardingStep.FLASH -> "The flash strobes during the alarm. Turn it off in Settings > Alarm."
 }
 
 /** Samsung battery steps, shown inline under the Battery step (they used to hide in a dialog). */
@@ -91,9 +97,11 @@ fun OnboardingScreen(
     onOpenAppSettings: () -> Unit = {},
     samsungExpandedInitially: Boolean = false,
 ) {
-    val steps = OnboardingStep.entries
+    val steps = status.shown.filterNot { it.optional }
     val todo = steps.filterNot(status::isDone)
     val done = steps.filter(status::isDone)
+    val recommended = status.recommended
+    val optionalDone = status.shown.filter { it.optional && status.isDone(it) }
     Column(
         modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = FafoDims.Gutter, vertical = 16.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
@@ -125,9 +133,11 @@ fun OnboardingScreen(
             )
         }
         if (todo.isNotEmpty()) SectionHeader("To do (${todo.size})")
-        todo.forEach { step -> StepItem(step, false, onAction, onLearnMore, onOpenAppSettings, samsungExpandedInitially) }
-        if (done.isNotEmpty()) SectionHeader("Done (${done.size})")
-        done.forEach { step -> StepItem(step, true, onAction, onLearnMore, onOpenAppSettings, false) }
+        todo.forEach { step -> StepItem(step, false, onAction, onLearnMore, onOpenAppSettings, samsungExpandedInitially, status) }
+        if (recommended.isNotEmpty()) SectionHeader("Recommended (${recommended.size})")
+        recommended.forEach { step -> StepItem(step, false, onAction, onLearnMore, onOpenAppSettings, false, status) }
+        if (done.isNotEmpty() || optionalDone.isNotEmpty()) SectionHeader("Done (${done.size + optionalDone.size})")
+        (done + optionalDone).forEach { step -> StepItem(step, true, onAction, onLearnMore, onOpenAppSettings, false, status) }
         Spacer(Modifier.height(8.dp))
     }
 }
@@ -140,6 +150,7 @@ private fun StepItem(
     onLearnMore: (OnboardingStep) -> Unit,
     onOpenAppSettings: () -> Unit,
     samsungExpandedInitially: Boolean,
+    status: OnboardingStatus = OnboardingStatus(),
 ) {
     var samsung by rememberSaveable(step) { mutableStateOf(samsungExpandedInitially) }
     FafoCard(Modifier.testTag("step_${step.name}"), color = if (done) FafoColors.Ink else FafoColors.Surface1) {
@@ -149,7 +160,12 @@ private fun StepItem(
             Column(Modifier.weight(1f)) {
                 Text(step.title, style = MaterialTheme.typography.titleMedium, color = FafoColors.White)
                 Text(
-                    if (done) "Done" else "To do",
+                    when {
+                        step == OnboardingStep.FLASH -> if (status.hasFlash) "Ready" else "No flash on this phone"
+                        done -> "Done"
+                        step.optional -> "Recommended"
+                        else -> "To do"
+                    },
                     style = MaterialTheme.typography.labelLarge,
                     color = if (done) FafoColors.Guard else FafoColors.Amber,
                     modifier = Modifier.testTag("status_${step.name}"),
@@ -157,7 +173,7 @@ private fun StepItem(
                 if (!done) Text(stepSummary(step), style = MaterialTheme.typography.bodyMedium, color = FafoColors.TextMuted, modifier = Modifier.padding(top = 4.dp))
             }
         }
-        if (!done || step == OnboardingStep.SELF_TEST) {
+        if (!done || step == OnboardingStep.SELF_TEST || (step == OnboardingStep.FLASH && status.hasFlash)) {
             Row(
                 Modifier.fillMaxWidth().padding(top = 10.dp, start = 42.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),

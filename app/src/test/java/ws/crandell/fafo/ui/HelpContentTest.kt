@@ -21,6 +21,26 @@ class HelpContentTest {
         assertThat(samsung.links).containsAtLeast(HelpLink.FULL_SCREEN, HelpLink.BATTERY)
     }
 
+    @Test fun roundThreeTopics() {
+        assertThat(HelpContent.topics.map { it.id }).containsAtLeast("email", "flash", "open-wifi", "theme", "status")
+        assertThat(HelpContent.allTopics.map { it.id }).contains("gmail")
+        val gmailShown = "gmail" in HelpContent.topics.map { it.id }
+        assertThat(gmailShown).isEqualTo(ws.crandell.fafo.mail.flavor.FlavorMail.FLAVOR == "play")
+        val wifi = HelpContent.topic("open-wifi")!!.sections.joinToString { it.heading + it.text }
+        assertThat(wifi).contains("sign-in page")
+        assertThat(wifi).contains("Android 13")
+        val arming = HelpContent.topic("arming")!!.sections.joinToString { it.text }
+        assertThat(arming).contains("ARMING countdown")
+        assertThat(arming).contains("locked the phone after arming")
+    }
+
+    @Test fun optionalStepsNeverBlockTheBadge() {
+        val s = OnboardingStatus(true, true, true, true, true, true, true, true, true, true, mailReady = false, openWifiWanted = true)
+        assertThat(s.missing).isEmpty()
+        assertThat(s.recommended).containsExactly(OnboardingStep.PHOTO_EMAIL, OnboardingStep.OPEN_WIFI)
+        assertThat(OnboardingStatus(openWifiWanted = false).shown).doesNotContain(OnboardingStep.OPEN_WIFI)
+    }
+
     @Test fun neverCalledABabyMonitor() {
         val all = HelpContent.topics.joinToString { t -> t.title + t.summary + t.sections.joinToString { it.text + it.steps } }
         assertThat(all.lowercase()).doesNotContain("baby monitor")

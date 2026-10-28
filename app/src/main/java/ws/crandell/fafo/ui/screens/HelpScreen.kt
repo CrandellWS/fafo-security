@@ -21,6 +21,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.Email
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Icon
@@ -53,6 +55,10 @@ import ws.crandell.fafo.ui.help.HelpTopic
 import ws.crandell.fafo.ui.theme.FafoColors
 
 fun helpIcon(i: HelpIcon): ImageVector = when (i) {
+    HelpIcon.MAIL -> Icons.Filled.Email
+    HelpIcon.FLASH -> FafoIcons.Siren
+    HelpIcon.THEME -> Icons.Filled.Settings
+    HelpIcon.STATUS -> FafoIcons.ShieldCheck
     HelpIcon.START -> FafoIcons.Setup
     HelpIcon.SHIELD -> FafoIcons.ShieldCheck
     HelpIcon.GRACE -> Icons.Filled.Lock

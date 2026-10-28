@@ -78,6 +78,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             app, batteryReceiver, IntentFilter(Intent.ACTION_BATTERY_CHANGED), ContextCompat.RECEIVER_NOT_EXPORTED,
         )
         viewModelScope.launch { flags.collect { refresh() } }
+        viewModelScope.launch { ceSettings.collect { refresh() } }
     }
 
     /** The activity on screen sets [DelegatingGate.target] so ViewModel flows can show BiometricPrompt. */
@@ -159,6 +160,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             introSeen = CeStore.FLAG_INTRO in f,
             builtInSeen = CeStore.FLAG_BUILT_IN in f,
             selfTestDone = CeStore.FLAG_SELF_TEST in f,
+            mailReady = ceSettings.value?.let { it.mailEnabled && it.mailTestOk } == true,
+            openWifiWanted = ceSettings.value?.let { it.mailEnabled && it.mailOpenWifi } == true,
         )
         _plugged.value = DeviceStatus.isPlugged(ctx)
     }
