@@ -19,7 +19,21 @@ android {
         versionName = "0.1.0"
     }
 
+    // One shared, PUBLIC debug key (keystore/README.md) so CI and local debug builds install over each
+    // other. There is deliberately no release signing config in this repo.
+    signingConfigs {
+        getByName("debug") {
+            storeFile = rootProject.file("keystore/debug.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
+    }
+
     buildTypes {
+        debug {
+            signingConfig = signingConfigs.getByName("debug")
+        }
         release {
             isMinifyEnabled = false
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")

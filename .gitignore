@@ -8,6 +8,8 @@ build/
 local.properties
 *.keystore
 *.jks
+# The one exception: the PUBLIC shared debug key (keystore/README.md). Never a release key.
+!keystore/debug.keystore
 keystore.properties
 signing.properties
 google-services.json
@@ -41,3 +43,6 @@ Thumbs.db
 .env
 .env.*
 secrets/
+
+# Local agent worktrees
+.claude/

@@ -65,6 +65,17 @@ jobs:
             ./gradlew --no-daemon checkNoRemoteDeps
           fi
 
+      - name: Verify shared debug signing key
+        if: steps.wrapper.outputs.present == 'true'
+        # Every debug APK must carry the public shared key (keystore/README.md), never a fresh CI key,
+        # so Bill's installs update over each other.
+        run: |
+          PIN="9ab99dd804089b3cb826d5d485f129a532ee995317e65be553a32c3d8112a905"
+          for apk in $(find app/build/outputs/apk -name '*-debug.apk'); do
+            "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --print-certs "$apk" | tee /dev/stderr \
+              | grep -qi "SHA-256 digest: $PIN" || { echo "::error::$apk is not signed with the shared debug key"; exit 1; }
+          done
+
       - name: Lint
         if: steps.wrapper.outputs.present == 'true'
         # Blocking since M13. On failure the plain-text report is printed so every issue shows in the log.

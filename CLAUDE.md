@@ -29,7 +29,8 @@ Bill's phones never block the next milestone: list them in `docs/DEVICE-TESTS.md
   A persistent notification must show whenever the app is armed, alarming, reachable or in intercom room mode.
 - **SMS reset is not built** until Bill approves its one Play Services library (spec section 9a).
 - **Keep secrets out of the repo.** No keystores, signing configs, API keys or `local.properties`
-  committed. Private keys live only in Android Keystore at runtime.
+  committed, except the PUBLIC shared debug keystore in `keystore/` (debug builds only, so CI and local
+  APKs install over each other; guarded by `RepoSecretsTest`). The release key never enters the repo. Private keys live only in Android Keystore at runtime.
 - **Scope changes go in the spec first.** If something in the spec is wrong or impossible on Android,
   update `docs/SPEC-v1.md` with the reason in the same commit as the code change.
 - **One commit per milestone**, message `M<n>: <summary>`, ending with these trailers:
