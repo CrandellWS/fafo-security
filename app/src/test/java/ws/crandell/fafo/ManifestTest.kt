@@ -93,7 +93,7 @@ class ManifestTest {
     }
 
     @Test fun serviceTypes() {
-        val types = info.services.associate { it.name to it.foregroundServiceType }
+        val types = info.services.orEmpty().associate { it.name to it.foregroundServiceType }
         assertThat(types).containsExactly(
             "ws.crandell.fafo.arm.ArmService", ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE or ServiceInfo.FOREGROUND_SERVICE_TYPE_CAMERA,
             "ws.crandell.fafo.reach.ReachableService", ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE,
