@@ -9,6 +9,7 @@ import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStoreFile
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -61,6 +62,14 @@ open class CeStore(private val store: DataStore<Preferences>?) {
         }
     }
 
+    /** Onboarding steps that cannot be read from the system (F7 1, 7, 8). */
+    open val onboardingFlags: Flow<Set<String>>
+        get() = requireStore().data.map { it[ONBOARDING_DONE] ?: emptySet() }
+
+    open suspend fun markOnboarding(flag: String) {
+        requireStore().edit { it[ONBOARDING_DONE] = (it[ONBOARDING_DONE] ?: emptySet()) + flag }
+    }
+
     private fun requireStore(): DataStore<Preferences> = store ?: error("CeStore not available")
 
     private fun Preferences.toSettings() = CeSettings(
@@ -87,6 +96,11 @@ open class CeStore(private val store: DataStore<Preferences>?) {
         private val CHIME_ON_LISTEN = booleanPreferencesKey("chime_on_listen")
         private val INTERCOM_TRANSPORT = stringPreferencesKey("intercom_transport")
         private val INTERCOM_CODEC = stringPreferencesKey("intercom_codec")
+        private val ONBOARDING_DONE = stringSetPreferencesKey("onboarding_done")
+
+        const val FLAG_INTRO = "intro"
+        const val FLAG_BUILT_IN = "built_in"
+        const val FLAG_SELF_TEST = "self_test"
 
         @Volatile private var instance: CeStore? = null
 
