@@ -35,6 +35,7 @@ import ws.crandell.fafo.core.AlarmState
 import ws.crandell.fafo.ui.components.AutoFitText
 import ws.crandell.fafo.ui.components.FafoWordmark
 import ws.crandell.fafo.ui.components.ShieldLogo
+import ws.crandell.fafo.ui.theme.FafoBrand
 import ws.crandell.fafo.ui.theme.FafoColors
 import ws.crandell.fafo.ui.theme.FafoType
 
@@ -71,12 +72,14 @@ private fun PreAlarm(s: AlarmState.PreAlarm, now: Long) {
         ShieldLogo(112.dp)
         Spacer(Modifier.height(28.dp))
         Box(Modifier.size(240.dp), contentAlignment = Alignment.Center) {
+            val track = FafoColors.Surface2
+            val ring = FafoColors.Amber
             Canvas(Modifier.fillMaxSize()) {
                 val w = 16.dp.toPx()
                 val inset = w / 2
                 val arc = Size(size.width - w, size.height - w)
-                drawArc(FafoColors.Surface2, 0f, 360f, false, Offset(inset, inset), arc, style = Stroke(w))
-                drawArc(FafoColors.Amber, -90f, 360f * fraction, false, Offset(inset, inset), arc, style = Stroke(w, cap = StrokeCap.Round))
+                drawArc(track, 0f, 360f, false, Offset(inset, inset), arc, style = Stroke(w))
+                drawArc(ring, -90f, 360f * fraction, false, Offset(inset, inset), arc, style = Stroke(w, cap = StrokeCap.Round))
             }
             AutoFitText(
                 "$left", style = FafoType.countdown, color = FafoColors.White, sample = "88",
@@ -115,21 +118,21 @@ private fun Triggered(photosOn: Boolean, now: Long?) {
         ShieldLogo(240.dp, haloOnRed = true)
         Spacer(Modifier.height(20.dp))
         AutoFitText(
-            "ALARM", style = FafoType.stateDisplay.copy(fontSize = 88.sp, lineHeight = 92.sp), color = FafoColors.White,
+            "ALARM", style = FafoType.stateDisplay.copy(fontSize = 88.sp, lineHeight = 92.sp), color = FafoBrand.White,
             modifier = Modifier.testTag("alarmWord").semantics { liveRegion = LiveRegionMode.Assertive },
         )
         Spacer(Modifier.height(12.dp))
-        Text("This phone is protected by", style = MaterialTheme.typography.titleLarge, color = FafoColors.White, textAlign = TextAlign.Center)
+        Text("This phone is protected by", style = MaterialTheme.typography.titleLarge, color = FafoBrand.White, textAlign = TextAlign.Center)
         FafoWordmark(size = 30.sp, onRed = true, modifier = Modifier.padding(top = 2.dp))
         Spacer(Modifier.height(16.dp))
         Text(
             "Only the owner can stop the alarm, by unlocking this phone.",
-            style = MaterialTheme.typography.bodyLarge, color = FafoColors.White.copy(alpha = 0.92f), textAlign = TextAlign.Center,
+            style = MaterialTheme.typography.bodyLarge, color = FafoBrand.White.copy(alpha = 0.92f), textAlign = TextAlign.Center,
         )
         if (photosOn) {
-            HorizontalDivider(Modifier.fillMaxWidth().padding(vertical = 18.dp), color = FafoColors.White.copy(alpha = 0.35f))
+            HorizontalDivider(Modifier.fillMaxWidth().padding(vertical = 18.dp), color = FafoBrand.White.copy(alpha = 0.35f))
             Text(
-                "Photos are being taken.", style = MaterialTheme.typography.titleMedium, color = FafoColors.White,
+                "Photos are being taken.", style = MaterialTheme.typography.titleMedium, color = FafoBrand.White,
                 modifier = Modifier.testTag("photosLine"),
             )
         }

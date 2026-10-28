@@ -32,6 +32,12 @@ fun graceHint(s: Int): String =
     else "Arm doesn't ask if you unlocked the phone in the last ${graceLabel(s)}. Disarm doesn't ask only if you " +
         "locked and unlocked the phone after arming, in the last ${graceLabel(s)}. Changing this asks for your screen lock."
 
+fun themeLabel(s: String): String = when (s) {
+    "LIGHT" -> "Light"
+    "DARK" -> "Dark"
+    else -> "System"
+}
+
 fun sensitivityLabel(ms: Long): String = if (ms % 1000 == 0L) "${ms / 1000} s" else "${ms / 1000.0} s"
 
 /** Settings (gear in the top bar): grouped into Alarm, Security, Motion, Photos, Nearby devices, About. */
@@ -81,6 +87,12 @@ fun SettingsScreen(
             "Motion chirps", listOf("OFF", "LOW", "MEDIUM", "HIGH"), dp.motion,
             { it.lowercase().replaceFirstChar(Char::uppercase) }, { v -> onDp { it.copy(motion = v) } }, "motion",
             hint = "Chirps when the armed phone is bumped or picked up. Never the full siren.",
+        )
+
+        SectionHeader("Display")
+        ChoiceRow(
+            "Theme", Defaults.THEME_CHOICES, dp.theme, ::themeLabel, { v -> onDp { it.copy(theme = v) } }, "theme",
+            hint = "System follows your phone's dark mode. The lock-screen status screen uses the same theme.",
         )
 
         SectionHeader("Photos")

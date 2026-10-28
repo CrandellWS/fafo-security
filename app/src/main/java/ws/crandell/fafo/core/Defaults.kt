@@ -39,4 +39,8 @@ object Defaults {
     const val INTERCOM_CODEC = "AUTO"
 
     const val LABEL_MAX = 24
+
+    /** App and status-screen theme: follow the phone (Bill 2026-10-28), or force LIGHT / DARK. */
+    val THEME_CHOICES = listOf("SYSTEM", "LIGHT", "DARK")
+    const val THEME = "SYSTEM"
 }

@@ -60,7 +60,10 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import ws.crandell.fafo.core.AlarmState
+import ws.crandell.fafo.ui.theme.FafoBrand
 import ws.crandell.fafo.ui.theme.FafoColors
+import ws.crandell.fafo.ui.theme.contentOn
+import ws.crandell.fafo.ui.theme.LocalFafoTokens
 import ws.crandell.fafo.ui.theme.FafoType
 import ws.crandell.fafo.ui.theme.LocalFafoStateColors
 
@@ -110,7 +113,8 @@ fun FafoTopBar(
     onBack: (() -> Unit)? = null,
     onSettings: (() -> Unit)? = null,
 ) {
-    Surface(color = FafoColors.Navy, modifier = modifier.fillMaxWidth()) {
+    val dark = LocalFafoTokens.current.isDark
+    Surface(color = FafoColors.Navy, modifier = modifier.fillMaxWidth(), shadowElevation = if (dark) 0.dp else 1.dp) {
         Row(
             Modifier.padding(top = topInset()).height(64.dp).padding(horizontal = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -158,7 +162,8 @@ fun FafoBottomBar(items: List<BarItem>, selected: String, onSelect: (String) -> 
                 onClick = { onSelect(item.key) },
                 icon = {
                     if (item.badge > 0) {
-                        BadgedBox(badge = { Badge(containerColor = FafoColors.Amber, contentColor = FafoColors.Ink) { Text("${item.badge}") } }) {
+                        val amber = FafoColors.Amber
+                        BadgedBox(badge = { Badge(containerColor = amber, contentColor = contentOn(amber)) { Text("${item.badge}") } }) {
                             Icon(item.icon, contentDescription = null)
                         }
                     } else {
@@ -168,7 +173,7 @@ fun FafoBottomBar(items: List<BarItem>, selected: String, onSelect: (String) -> 
                 label = { AutoFitText(item.label, style = MaterialTheme.typography.labelSmall, minFontSize = 9.sp, sample = longest) },
                 alwaysShowLabel = true,
                 colors = NavigationBarItemDefaults.colors(
-                    selectedIconColor = FafoColors.White,
+                    selectedIconColor = FafoBrand.White,
                     selectedTextColor = FafoColors.White,
                     indicatorColor = FafoColors.Red,
                     unselectedIconColor = FafoColors.Steel,
@@ -256,7 +261,7 @@ fun PrimaryActionButton(
     busy: Boolean = false,
 ) {
     val (bg, fg) = when (kind) {
-        ActionKind.ARM -> FafoColors.Red to FafoColors.White
+        ActionKind.ARM -> FafoColors.Red to FafoBrand.White
         ActionKind.DISARM -> FafoColors.White to FafoColors.Ink
     }
     Button(
@@ -310,7 +315,7 @@ fun StateBadge(text: String, color: Color, modifier: Modifier = Modifier, filled
             Box(Modifier.size(8.dp).clip(CircleShape).background(color))
             Spacer(Modifier.width(8.dp))
         }
-        Text(text, style = MaterialTheme.typography.labelLarge, color = if (filled) FafoColors.Ink else color)
+        Text(text, style = MaterialTheme.typography.labelLarge, color = if (filled) contentOn(color) else color)
     }
 }
 
@@ -318,20 +323,21 @@ fun StateBadge(text: String, color: Color, modifier: Modifier = Modifier, filled
 @Composable
 fun Banner(text: String, action: String, color: Color, onClick: () -> Unit, modifier: Modifier = Modifier, icon: ImageVector? = null) {
     val base = modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(color)
+    val on = contentOn(color)
     Row(
         (if (action.isNotEmpty()) base.clickable(onClick = onClick) else base).heightIn(min = 56.dp).padding(horizontal = 16.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         if (icon != null) {
-            Icon(icon, contentDescription = null, tint = FafoColors.Ink, modifier = Modifier.size(24.dp))
+            Icon(icon, contentDescription = null, tint = on, modifier = Modifier.size(24.dp))
             Spacer(Modifier.width(12.dp))
         }
         // A sentence, not a headline: up to two lines; the action label shrinks to leave it room.
-        Text(text, style = MaterialTheme.typography.titleMedium, color = FafoColors.Ink, maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(2f))
+        Text(text, style = MaterialTheme.typography.titleMedium, color = on, maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(2f))
         if (action.isNotEmpty()) {
             Spacer(Modifier.width(8.dp))
-            AutoFitText(action, style = MaterialTheme.typography.labelLarge, color = FafoColors.Ink, minFontSize = 11.sp, modifier = Modifier.weight(1f, fill = false))
-            Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = FafoColors.Ink)
+            AutoFitText(action, style = MaterialTheme.typography.labelLarge, color = on, minFontSize = 11.sp, modifier = Modifier.weight(1f, fill = false))
+            Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = on)
         }
     }
 }

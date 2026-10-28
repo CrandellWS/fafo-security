@@ -53,6 +53,7 @@ import ws.crandell.fafo.ui.screens.OnboardingScreen
 import ws.crandell.fafo.ui.screens.SettingsScreen
 import ws.crandell.fafo.ui.screens.TrustedScreen
 import ws.crandell.fafo.ui.theme.FafoTheme
+import ws.crandell.fafo.ui.theme.ThemeMode
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.CompositionLocalProvider
@@ -93,7 +94,14 @@ class ScreenshotTest {
     private fun path(name: String) = "build/outputs/roborazzi/$name.png"
 
     private fun shot(name: String, content: @Composable () -> Unit) {
-        rule.setContent { FafoTheme { content() } }
+        rule.setContent { FafoTheme(ThemeMode.DARK) { content() } }
+        rule.waitForIdle()
+        rule.onRoot().captureRoboImage(path(name))
+    }
+
+    /** The light theme (Settings > Display > Light, or the phone in light mode). */
+    private fun shotLight(name: String, content: @Composable () -> Unit) {
+        rule.setContent { FafoTheme(ThemeMode.LIGHT) { content() } }
         rule.waitForIdle()
         rule.onRoot().captureRoboImage(path(name))
     }
@@ -102,7 +110,7 @@ class ScreenshotTest {
     private fun shotFs(name: String, fontScale: Float, content: @Composable () -> Unit) {
         rule.setContent {
             val d = LocalDensity.current
-            CompositionLocalProvider(LocalDensity provides Density(d.density, fontScale)) { FafoTheme { content() } }
+            CompositionLocalProvider(LocalDensity provides Density(d.density, fontScale)) { FafoTheme(ThemeMode.DARK) { content() } }
         }
         rule.waitForIdle()
         rule.onRoot().captureRoboImage(path(name))
@@ -110,7 +118,7 @@ class ScreenshotTest {
 
     /** Dialogs live in their own window: capture the whole screen. */
     private fun screenShot(name: String, content: @Composable () -> Unit) {
-        rule.setContent { FafoTheme { content() } }
+        rule.setContent { FafoTheme(ThemeMode.DARK) { content() } }
         rule.waitForIdle()
         captureScreenRoboImage(path(name))
     }
@@ -153,6 +161,19 @@ class ScreenshotTest {
     }
 
     @Test fun s44_home_arming_dark() = shot("44_home_arming_dark") {
+        Home(ready.copy(alarmState = AlarmState.Arming(0, 5_000), arming = true, armingLeftS = 4, stateLabel = "Arming (4 s)"))
+    }
+
+    // ---- Light theme -------------------------------------------------------------------------------
+
+    @Test fun s39_home_light_disarmed() = shotLight("39_home_light_disarmed") { Home(ready.copy(checklist = threeLeft)) }
+    @Test fun s40_home_light_armed() = shotLight("40_home_light_armed") { Home(armed) }
+    @Config(qualifiers = TALLER)
+    @Test fun s41_settings_light() = shotLight("41_settings_light") { Settings(DpSettings(theme = "LIGHT")) }
+    @Test fun s42_help_light() = shotLight("42_help_light") { Shell(Tab.HELP) { m -> HelpScreen(null, {}, {}, m) } }
+    @Config(qualifiers = TALL)
+    @Test fun s43_setup_light() = shotLight("43_setup_light") { Setup(partial) }
+    @Test fun s45_home_arming_light() = shotLight("45_home_arming_light") {
         Home(ready.copy(alarmState = AlarmState.Arming(0, 5_000), arming = true, armingLeftS = 4, stateLabel = "Arming (4 s)"))
     }
 

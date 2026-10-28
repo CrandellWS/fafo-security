@@ -20,6 +20,12 @@ import kotlinx.coroutines.launch
 import ws.crandell.fafo.core.AlarmState
 import ws.crandell.fafo.core.AlarmStatusBus
 import ws.crandell.fafo.ui.theme.FafoTheme
+import ws.crandell.fafo.ui.theme.ThemeMode
+import ws.crandell.fafo.ui.theme.applySystemBars
+import ws.crandell.fafo.ui.theme.isDark
+import ws.crandell.fafo.storage.DpStore
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 
 /**
  * Full-screen alarm over the lock screen. directBootAware, showWhenLocked, turnScreenOn (manifest).
@@ -85,5 +91,10 @@ private fun AlarmContent() {
             delay(if (AlarmActivity.isAlarming(state) && state !is AlarmState.PreAlarm) 100 else 250)
         }
     }
-    FafoTheme { AlarmScreen(state, now, photosOn = camera && !paused) }
+    val ctx = androidx.compose.ui.platform.LocalContext.current
+    val theme by remember { DpStore.get(ctx).settings }.collectAsStateWithLifecycle(null)
+    val mode = ThemeMode.parse(theme?.theme)
+    val dark = mode.isDark()
+    LaunchedEffect(dark) { (ctx as? ComponentActivity)?.let { applySystemBars(it, dark) } }
+    FafoTheme(mode) { AlarmScreen(state, now, photosOn = camera && !paused) }
 }

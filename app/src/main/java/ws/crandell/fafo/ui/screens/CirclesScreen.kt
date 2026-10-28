@@ -57,6 +57,7 @@ import ws.crandell.fafo.pairing.TrustedDevice
 import ws.crandell.fafo.ui.components.FafoCard
 import ws.crandell.fafo.ui.components.FafoDims
 import ws.crandell.fafo.ui.components.SectionHeader
+import ws.crandell.fafo.ui.theme.FafoBrand
 import ws.crandell.fafo.ui.theme.FafoColors
 
 /** Callbacks of the Circles screen (F8). */
@@ -121,7 +122,7 @@ fun CirclesScreen(
             )
             Button(
                 onClick = { actions.createCircle(newName); newName = "" }, enabled = newName.isNotBlank(),
-                colors = ButtonDefaults.buttonColors(containerColor = FafoColors.Red, contentColor = FafoColors.White),
+                colors = ButtonDefaults.buttonColors(containerColor = FafoColors.Red, contentColor = FafoBrand.White),
                 modifier = Modifier.heightIn(min = 56.dp),
             ) { Text("Create") }
         }
@@ -270,7 +271,7 @@ fun InviteDialog(invite: IncomingInvite, onAnswer: (Set<Permission>?) -> Unit) {
         confirmButton = {
             Button(
                 onClick = { onAnswer(chosen) },
-                colors = ButtonDefaults.buttonColors(containerColor = FafoColors.Red, contentColor = FafoColors.White),
+                colors = ButtonDefaults.buttonColors(containerColor = FafoColors.Red, contentColor = FafoBrand.White),
                 modifier = Modifier.heightIn(min = 48.dp).testTag("inviteAccept"),
             ) { Text("Accept") }
         },
@@ -290,7 +291,7 @@ fun DevicesSwitcher(pane: DevicesPane, onPane: (DevicesPane) -> Unit, modifier: 
                 onClick = { onPane(p) },
                 shape = SegmentedButtonDefaults.itemShape(i, DevicesPane.entries.size),
                 colors = SegmentedButtonDefaults.colors(
-                    activeContainerColor = FafoColors.Red, activeContentColor = FafoColors.White, activeBorderColor = FafoColors.Red,
+                    activeContainerColor = FafoColors.Red, activeContentColor = FafoBrand.White, activeBorderColor = FafoColors.Red,
                     inactiveContainerColor = FafoColors.Surface1, inactiveContentColor = FafoColors.White, inactiveBorderColor = FafoColors.Outline,
                 ),
                 modifier = Modifier.heightIn(min = 48.dp).testTag("pane_${p.name}"),

@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Android 12+ launch screen: the adaptive shield icon on Ink. -->
-    <style name="Theme.Fafo" parent="android:Theme.Material.NoActionBar">
-        <item name="android:windowBackground">@color/fafo_ink</item>
-        <item name="android:colorBackground">@color/fafo_ink</item>
+    <!-- Android 12+ launch screen, light: the adaptive shield icon (navy tile) on Paper. -->
+    <style name="Theme.Fafo" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@color/fafo_paper</item>
+        <item name="android:colorBackground">@color/fafo_paper</item>
         <item name="android:colorAccent">@color/fafo_red</item>
-        <item name="android:windowSplashScreenBackground">@color/fafo_ink</item>
+        <item name="android:windowSplashScreenBackground">@color/fafo_paper</item>
         <item name="android:windowSplashScreenIconBackgroundColor">@color/fafo_navy</item>
     </style>
 </resources>

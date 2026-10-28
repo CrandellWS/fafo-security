@@ -30,6 +30,8 @@ data class DpSettings(
     val motion: String = Defaults.MOTION,
     val unlockGraceS: Int = Defaults.UNLOCK_GRACE_S,
     val armingS: Int = Defaults.ARMING_S,
+    /** SYSTEM / LIGHT / DARK. DP so the lock-screen status screen can read it before first unlock. */
+    val theme: String = Defaults.THEME,
 ) {
     fun alarmConfig() = AlarmConfig(sensitivityMs, preAlarmS * 1000L, disarmOnUnlock, armingS * 1000L)
 }
@@ -97,6 +99,7 @@ class DpStore(private val store: DataStore<Preferences>) {
         it[MOTION] = n.motion
         it[UNLOCK_GRACE_S] = n.unlockGraceS
         it[ARMING_S] = n.armingS
+        it[THEME] = n.theme
     }
 
     private fun Preferences.toSettings() = DpSettings(
@@ -108,6 +111,7 @@ class DpStore(private val store: DataStore<Preferences>) {
         motion = this[MOTION] ?: Defaults.MOTION,
         unlockGraceS = this[UNLOCK_GRACE_S] ?: Defaults.UNLOCK_GRACE_S,
         armingS = this[ARMING_S] ?: Defaults.ARMING_S,
+        theme = this[THEME] ?: Defaults.THEME,
     )
 
     private fun Preferences.toState() = DpState(
@@ -134,6 +138,7 @@ class DpStore(private val store: DataStore<Preferences>) {
         private val MOTION = stringPreferencesKey("motion")
         private val UNLOCK_GRACE_S = intPreferencesKey("unlock_grace_s")
         private val ARMING_S = intPreferencesKey("arming_s")
+        private val THEME = stringPreferencesKey("theme")
         private val ARMED_AT = longPreferencesKey("armed_at")
         private val LAST_SCREEN_OFF_AT = longPreferencesKey("last_screen_off_at")
         private val LAST_USER_PRESENT_AT = longPreferencesKey("last_user_present_at")

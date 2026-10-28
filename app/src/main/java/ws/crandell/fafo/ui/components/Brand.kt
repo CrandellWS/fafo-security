@@ -26,6 +26,7 @@ import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import ws.crandell.fafo.R
 import ws.crandell.fafo.ui.theme.Barlow
+import ws.crandell.fafo.ui.theme.FafoBrand
 import ws.crandell.fafo.ui.theme.FafoColors
 
 /** Width / height of the shield art (fafo_shield.webp). */
@@ -59,10 +60,10 @@ fun ShieldLogo(height: Dp, modifier: Modifier = Modifier, haloOnRed: Boolean = f
  */
 @Composable
 fun FafoWordmark(modifier: Modifier = Modifier, size: TextUnit = 22.sp, stacked: Boolean = false, onRed: Boolean = false) {
-    val fafo = TextStyle(fontFamily = Barlow, fontWeight = FontWeight.ExtraBold, fontSize = size, letterSpacing = 0.08.em, color = FafoColors.White)
+    val fafo = TextStyle(fontFamily = Barlow, fontWeight = FontWeight.ExtraBold, fontSize = size, letterSpacing = 0.08.em, color = if (onRed) FafoBrand.White else FafoColors.White)
     val sec = TextStyle(
         fontFamily = Barlow, fontWeight = FontWeight.Bold, letterSpacing = 0.18.em,
-        fontSize = if (stacked) size * 0.42f else size, color = if (onRed) FafoColors.White else FafoColors.RedText,
+        fontSize = if (stacked) size * 0.42f else size, color = if (onRed) FafoBrand.White else FafoColors.RedText,
     )
     val m = modifier.semantics(mergeDescendants = true) { contentDescription = "FAFO Security" }
     if (stacked) {

@@ -117,7 +117,7 @@ private fun TopicCard(t: HelpTopic, open: Boolean, onToggle: () -> Unit, onLink:
                 .semantics { stateDescription = if (open) "Expanded" else "Collapsed" },
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Box(Modifier.size(40.dp).clip(RoundedCornerShape(12.dp)).background(FafoColors.Navy), contentAlignment = Alignment.Center) {
+            Box(Modifier.size(40.dp).clip(RoundedCornerShape(12.dp)).background(FafoColors.Surface2), contentAlignment = Alignment.Center) {
                 Icon(helpIcon(t.icon), contentDescription = null, tint = FafoColors.RedText, modifier = Modifier.size(24.dp))
             }
             Spacer(Modifier.width(14.dp))

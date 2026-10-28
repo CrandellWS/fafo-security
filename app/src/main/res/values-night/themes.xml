@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Dark (night) window: Ink from the first frame, so there is no white flash at launch. -->
+    <style name="Theme.Fafo" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/fafo_ink</item>
+        <item name="android:colorBackground">@color/fafo_ink</item>
+        <item name="android:colorAccent">@color/fafo_red</item>
+    </style>
+</resources>

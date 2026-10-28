@@ -41,6 +41,7 @@ import ws.crandell.fafo.ui.components.FafoCard
 import ws.crandell.fafo.ui.components.FafoDims
 import ws.crandell.fafo.ui.components.FafoIcons
 import ws.crandell.fafo.ui.components.SectionHeader
+import ws.crandell.fafo.ui.theme.FafoBrand
 import ws.crandell.fafo.ui.theme.FafoColors
 import ws.crandell.fafo.ui.theme.FafoType
 import java.text.DateFormat
@@ -80,7 +81,7 @@ fun TrustedScreen(
                 Spacer(Modifier.height(10.dp))
                 Button(
                     onClick = onRequestNearby,
-                    colors = ButtonDefaults.buttonColors(containerColor = FafoColors.Red, contentColor = FafoColors.White),
+                    colors = ButtonDefaults.buttonColors(containerColor = FafoColors.Red, contentColor = FafoBrand.White),
                     modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp).testTag("nearbyButton"),
                 ) { Text("Allow Nearby devices") }
             }
@@ -88,7 +89,7 @@ fun TrustedScreen(
             extra()
             Button(
                 onClick = onShowThisPhone,
-                colors = ButtonDefaults.buttonColors(containerColor = FafoColors.Red, contentColor = FafoColors.White),
+                colors = ButtonDefaults.buttonColors(containerColor = FafoColors.Red, contentColor = FafoBrand.White),
                 shape = RoundedCornerShape(18.dp),
                 modifier = Modifier.fillMaxWidth().heightIn(min = 64.dp).testTag("showThisPhone"),
             ) { Text("Show this phone", style = MaterialTheme.typography.titleMedium) }
@@ -108,7 +109,7 @@ fun TrustedScreen(
         devices.forEach { d ->
             FafoCard(Modifier.testTag("device_${d.fingerprint}")) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(Modifier.size(44.dp).clip(RoundedCornerShape(12.dp)).background(FafoColors.Navy), contentAlignment = Alignment.Center) {
+                    Box(Modifier.size(44.dp).clip(RoundedCornerShape(12.dp)).background(FafoColors.Surface2), contentAlignment = Alignment.Center) {
                         Icon(FafoIcons.Devices, contentDescription = null, tint = FafoColors.White, modifier = Modifier.size(26.dp))
                     }
                     Spacer(Modifier.width(14.dp))
@@ -165,7 +166,7 @@ fun PairingDialog(state: PairingState, onAnswerCode: (Boolean) -> Unit, onCancel
             confirmButton = {
                 Button(
                     onClick = { onAnswerCode(true) },
-                    colors = ButtonDefaults.buttonColors(containerColor = FafoColors.Red, contentColor = FafoColors.White),
+                    colors = ButtonDefaults.buttonColors(containerColor = FafoColors.Red, contentColor = FafoBrand.White),
                     modifier = Modifier.heightIn(min = 48.dp).testTag("codeMatches"),
                 ) { Text("Codes match") }
             },

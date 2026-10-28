@@ -245,7 +245,13 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     fun markOnboarding(flag: String) = viewModelScope.launch { ce.markOnboarding(flag) }
 
-    fun updateDp(t: (DpSettings) -> DpSettings) = viewModelScope.launch { dp.update(t) }
+    fun updateDp(t: (DpSettings) -> DpSettings) = viewModelScope.launch {
+        val before = dpSettings.value.theme
+        dp.update(t)
+        val after = dp.readSettings().theme
+        // Android 12+: the launch screen follows a forced Light / Dark theme from the next start on.
+        if (after != before) ws.crandell.fafo.ui.theme.applyAppNightMode(ctx, ws.crandell.fafo.ui.theme.ThemeMode.parse(after))
+    }
     fun updateCe(t: (CeSettings) -> CeSettings) = viewModelScope.launch { ce.update(t) }
 
     override fun onCleared() {

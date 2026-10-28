@@ -65,6 +65,7 @@ fun closeLabel(s: IncidentSidecar): String = when (s.closeReason) {
     else -> s.closeReason
 }
 
+@Composable
 private fun closeColor(s: IncidentSidecar): Color = when (s.closeReason) {
     null -> FafoColors.RedText
     "RESET_REMOTE", "DISARMED_REMOTE" -> FafoColors.Guard

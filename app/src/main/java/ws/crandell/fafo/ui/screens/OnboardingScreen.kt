@@ -45,6 +45,7 @@ import ws.crandell.fafo.ui.components.FafoCard
 import ws.crandell.fafo.ui.components.FafoDims
 import ws.crandell.fafo.ui.components.SectionHeader
 import ws.crandell.fafo.ui.components.ShieldLogo
+import ws.crandell.fafo.ui.theme.FafoBrand
 import ws.crandell.fafo.ui.theme.FafoColors
 
 fun actionLabel(step: OnboardingStep): String = when (step) {
@@ -166,7 +167,7 @@ private fun StepItem(
                 } else {
                     Button(
                         onClick = { onAction(step) },
-                        colors = ButtonDefaults.buttonColors(containerColor = FafoColors.Red, contentColor = FafoColors.White),
+                        colors = ButtonDefaults.buttonColors(containerColor = FafoColors.Red, contentColor = FafoBrand.White),
                         modifier = Modifier.heightIn(min = 48.dp).testTag("action_${step.name}"),
                     ) { Text(actionLabel(step)) }
                 }

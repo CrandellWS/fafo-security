@@ -26,6 +26,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import ws.crandell.fafo.ui.theme.FafoBrand
 import ws.crandell.fafo.ui.theme.FafoColors
 
 /** 48dp chip colors: selected = brand red with white text and a check, unselected = outlined. */
@@ -34,8 +35,8 @@ fun fafoChipColors() = FilterChipDefaults.filterChipColors(
     containerColor = FafoColors.Surface1,
     labelColor = FafoColors.White,
     selectedContainerColor = FafoColors.Red,
-    selectedLabelColor = FafoColors.White,
-    selectedLeadingIconColor = FafoColors.White,
+    selectedLabelColor = FafoBrand.White,
+    selectedLeadingIconColor = FafoBrand.White,
     disabledContainerColor = FafoColors.Surface1,
     disabledLabelColor = FafoColors.TextMuted,
 )

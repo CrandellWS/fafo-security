@@ -527,6 +527,7 @@ All settings live in DataStore. Settings needed at boot (marked DP) live in a de
 | Disarm on unlock (while armed, not triggered) | on/off | off | DP |
 | Unlock grace window (Arm skips the prompt this long after an unlock; Disarm only after a lock and unlock after arming, AC1.7) | Off, 15, 30, 60, 120 s | 30 s | DP (the key itself lives in Keystore) |
 | Arming countdown (ARMING before ARMED) | 3, 5, 10 s | 5 s | DP |
+| Theme (app and status screen; round 3 replaces dark-only) | System / Light / Dark | System (follows the phone) | DP (the lock-screen status screen reads it before first unlock) |
 | Motion chirps | Off / Low / Medium / High | Medium | DP |
 | Photo on trigger | on/off | on | CE |
 | Photo interval | 5–30 s (step 5) | 10 s | CE |

@@ -71,6 +71,9 @@ import ws.crandell.fafo.ui.screens.SettingsScreen
 import ws.crandell.fafo.ui.screens.TrustedScreen
 import ws.crandell.fafo.ui.theme.FafoColors
 import ws.crandell.fafo.ui.theme.FafoTheme
+import ws.crandell.fafo.ui.theme.ThemeMode
+import ws.crandell.fafo.ui.theme.isDark
+import ws.crandell.fafo.ui.theme.applySystemBars
 import java.io.File
 
 /** FragmentActivity (a ComponentActivity) so BiometricPrompt can attach. */
@@ -99,12 +102,21 @@ class MainActivity : FragmentActivity() {
         }
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        // Dark-only UI: light status / navigation bar icons whatever the system theme is.
-        enableEdgeToEdge(SystemBarStyle.dark(AndroidColor.TRANSPARENT), SystemBarStyle.dark(AndroidColor.TRANSPARENT))
+        // System bars follow the theme (System / Light / Dark setting); updated once the setting is read.
+        enableEdgeToEdge(
+            SystemBarStyle.auto(AndroidColor.TRANSPARENT, AndroidColor.TRANSPARENT),
+            SystemBarStyle.auto(AndroidColor.TRANSPARENT, AndroidColor.TRANSPARENT),
+        )
         super.onCreate(savedInstanceState)
         vm.gate.target = BiometricCredentialGate(this)
         PeerNetwork.gate.target = vm.gate.target
-        setContent { FafoTheme { AppRoot() } }
+        setContent {
+            val dp by vm.dpSettings.collectAsStateWithLifecycle()
+            val mode = ThemeMode.parse(dp.theme)
+            val dark = mode.isDark()
+            LaunchedEffect(dark) { applySystemBars(this@MainActivity, dark) }
+            FafoTheme(mode) { AppRoot() }
+        }
         if (savedInstanceState == null) takeDisarmRequest(intent)
     }
 
