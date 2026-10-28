@@ -219,7 +219,8 @@ over Bluetooth, end-to-end encrypted with the paired keys.
   bumps within 8 s go ORANGE with the louder chirp; one more close bump, or a pickup, starts a MOTION
   pre-alarm, but only while the phone is locked and the setting "Motion can sound the alarm" is on
   (default on). Unlocked, or with the setting off, the ladder stops at ORANGE (chirps only). Left untouched
-  for 60 s the ladder cools back to GREEN. A MOTION pre-alarm lasts at least 5 s whatever the pre-alarm
+  for the "Bump reset time" (10, 15, 30 or 60 s; default 15 s; Bill 2026-10-28, was a fixed 60 s) the ladder
+  cools back to GREEN. A MOTION pre-alarm lasts at least 5 s whatever the pre-alarm
   setting, and plugging in does not cancel it (unlock or Disarm does). Motion Off disables the ladder.
 - AC4.6 Status screen (round 3): a big centered shield (about 75% of the width in portrait, 75% of the
   height in landscape) with the wordmark under or beside it. Stripes carry the status color: brand red
@@ -587,6 +588,7 @@ All settings live in DataStore. Settings needed at boot (marked DP) live in a de
 | Arming countdown (ARMING before ARMED) | 3, 5, 10 s | 5 s | DP |
 | Flash as alarm light (AC2.10) | on/off | on | DP |
 | Motion can sound the alarm (AC4.2) | on/off | on | DP |
+| Bump reset time (AC4.2: untouched this long, the ladder cools back to GREEN) | 10, 15, 30, 60 s | 15 s | DP |
 | Theme (app and status screen; round 3 replaces dark-only) | System / Light / Dark | System (follows the phone) | DP (the lock-screen status screen reads it before first unlock) |
 | Motion chirps | Off / Low / Medium / High | Medium | DP |
 | Photo on trigger | on/off | on | CE |

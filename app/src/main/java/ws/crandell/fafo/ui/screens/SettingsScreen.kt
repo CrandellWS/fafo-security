@@ -92,7 +92,12 @@ fun SettingsScreen(
         ChoiceRow(
             "Motion chirps", listOf("OFF", "LOW", "MEDIUM", "HIGH"), dp.motion,
             { it.lowercase().replaceFirstChar(Char::uppercase) }, { v -> onDp { it.copy(motion = v) } }, "motion",
-            hint = "A bump chirps and turns the status yellow; repeated bumps go orange. Left alone for a minute it goes back to green.",
+            hint = "A bump chirps and turns the status yellow; repeated bumps go orange. Left alone it goes back to green.",
+        )
+        ChoiceRow(
+            "Bump reset time", Defaults.BUMP_RESET_CHOICES_S, dp.bumpResetS, { "$it s" },
+            { v -> onDp { it.copy(bumpResetS = v) } }, "bumpReset",
+            hint = "How long after the last bump the status stays yellow or orange before going back to green.",
         )
         SwitchRow(
             "Motion can sound the alarm", dp.motionCanAlarm, { v -> onDp { it.copy(motionCanAlarm = v) } }, "motionCanAlarm",

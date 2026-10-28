@@ -26,6 +26,9 @@ object Defaults {
     const val MOTION = "MEDIUM" // OFF / LOW / MEDIUM / HIGH
     /** Round 3 (Bill's bump ladder): continued handling or a pickup while locked starts the pre-alarm. */
     const val MOTION_CAN_ALARM = true
+    /** Bump reset time (Bill 2026-10-28): how long after the last bump the status goes back to green. Was a fixed 60 s. */
+    val BUMP_RESET_CHOICES_S = listOf(10, 15, 30, 60)
+    const val BUMP_RESET_S = 15
     /** Camera torch as the alarm light (Bill 2026-10-28, approved). */
     const val FLASH_ALARM = true
 

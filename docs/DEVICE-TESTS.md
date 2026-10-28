@@ -219,7 +219,7 @@ Install only after Bill approves the screenshots.
 - [ ] With Samsung Extend Unlock / Smart Lock on (if you use it): lock, let it unlock without PIN, Disarm: asks.
 - [ ] Reboot while ARMING: comes back DISARMED.
 - [ ] Status screen (Home > Full-screen status): green shield, red eye; bump the phone once: yellow + chirp;
-  bump again within 8 s: orange + louder chirp + slow flash blink; leave it a minute: back to green.
+  bump again within 8 s: orange + louder chirp + slow flash blink; leave it for the Bump reset time (15 s by default; Settings > Motion, 10/15/30/60 s): back to green.
   With the phone locked, keep handling it or pick it up: orange countdown (at least 5 s) then the siren;
   unlock stops it. Turn off "Motion can sound the alarm": handling only chirps.
 - [ ] At RED the whole screen flashes red, the torch strobes; both stop on unlock. Torch goes dark briefly

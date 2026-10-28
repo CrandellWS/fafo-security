@@ -103,8 +103,9 @@ object HelpContent {
         HelpTopic(
             "motion", "Motion chirps", "Short chirps if the armed phone is bumped or picked up", HelpIcon.MOTION,
             listOf(
-                HelpSection(text = "While armed, a bump gives one short chirp and a pick-up gives three louder ones. Motion never starts the full siren; only unplugging does."),
+                HelpSection(text = "While armed, a bump gives one short chirp and turns the status yellow; repeated bumps or a pick-up give three louder ones and turn it orange. While locked, continued handling can start the countdown (Settings > Motion can sound the alarm)."),
                 HelpSection("Sensitivity", "Settings > Motion chirps: Off, Low, Medium (default) or High."),
+                HelpSection("Bump reset time", "Settings > Bump reset time: how long after the last bump the status stays yellow or orange before going back to green. 10, 15 (default), 30 or 60 s."),
             ),
         ),
         HelpTopic(
@@ -261,7 +262,7 @@ object HelpContent {
                 HelpSection(
                     "Bumps can set off the alarm",
                     "While the phone is locked, continued handling or picking it up starts the countdown (at least 5 s, so you can unlock). " +
-                        "Left alone for about a minute it goes back to green. Turn off \"Motion can sound the alarm\" in Settings for chirps only.",
+                        "Left alone it goes back to green after the Bump reset time (Settings > Motion: 10, 15, 30 or 60 s; 15 s by default). Turn off \"Motion can sound the alarm\" in Settings for chirps only.",
                 ),
             ),
         ),

@@ -339,7 +339,7 @@ class ArmService : LifecycleService() {
     }
 
     /** Bump escalation while ARMED (Bill 2026-10-28): colors, chirps, cool-down and the motion pre-alarm. */
-    private val ladder = ThreatLadder()
+    private val ladder = ThreatLadder(coolMsSetting = { (dpSettings ?: DpSettings()).bumpResetS * 1000L })
     private val chirpLimiter = ChirpLimiter()
     private var coolJob: Job? = null
 
@@ -357,8 +357,9 @@ class ArmService : LifecycleService() {
         }
         publishThreat()
         coolJob?.cancel()
+        val coolMs = ladder.coolMs
         coolJob = lifecycleScope.launch {
-            delay(ThreatLadder.COOL_MS)
+            delay(coolMs)
             if (ladder.tick(ArmDeps.clock.now())) publishThreat()
         }
     }

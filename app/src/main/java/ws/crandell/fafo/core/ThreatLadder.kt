@@ -15,14 +15,21 @@ sealed interface LadderEffect {
 
 /**
  * Bump escalation (Bill 2026-10-28): one bump turns the status YELLOW with a chirp; repeated bumps close
- * together go ORANGE (louder); continued handling or a pickup starts the pre-alarm; left alone for about a
- * minute it cools back to GREEN. Pure: the caller passes the clock, so tests drive it.
+ * together go ORANGE (louder); continued handling or a pickup starts the pre-alarm; left alone for the
+ * "Bump reset time" setting (10/15/30/60 s, default 15 s) it cools back to GREEN. Pure: the caller passes
+ * the clock and the reset time, so tests drive it.
  *
  * Escalation to the pre-alarm needs [mayAlarm] (phone locked and "Motion can alarm" on). Without it the
  * ladder still shows the colors and chirps but stops at ORANGE: the owner handling the unlocked phone, or
  * the v1 chirp-only behavior.
  */
-class ThreatLadder(private val closeMs: Long = CLOSE_MS, private val coolMs: Long = COOL_MS) {
+class ThreatLadder(
+    private val closeMs: Long = CLOSE_MS,
+    private val coolMsSetting: () -> Long = { Defaults.BUMP_RESET_S * 1000L },
+) {
+    /** Untouched this long: back to GREEN. Read live, so a Settings change applies to the next bump. */
+    val coolMs: Long get() = coolMsSetting()
+
     var level: ThreatLevel = ThreatLevel.GREEN
         private set
     private var lastBumpAt: Long? = null
@@ -71,7 +78,5 @@ class ThreatLadder(private val closeMs: Long = CLOSE_MS, private val coolMs: Lon
     companion object {
         /** Bumps this close together count as "repeated". */
         const val CLOSE_MS = 8_000L
-        /** Untouched this long: back to GREEN. */
-        const val COOL_MS = 60_000L
     }
 }

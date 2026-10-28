@@ -366,6 +366,8 @@ class ScreenshotTest {
     @Config(qualifiers = TALLER)
     @Test fun s17_settings_grace_off() = shot("17_settings_grace_off") { Settings(DpSettings(unlockGraceS = 0)) }
     @Config(qualifiers = TALLER)
+    @Test fun s18b_settings_bump_reset_60() = shot("18b_settings_bump_reset_60") { Settings(DpSettings(bumpResetS = 60)) }
+    @Config(qualifiers = TALLER)
     @Test fun s18_settings_before_unlock() = shot("18_settings_before_unlock") { Settings(ce = null) }
 
     // ---- Setup and Help ---------------------------------------------------------------------------

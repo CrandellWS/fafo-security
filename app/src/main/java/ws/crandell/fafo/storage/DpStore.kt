@@ -34,6 +34,8 @@ data class DpSettings(
     val theme: String = Defaults.THEME,
     /** Continued handling or a pickup while locked starts the pre-alarm (round 3). Off: chirps only. */
     val motionCanAlarm: Boolean = Defaults.MOTION_CAN_ALARM,
+    /** Bump reset time: seconds after the last bump before the status cools back to green. DP: the armed service reads it before first unlock. */
+    val bumpResetS: Int = Defaults.BUMP_RESET_S,
     /** Camera torch as the alarm light (strobe at RED, blink at ORANGE). DP: the alarm can run before first unlock. */
     val flashAlarm: Boolean = Defaults.FLASH_ALARM,
 ) {
@@ -105,6 +107,7 @@ class DpStore(private val store: DataStore<Preferences>) {
         it[ARMING_S] = n.armingS
         it[THEME] = n.theme
         it[MOTION_CAN_ALARM] = n.motionCanAlarm
+        it[BUMP_RESET_S] = n.bumpResetS
         it[FLASH_ALARM] = n.flashAlarm
     }
 
@@ -119,6 +122,7 @@ class DpStore(private val store: DataStore<Preferences>) {
         armingS = this[ARMING_S] ?: Defaults.ARMING_S,
         theme = this[THEME] ?: Defaults.THEME,
         motionCanAlarm = this[MOTION_CAN_ALARM] ?: Defaults.MOTION_CAN_ALARM,
+        bumpResetS = this[BUMP_RESET_S] ?: Defaults.BUMP_RESET_S,
         flashAlarm = this[FLASH_ALARM] ?: Defaults.FLASH_ALARM,
     )
 
@@ -149,6 +153,7 @@ class DpStore(private val store: DataStore<Preferences>) {
         private val THEME = stringPreferencesKey("theme")
         private val MOTION_CAN_ALARM = booleanPreferencesKey("motion_can_alarm")
         private val FLASH_ALARM = booleanPreferencesKey("flash_alarm")
+        private val BUMP_RESET_S = intPreferencesKey("bump_reset_s")
         private val ARMED_AT = longPreferencesKey("armed_at")
         private val LAST_SCREEN_OFF_AT = longPreferencesKey("last_screen_off_at")
         private val LAST_USER_PRESENT_AT = longPreferencesKey("last_user_present_at")
