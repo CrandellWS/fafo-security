@@ -1,0 +1,34 @@
+package ws.crandell.fafo.core
+
+/** Spec section 4: every setting's choices and default. */
+object Defaults {
+    val SENSITIVITY_CHOICES_MS = listOf(100L, 250L, 500L, 1000L, 2000L, 5000L)
+    const val SENSITIVITY_MS = 500L
+
+    val SIREN_SOUNDS = listOf("Klaxon", "Wail", "Pulse")
+    const val SIREN_SOUND = "Klaxon"
+
+    const val FORCE_MAX_VOLUME = true
+
+    val PRE_ALARM_CHOICES_S = listOf(0, 1, 5, 10, 30, 60)
+    const val PRE_ALARM_S = 5
+
+    const val DISARM_ON_UNLOCK = false
+
+    const val MOTION = "MEDIUM" // OFF / LOW / MEDIUM / HIGH
+
+    const val PHOTO_ON_TRIGGER = true
+    val PHOTO_INTERVAL_CHOICES_S = listOf(5, 10, 15, 20, 25, 30)
+    const val PHOTO_INTERVAL_S = 10
+    const val CAMERA = "FRONT" // FRONT / BACK / ALTERNATE
+    val PHOTO_CAP_CHOICES_MB = listOf(25, 50, 100, 200)
+    const val PHOTO_CAP_MB = 100
+    const val LOW_STORAGE_FLOOR_BYTES = 500L * 1024 * 1024
+
+    const val STAY_REACHABLE = false
+    const val CHIME_ON_LISTEN = true
+    const val INTERCOM_TRANSPORT = "AUTO"
+    const val INTERCOM_CODEC = "AUTO"
+
+    const val LABEL_MAX = 24
+}

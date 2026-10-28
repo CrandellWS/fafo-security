@@ -21,6 +21,7 @@ Built on Bill's workstation (Ubuntu, no sudo used), not a cloud container:
 |---|---|---|
 | M0 Environment | done | `sdkmanager --list_installed` shows platform 36 + build-tools 36.0.0; `java -version` 17 |
 | M1 Gradle + Compose skeleton | done | `./gradlew assembleDebug test` green; APK at `app/build/outputs/apk/debug/app-debug.apk` |
+| M2 State machine + DP/CE storage | done | 26 JVM tests (every spec transition, all sensitivities and pre-alarm values, boot cases) + Robolectric DpStore read-back from the device-protected dir. Robolectric pinned to SDK 35 (`app/src/test/resources/robolectric.properties`): android-all for SDK 36 needs Java 21 and the build is JDK 17. Bug caught by the test: `preferencesDataStoreFile()` resolves through `applicationContext` and would have put the DP store in CE storage; the path is now built from the DP context directly. |
 
 ## Open questions for Bill
 
