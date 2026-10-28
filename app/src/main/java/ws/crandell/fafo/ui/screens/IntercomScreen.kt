@@ -94,12 +94,12 @@ fun IntercomScreen(
             }
         } else {
             SectionHeader("Push-to-talk")
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 intercomCircles.forEach { c -> FafoChip(selected = c.id == circleId, onClick = { circleId = c.id; target = null }, label = c.name) }
             }
             val circle = intercomCircles.firstOrNull { it.id == circleId }
             val members = circle?.members.orEmpty()
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 FafoChip(selected = target == null, onClick = { target = null }, label = "All", modifier = Modifier.testTag("target_All"))
                 members.forEach { m ->
                     FafoChip(
@@ -131,7 +131,7 @@ fun IntercomScreen(
                     "Let the chosen circles listen to this room and talk back. A notification shows the whole time; nothing is recorded.",
                     style = MaterialTheme.typography.bodyMedium, color = FafoColors.TextMuted,
                 )
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 8.dp)) {
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 8.dp)) {
                     intercomCircles.forEach { c ->
                         FafoChip(
                             selected = c.id in roomChoice,

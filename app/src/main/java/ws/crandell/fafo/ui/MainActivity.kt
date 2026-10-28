@@ -329,7 +329,7 @@ class MainActivity : FragmentActivity() {
         val current = chosen ?: circles.firstOrNull()?.id
         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Text("The new device joins:", style = MaterialTheme.typography.titleMedium, color = FafoColors.White)
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 circles.forEach { c -> FafoChip(selected = c.id == current, onClick = { vm.choosePairingCircle(c.id) }, label = c.name) }
             }
         }

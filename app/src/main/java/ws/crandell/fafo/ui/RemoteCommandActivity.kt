@@ -168,7 +168,9 @@ fun RemoteCommandScreen(cmd: Command?, label: String, status: String, step: Int,
                     Row(Modifier.heightIn(min = 44.dp), verticalAlignment = Alignment.CenterVertically) {
                         when (state) {
                             2 -> Icon(Icons.Filled.CheckCircle, contentDescription = null, tint = FafoColors.Guard, modifier = Modifier.size(24.dp))
-                            1 -> CircularProgressIndicator(Modifier.size(22.dp), color = FafoColors.Amber, strokeWidth = 3.dp)
+                            1 -> Box(Modifier.size(24.dp), contentAlignment = Alignment.Center) {
+                                CircularProgressIndicator(Modifier.size(20.dp), color = FafoColors.Amber, strokeWidth = 3.dp, trackColor = FafoColors.Amber.copy(alpha = 0.3f))
+                            }
                             else -> Box(Modifier.size(24.dp).clip(CircleShape).background(FafoColors.Surface2))
                         }
                         Spacer(Modifier.width(14.dp))

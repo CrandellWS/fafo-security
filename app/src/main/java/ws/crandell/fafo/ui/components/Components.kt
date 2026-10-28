@@ -264,7 +264,7 @@ fun PrimaryActionButton(
         modifier = modifier.fillMaxWidth().height(FafoDims.Primary),
     ) {
         if (busy) {
-            CircularProgressIndicator(Modifier.size(26.dp), color = fg, strokeWidth = 3.dp)
+            CircularProgressIndicator(Modifier.size(26.dp), color = fg, strokeWidth = 3.dp, trackColor = fg.copy(alpha = 0.3f))
             Spacer(Modifier.width(14.dp))
             Text("Confirming it's you", style = MaterialTheme.typography.titleLarge)
         } else if (enabled) {

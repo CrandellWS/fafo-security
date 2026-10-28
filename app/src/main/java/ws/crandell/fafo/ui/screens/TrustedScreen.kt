@@ -137,7 +137,7 @@ fun PairingDialog(state: PairingState, onAnswerCode: (Boolean) -> Unit, onCancel
         is PairingState.Working -> FafoDialog(
             onDismissRequest = {},
             title = "Pairing",
-            icon = { CircularProgressIndicator(Modifier.size(36.dp), color = FafoColors.RedText) },
+            icon = { CircularProgressIndicator(Modifier.size(36.dp), color = FafoColors.RedText, trackColor = FafoColors.RedText.copy(alpha = 0.3f)) },
             text = { Text(state.text, style = MaterialTheme.typography.bodyLarge, color = FafoColors.White) },
             confirmButton = {},
             dismissButton = { TextButton(onClick = onCancel, modifier = Modifier.heightIn(min = 48.dp)) { Text("Cancel", color = FafoColors.White) } },

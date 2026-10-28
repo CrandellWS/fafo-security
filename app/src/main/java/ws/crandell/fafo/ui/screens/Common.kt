@@ -78,6 +78,7 @@ fun <T> ChoiceRow(
         if (hint != null) Text(hint, style = MaterialTheme.typography.bodyMedium, color = FafoColors.TextMuted)
         FlowRow(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
             modifier = Modifier.padding(top = 6.dp),
         ) {
             choices.forEach { c ->

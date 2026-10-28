@@ -1,6 +1,7 @@
 package ws.crandell.fafo.ui.screens
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -154,7 +155,7 @@ private fun CircleCard(c: Circle, trusted: List<TrustedDevice>, reachable: Set<S
             }
         }
         Text("Members may:", style = MaterialTheme.typography.bodyMedium, color = FafoColors.TextMuted, modifier = Modifier.padding(top = 6.dp))
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 4.dp)) {
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 4.dp)) {
             Permission.entries.forEach { p ->
                 FafoChip(
                     selected = p in c.permissions,
@@ -167,7 +168,7 @@ private fun CircleCard(c: Circle, trusted: List<TrustedDevice>, reachable: Set<S
         HorizontalDivider(Modifier.padding(vertical = 8.dp), color = FafoColors.Outline)
         if (c.members.isEmpty()) Text("No members yet.", style = MaterialTheme.typography.bodyMedium, color = FafoColors.TextMuted)
         c.members.forEach { m -> MemberRow(m, m.fingerprint in reachable, { renaming = m }, { actions.removeMember(c.id, m.fingerprint) }) }
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 6.dp)) {
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 6.dp)) {
             OutlinedButton(onClick = { actions.pairInto(c.id) }, modifier = Modifier.heightIn(min = 48.dp)) {
                 Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.size(18.dp))
                 Spacer(Modifier.width(6.dp))
@@ -212,7 +213,12 @@ private fun CircleCard(c: Circle, trusted: List<TrustedDevice>, reachable: Set<S
 private fun MemberRow(m: Member, online: Boolean, onRename: () -> Unit, onRemove: () -> Unit) {
     var menu by remember { mutableStateOf(false) }
     Row(Modifier.fillMaxWidth().heightIn(min = 64.dp).testTag("member_${m.label}"), verticalAlignment = Alignment.CenterVertically) {
-        Box(Modifier.size(12.dp).clip(CircleShape).background(if (online) FafoColors.Guard else FafoColors.Surface2))
+        // Offline is a hollow ring (not colour alone), visible on the card.
+        Box(
+            Modifier.size(12.dp).clip(CircleShape).then(
+                if (online) Modifier.background(FafoColors.Guard) else Modifier.border(2.dp, FafoColors.TextMuted, CircleShape),
+            ),
+        )
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
             Text(m.label, style = MaterialTheme.typography.titleMedium, color = FafoColors.White)
