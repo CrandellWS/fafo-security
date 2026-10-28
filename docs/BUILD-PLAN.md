@@ -3,7 +3,7 @@
 For a Claude Code cloud session. Read `CLAUDE.md` and `docs/SPEC-v1.md` first. Work the milestones in
 order; each ends with its done-checks passing and one commit. Do not start a milestone until the
 previous one's automated checks pass. Items marked "Manual (Bill)" need real phones, which the cloud
-session does not have: add them to `docs/A17-TEST-CHECKLIST.md` (create it at M5, finish it at M13)
+session does not have: add them to `docs/DEVICE-TESTS.md` (create it at M5, finish it at M13)
 and carry on; they never block the next milestone.
 
 ## M0. Environment: Android SDK in the cloud session
@@ -312,7 +312,7 @@ mode ends when the phone is unplugged and the alarm starts. Commit: `M12: interc
 - `NoRemoteEndpointsTest`, `checkNoRemoteDeps` and `LocalAddressPolicy` tests still green (the "no
   internet server" rule).
 - Update README with install instructions for the CI APK (enable install from unknown sources, A17 steps).
-- Finish `docs/A17-TEST-CHECKLIST.md`: the nine done items, every "Manual (Bill)" item from M5-M12 and the
+- Finish `docs/DEVICE-TESTS.md`: the nine done items, every "Manual (Bill)" item from M5-M12 and the
   spec's "Open items to test on the A17" (two-phone steps for F8-F10).
 
 Done-checks: `./gradlew assembleDebug test lint checkNoRemoteDeps` green locally and in CI; debug APK

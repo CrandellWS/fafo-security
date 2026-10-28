@@ -6,7 +6,7 @@ unrelated to gwaslots.com.
 
 Read in this order: `docs/SPEC-v1.md` (what to build, acceptance criteria), then
 `docs/BUILD-PLAN.md` (milestones M0-M13, done-checks). Work milestones in order. Manual checks on
-Bill's phones never block the next milestone: list them in `docs/A17-TEST-CHECKLIST.md` and move on.
+Bill's phones never block the next milestone: list them in `docs/DEVICE-TESTS.md` and move on.
 
 ## Rules (hard)
 

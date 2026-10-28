@@ -74,7 +74,7 @@ class ArmService : LifecycleService() {
         instance = this
         Notifications.ensureChannels(this)
         dp = ArmDeps.dpStore(this)
-        sound = ArmDeps.sound(this)
+        sound = ArmDeps.sound(this, lifecycleScope) { dpSettings ?: DpSettings() }
         machine = AlarmStateMachine(ArmDeps.clock, { (dpSettings ?: DpSettings()).alarmConfig() })
         lifecycleScope.launch { dp.settings.collect { dpSettings = it } }
         lifecycleScope.launch { for (e in events) process(e) }
@@ -206,26 +206,22 @@ class ArmService : LifecycleService() {
             }
             AlarmEffect.CancelWindowTimer -> windowJob?.cancel()
             is AlarmEffect.StartPreAlarm -> {
-                sound.startPreAlarm(fx.durationMs)
+                sound.apply(fx)
                 preAlarmJob?.cancel()
                 preAlarmJob = lifecycleScope.launch {
                     delay(fx.durationMs)
                     events.send(AlarmEvent.PreAlarmElapsed)
                 }
             }
-            AlarmEffect.StartSiren -> {
+            AlarmEffect.StartSiren, AlarmEffect.StopSound -> {
                 preAlarmJob?.cancel()
-                sound.startSiren()
-            }
-            AlarmEffect.StopSound -> {
-                preAlarmJob?.cancel()
-                sound.stop()
+                sound.apply(fx)
             }
             AlarmEffect.StillArmedWarning -> {
-                sound.chirp(ChirpKind.STILL_ARMED)
+                sound.apply(fx)
                 notify(Notifications.ID_STILL_ARMED) { Notifications.stillArmed(this) }
             }
-            AlarmEffect.RemoteChirp -> sound.chirp(ChirpKind.REMOTE)
+            AlarmEffect.RemoteChirp -> sound.apply(fx)
             AlarmEffect.AddCameraType -> Unit // handled in onStartCommand (needs the visible start)
             AlarmEffect.StartPhotos, AlarmEffect.StopPhotos -> hooks.forEach { it.onEffect(fx) }
             is AlarmEffect.CloseIncident -> hooks.forEach { it.onEffect(fx) }

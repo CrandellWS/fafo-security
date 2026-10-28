@@ -74,7 +74,7 @@ class ArmServiceTest {
     @Before fun setUp() {
         dp = DpStore.create(app, scope)
         ArmDeps.dpStore = { dp }
-        ArmDeps.sound = { sound }
+        ArmDeps.sound = { _, _, _ -> sound }
         ArmDeps.clock = ws.crandell.fafo.core.Clock { android.os.SystemClock.uptimeMillis() }
         shadowOf(app).grantPermissions(android.Manifest.permission.POST_NOTIFICATIONS, android.Manifest.permission.CAMERA)
         ServiceTestSupport.setPlugged(app, true)

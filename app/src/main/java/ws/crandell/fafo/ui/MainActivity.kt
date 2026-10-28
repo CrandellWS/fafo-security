@@ -25,7 +25,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.lifecycleScope
 import ws.crandell.fafo.arm.ArmService
+import ws.crandell.fafo.siren.AndroidAudioBackend
+import ws.crandell.fafo.siren.Siren
 import ws.crandell.fafo.storage.CeStore
 import ws.crandell.fafo.system.DeviceStatus
 import ws.crandell.fafo.ui.screens.HomeScreen
@@ -85,8 +88,10 @@ class MainActivity : FragmentActivity() {
         }
     }
 
-    /** Wired to the siren and camera in later milestones. */
+    /** F7 step 8: 1 s chirp + 1 s siren at alarm volume (and a test photo once the camera lands). */
     fun runSelfTest() {
+        val dp = vm.dpSettings.value
+        Siren(AndroidAudioBackend(this), lifecycleScope, { dp.sirenSound }, { dp.forceMaxVolume }).selfTest()
         vm.markOnboarding(CeStore.FLAG_SELF_TEST)
     }
 
