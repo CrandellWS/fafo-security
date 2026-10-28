@@ -350,7 +350,16 @@ class MainActivity : FragmentActivity() {
         }
     }
 
-    private fun connectGmailAccount() {}
+    private fun connectGmailAccount() {
+        ws.crandell.fafo.mail.flavor.FlavorMail.connectGmail(this) { account, error ->
+            if (account != null) {
+                vm.updateCe { it.copy(gmailAccount = account, mailProvider = ws.crandell.fafo.mail.MailProviderKind.GMAIL.name, mailTestOk = false) }
+                Toast.makeText(this, "Connected $account", Toast.LENGTH_SHORT).show()
+            } else if (error != null) {
+                Toast.makeText(this, error, Toast.LENGTH_LONG).show()
+            }
+        }
+    }
 
     /** AC6.6: pairing ends with the device in the circle the owner started from (default Home). */
     @OptIn(ExperimentalLayoutApi::class)

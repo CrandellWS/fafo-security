@@ -9,4 +9,8 @@ object FlavorMail {
 
     /** No Google libraries in this build: Gmail is never offered. */
     fun gmailSender(context: android.content.Context, account: String, network: android.net.Network?): ws.crandell.fafo.mail.MailSender? = null
+
+    /** Never called in this build (no Gmail option is shown). */
+    fun connectGmail(activity: androidx.activity.ComponentActivity, onDone: (account: String?, error: String?) -> Unit) =
+        onDone(null, "This build has no Google sign-in. Use your mail server (SMTP).")
 }
