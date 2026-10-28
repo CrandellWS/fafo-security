@@ -653,15 +653,10 @@ armed while plugged in.
 - BLE L2CAP channel throughput for Opus audio between the A17 and a second phone.
 - Push-to-talk playback on a locked receiver with Stay reachable on.
 
-## 9a. Requested but not in this build (needs Bill)
+## 9a. Dropped
 
-- **SMS reset (Bill 2026-10-27, wanted in v1 as a backup):** text the phone a secret phrase to reset the
-  alarm (siren off, stays armed). The planned mechanism is Google's SMS Retriever API (phrase + 11-char
-  app hash, no SMS permission; cannot check the sender number). It needs the Play Services library
-  `com.google.android.gms:play-services-auth-api-phone`, which the hard rules (CLAUDE.md, section 6
-  `checkNoRemoteDeps`) forbid, and it does not work before first unlock. Not built until Bill confirms an
-  exception for that one library (and the rule/test are narrowed to allow exactly it). The sender-number
-  check (`RECEIVE_SMS`, a "direct" APK flavor) is deferred by Bill.
+- **SMS reset:** dropped by Bill on 2026-10-28 ("just not do the text part at all"). Do not build any SMS
+  feature. Remote reset/disarm comes only from trust-circle members over Bluetooth or local Wi-Fi.
 
 ## 10. Phase two (NOT v1)
 
