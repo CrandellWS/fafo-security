@@ -81,6 +81,23 @@ class ThreatLadderTest {
         assertThat(ladder.tick(10_000)).isTrue()
     }
 
+    @Test fun msUntilCoolFollowsTheSettingMidCoolDown() {
+        var s = 15
+        val ladder = ThreatLadder(coolMsSetting = { s * 1000L })
+        assertThat(ladder.msUntilCool(0)).isNull()
+        ladder.onMotion(Motion.BUMP, 0, true)
+        assertThat(ladder.msUntilCool(5_000)).isEqualTo(10_000L)
+        // Lengthened while yellow: the old 15 s wake-up must not be the last check (the service loops on this).
+        s = 60
+        assertThat(ladder.tick(15_000)).isFalse()
+        assertThat(ladder.msUntilCool(15_000)).isEqualTo(45_000L)
+        // Shortened past the elapsed time: due now.
+        s = 10
+        assertThat(ladder.msUntilCool(15_000)).isEqualTo(0L)
+        assertThat(ladder.tick(15_000)).isTrue()
+        assertThat(ladder.msUntilCool(15_000)).isNull()
+    }
+
     @Test fun motionRefreshesTheCoolTimer() {
         l.onMotion(Motion.BUMP, 0, true)
         l.onMotion(Motion.BUMP, 10_000, true)

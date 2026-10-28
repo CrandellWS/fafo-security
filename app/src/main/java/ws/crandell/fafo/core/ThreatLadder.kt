@@ -68,6 +68,17 @@ class ThreatLadder(
         return true
     }
 
+    /**
+     * Milliseconds until [tick] would cool to GREEN with the current reset time, or null when already GREEN.
+     * The service re-checks this after each wait, so a reset time changed mid cool-down (longer or shorter)
+     * still ends in GREEN instead of leaving the status stuck.
+     */
+    fun msUntilCool(now: Long): Long? {
+        val last = lastMotionAt ?: return null
+        if (level == ThreatLevel.GREEN) return null
+        return (last + coolMs - now).coerceAtLeast(0L)
+    }
+
     /** Back to GREEN (every change into or out of ARMED). */
     fun reset() {
         level = ThreatLevel.GREEN

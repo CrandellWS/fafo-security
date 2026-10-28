@@ -120,7 +120,9 @@ class ArmService : LifecycleService() {
         machine = AlarmStateMachine(ArmDeps.clock, { (dpSettings ?: DpSettings()).alarmConfig() })
         lifecycleScope.launch {
             dp.settings.collect {
+                val resetChanged = dpSettings != null && dpSettings?.bumpResetS != it.bumpResetS
                 dpSettings = it
+                if (resetChanged && coolJob?.isActive == true) scheduleCool()
                 if (::machine.isInitialized) updateMotion()
             }
         }
@@ -356,11 +358,23 @@ class ArmService : LifecycleService() {
             }
         }
         publishThreat()
+        scheduleCool()
+    }
+
+    /**
+     * Cool-down to GREEN after the Bump reset time. Re-reads the time after each wait and is rescheduled when
+     * the setting changes, so a change while yellow/orange (longer or shorter) applies at once and never
+     * leaves the status stuck.
+     */
+    private fun scheduleCool() {
         coolJob?.cancel()
-        val coolMs = ladder.coolMs
         coolJob = lifecycleScope.launch {
-            delay(coolMs)
-            if (ladder.tick(ArmDeps.clock.now())) publishThreat()
+            // Re-read the reset time after each wait: a Settings change mid cool-down must not strand the status.
+            while (true) {
+                val wait = ladder.msUntilCool(ArmDeps.clock.now()) ?: break
+                delay(wait.coerceAtLeast(MIN_COOL_POLL_MS))
+                if (ladder.tick(ArmDeps.clock.now())) { publishThreat(); break }
+            }
         }
     }
 
@@ -632,6 +646,8 @@ class ArmService : LifecycleService() {
         const val ACTION_NOTIFICATION_TAP = "ws.crandell.fafo.action.NOTIFICATION_TAP"
         const val ACTION_BOOT = "ws.crandell.fafo.action.BOOT"
         private const val WAKE_LOCK_TIMEOUT_MS = 10 * 60 * 1000L
+        /** Floor for each cool-down wait, so a clock that lags the coroutine timer cannot spin the loop. */
+        private const val MIN_COOL_POLL_MS = 250L
 
         @Volatile var instance: ArmService? = null
             private set
