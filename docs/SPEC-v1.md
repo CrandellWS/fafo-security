@@ -653,6 +653,7 @@ Runtime state in DP: `armed` (bool), `awaiting_power` (bool, after a remote Rese
 | `INTERNET` | Android requires it for **any** socket, including local Wi-Fi ones (F9, F10). Used only for the local network; see the enforced rule below. |
 | `ACCESS_NETWORK_STATE` | Find the Wi-Fi network and bind sockets to it (never mobile data). |
 | `CHANGE_NETWORK_STATE` | Satisfies the `connectedDevice` foreground service prerequisite when no Bluetooth permission is granted (Wi-Fi-only users). Install-time. |
+| `ACCESS_WIFI_STATE`, `CHANGE_WIFI_STATE` | Round 3, F12: read cached Wi-Fi scan results and add / remove `WifiNetworkSuggestion`s for the opt-in open Wi-Fi fallback. Normal (install-time) permissions; no location. |
 | `NEARBY_WIFI_DEVICES` (`neverForLocation`) | Android 16's opt-in local network protection gate (AC9.10). Same Nearby devices group as Bluetooth, so no extra prompt. |
 | `FOREGROUND_SERVICE_CONNECTED_DEVICE` | `ReachableService` (Stay reachable) and `IntercomService`: keep the local link to the owner's own devices. |
 | `RECORD_AUDIO` | Intercom room mode and push-to-talk only, asked just in time at first use, never at arm time. |

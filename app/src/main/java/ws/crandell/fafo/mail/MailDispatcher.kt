@@ -41,8 +41,8 @@ object MailDispatcher {
     private val _status = MutableStateFlow(MailStatus())
     val status: StateFlow<MailStatus> = _status
 
-    /** Fires when queued mail has no validated network (the open Wi-Fi fallback listens, item 7). */
-    @Volatile var onNoNetwork: ((Context) -> Unit)? = null
+    /** Fires when queued mail has no validated network: the open Wi-Fi fallback (spec F12). */
+    @Volatile var onNoNetwork: ((Context) -> Unit)? = { OpenWifiFallback.onNoNetwork(it) }
     /** A specific network to send on (validated open Wi-Fi from the fallback); null = default network. */
     @Volatile var preferredNetwork: Network? = null
 
@@ -78,6 +78,12 @@ object MailDispatcher {
     fun discardAll(context: Context) {
         outbox(context).discardAll()
         refreshStatus(context)
+    }
+
+    /** Send on [network] (validated open Wi-Fi from the fallback), or back to the default network (null). */
+    fun useNetwork(network: Network?) {
+        preferredNetwork = network
+        if (network != null) kick()
     }
 
     fun sendNow() {
@@ -162,6 +168,7 @@ object MailDispatcher {
     private fun refreshStatus(ctx: Context) {
         val o = outbox(ctx)
         val d = drain
+        if (o.pending().isEmpty()) runCatching { OpenWifiFallback.maybeCleanup(ctx) }
         _status.value = MailStatus(
             pending = o.pending().sumOf { it.photos.size },
             sentPhotos = d?.sentPhotos ?: _status.value.sentPhotos,

@@ -587,6 +587,8 @@ class ArmService : LifecycleService() {
         armingJob?.cancel()
         coolJob?.cancel()
         torch.stop()
+        // Never leave the phone auto-joining open Wi-Fi after the alarm (spec F12).
+        if (DeviceStatus.isCeUnlocked(this)) runCatching { ws.crandell.fafo.mail.OpenWifiFallback.cleanup(this) }
         AlarmStatusBus.setThreat(ThreatLevel.GREEN)
         preAlarmJob?.cancel()
         sound.stop()

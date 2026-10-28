@@ -66,6 +66,9 @@ class ManifestTest {
         "android.permission.CHANGE_NETWORK_STATE",
         "android.permission.NEARBY_WIFI_DEVICES",
         "android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE",
+        // Round 3, spec F12: open Wi-Fi fallback (WifiNetworkSuggestion). Normal permissions, no location.
+        "android.permission.ACCESS_WIFI_STATE",
+        "android.permission.CHANGE_WIFI_STATE",
         "android.permission.RECORD_AUDIO",
         "android.permission.FOREGROUND_SERVICE_MICROPHONE",
         "android.permission.MODIFY_AUDIO_SETTINGS",
