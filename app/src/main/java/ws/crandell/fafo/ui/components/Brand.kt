@@ -71,7 +71,7 @@ fun FafoWordmark(modifier: Modifier = Modifier, size: TextUnit = 22.sp, stacked:
             Text("SECURITY", style = sec)
         }
     } else {
-        Row(m, horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+        Row(m, horizontalArrangement = Arrangement.spacedBy(size.value.times(0.4f).dp), verticalAlignment = Alignment.CenterVertically) {
             Text("FAFO", style = fafo)
             Text("SECURITY", style = sec)
         }

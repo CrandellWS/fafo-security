@@ -1,70 +1,77 @@
 package ws.crandell.fafo.ui
 
 import android.Manifest
+import android.bluetooth.le.ScanFilter
+import android.bluetooth.le.ScanResult
+import android.companion.AssociationRequest
+import android.companion.BluetoothLeDeviceFilter
+import android.companion.CompanionDeviceManager
 import android.content.ActivityNotFoundException
 import android.content.Intent
+import android.content.IntentSender
+import android.graphics.Color as AndroidColor
 import android.os.Build
 import android.os.Bundle
+import android.os.ParcelUuid
 import android.widget.Toast
+import androidx.activity.SystemBarStyle
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Scaffold
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
 import androidx.fragment.app.FragmentActivity
-import kotlinx.coroutines.launch
-import ws.crandell.fafo.camera.CameraXCapturer
-import ws.crandell.fafo.camera.Lens
-import ws.crandell.fafo.ui.screens.IncidentsScreen
-import ws.crandell.fafo.ui.screens.TrustedScreen
-import ws.crandell.fafo.ui.screens.CirclesScreen
-import ws.crandell.fafo.ui.screens.InviteDialog
-import ws.crandell.fafo.net.android.PeerNetwork
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.material3.FilterChip
-import ws.crandell.fafo.pairing.BiometricCredentialGate
-import ws.crandell.fafo.ble.BleIds
-import android.bluetooth.le.ScanFilter
-import android.bluetooth.le.ScanResult
-import android.companion.AssociationRequest
-import android.companion.BluetoothLeDeviceFilter
-import android.companion.CompanionDeviceManager
-import android.content.IntentSender
-import android.os.ParcelUuid
-import androidx.activity.result.IntentSenderRequest
-import java.io.File
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.launch
 import ws.crandell.fafo.arm.ArmService
-import ws.crandell.fafo.auth.AuthAction
 import ws.crandell.fafo.arm.Notifications
+import ws.crandell.fafo.auth.AuthAction
+import ws.crandell.fafo.ble.BleIds
+import ws.crandell.fafo.camera.CameraXCapturer
+import ws.crandell.fafo.camera.Lens
+import ws.crandell.fafo.net.android.PeerNetwork
+import ws.crandell.fafo.pairing.BiometricCredentialGate
 import ws.crandell.fafo.siren.AndroidAudioBackend
 import ws.crandell.fafo.siren.Siren
 import ws.crandell.fafo.storage.CeStore
 import ws.crandell.fafo.system.DeviceStatus
+import ws.crandell.fafo.ui.help.HelpContent
+import ws.crandell.fafo.ui.help.HelpLink
+import ws.crandell.fafo.ui.screens.CirclesScreen
+import ws.crandell.fafo.ui.screens.DevicesPane
+import ws.crandell.fafo.ui.screens.DevicesSwitcher
+import ws.crandell.fafo.ui.screens.FafoChip
+import ws.crandell.fafo.ui.screens.HelpScreen
 import ws.crandell.fafo.ui.screens.HomeScreen
+import ws.crandell.fafo.ui.screens.IncidentsScreen
+import ws.crandell.fafo.ui.screens.InviteDialog
 import ws.crandell.fafo.ui.screens.OnboardingScreen
 import ws.crandell.fafo.ui.screens.Screen
 import ws.crandell.fafo.ui.screens.SettingsScreen
+import ws.crandell.fafo.ui.screens.TrustedScreen
+import ws.crandell.fafo.ui.theme.FafoColors
 import ws.crandell.fafo.ui.theme.FafoTheme
+import java.io.File
 
 /** FragmentActivity (a ComponentActivity) so BiometricPrompt can attach. */
 class MainActivity : FragmentActivity() {
@@ -92,7 +99,8 @@ class MainActivity : FragmentActivity() {
         }
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        enableEdgeToEdge()
+        // Dark-only UI: light status / navigation bar icons whatever the system theme is.
+        enableEdgeToEdge(SystemBarStyle.dark(AndroidColor.TRANSPARENT), SystemBarStyle.dark(AndroidColor.TRANSPARENT))
         super.onCreate(savedInstanceState)
         vm.gate.target = BiometricCredentialGate(this)
         PeerNetwork.gate.target = vm.gate.target
@@ -319,14 +327,27 @@ class MainActivity : FragmentActivity() {
         val circles by vm.circles.collectAsStateWithLifecycle()
         val chosen by vm.pairingCircle.collectAsStateWithLifecycle()
         val current = chosen ?: circles.firstOrNull()?.id
-        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text("The new device joins:")
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                circles.forEach { c ->
-                    FilterChip(selected = c.id == current, onClick = { vm.choosePairingCircle(c.id) }, label = { Text(c.name) })
-                }
+        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text("The new device joins:", style = MaterialTheme.typography.titleMedium, color = FafoColors.White)
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                circles.forEach { c -> FafoChip(selected = c.id == current, onClick = { vm.choosePairingCircle(c.id) }, label = c.name) }
             }
         }
+    }
+
+    private fun appVersion(): String =
+        runCatching { packageManager.getPackageInfo(packageName, 0).versionName }.getOrNull().orEmpty()
+
+    private fun openLink(link: HelpLink) = when (link) {
+        HelpLink.FULL_SCREEN -> {
+            Notifications.ensureChannels(this)
+            launch(OnboardingIntents.fullScreenStep(this, vm.onboarding.value))
+        }
+        HelpLink.BATTERY -> launch(OnboardingIntents.ignoreBatteryOptimization(this))
+        HelpLink.APP_DETAILS -> launch(OnboardingIntents.appDetails(this))
+        HelpLink.SECURITY -> launch(OnboardingIntents.builtInProtections())
+        HelpLink.DND -> launch(OnboardingIntents.dnd())
+        HelpLink.NOTIFICATIONS -> launch(OnboardingIntents.notificationSettings(this))
     }
 
     companion object {
@@ -337,15 +358,19 @@ class MainActivity : FragmentActivity() {
 
     @Composable
     private fun AppRoot() {
-        var screen by rememberSaveable { mutableStateOf(Screen.HOME) }
-        var samsungDialog by rememberSaveable { mutableStateOf(false) }
+        var tab by rememberSaveable { mutableStateOf(Tab.HOME) }
+        var pushed by rememberSaveable { mutableStateOf<Pushed?>(null) }
+        var helpTopic by rememberSaveable { mutableStateOf<String?>(null) }
+        var pane by rememberSaveable { mutableStateOf(DevicesPane.CIRCLES) }
         var openIncident by rememberSaveable { mutableStateOf<String?>(null) }
         var openPhoto by rememberSaveable { mutableStateOf<String?>(null) }
-        BackHandler(enabled = screen != Screen.HOME) {
+        // Predictive back: a pushed screen goes back to its tab, a tab goes to Home, Home leaves the app.
+        BackHandler(enabled = pushed != null || tab != Tab.HOME) {
             when {
                 openPhoto != null -> openPhoto = null
                 openIncident != null -> openIncident = null
-                else -> screen = Screen.HOME
+                pushed != null -> pushed = null
+                else -> tab = Tab.HOME
             }
         }
 
@@ -353,26 +378,53 @@ class MainActivity : FragmentActivity() {
         val onboarding by vm.onboarding.collectAsStateWithLifecycle()
         val dp by vm.dpSettings.collectAsStateWithLifecycle()
         val ce by vm.ceSettings.collectAsStateWithLifecycle()
+        val incidents by vm.incidents.collectAsStateWithLifecycle()
+        val devices by vm.trustedDevices.collectAsStateWithLifecycle()
+        val snackbar = remember { SnackbarHostState() }
 
-        Scaffold { padding ->
-            val m = Modifier.fillMaxSize().padding(padding)
+        fun open(screen: Screen) {
             when (screen) {
-                Screen.HOME -> HomeScreen(
-                    home,
-                    onArm = ::onArm,
-                    onDisarm = ::onDisarm,
-                    onOpen = { screen = it },
-                    onStep = { screen = Screen.ONBOARDING },
-                    modifier = m,
+                Screen.HOME -> { pushed = null; tab = Tab.HOME }
+                Screen.SETTINGS -> pushed = Pushed.SETTINGS
+                Screen.INCIDENTS -> { openIncident = null; openPhoto = null; pushed = Pushed.INCIDENTS }
+                Screen.TRUSTED -> { pane = DevicesPane.PAIRED; tab = Tab.DEVICES }
+                Screen.CIRCLES -> { pane = DevicesPane.CIRCLES; tab = Tab.DEVICES }
+                Screen.INTERCOM -> tab = Tab.INTERCOM
+                Screen.ONBOARDING -> tab = Tab.SETUP
+                Screen.HELP -> tab = Tab.HELP
+            }
+        }
+
+        val incidentTitle = when {
+            pushed != Pushed.INCIDENTS -> null
+            openPhoto != null -> "Photo"
+            openIncident != null -> "Incident"
+            else -> null
+        }
+        AppShell(
+            tab = tab, pushed = pushed, setupBadge = onboarding.missing.size,
+            onTab = { tab = it; if (it != Tab.HELP) helpTopic = null },
+            onBack = {
+                when {
+                    openPhoto != null -> openPhoto = null
+                    openIncident != null -> openIncident = null
+                    else -> pushed = null
+                }
+            },
+            onSettings = { pushed = Pushed.SETTINGS },
+            snackbar = snackbar,
+            titleOverride = incidentTitle,
+        ) { m ->
+            when (pushed) {
+                Pushed.SETTINGS -> SettingsScreen(
+                    dp, ce, vm::updateDp, vm::updateCe, m,
+                    onStayReachable = { on ->
+                        if (on) ws.crandell.fafo.reach.ReachableService.start(this) else ws.crandell.fafo.reach.ReachableService.stop(this)
+                    },
+                    onGrace = { vm.changeGrace(it) },
+                    version = appVersion(),
                 )
-                Screen.SETTINGS -> SettingsScreen(dp, ce, vm::updateDp, vm::updateCe, m, onStayReachable = { on ->
-                    if (on) ws.crandell.fafo.reach.ReachableService.start(this) else ws.crandell.fafo.reach.ReachableService.stop(this)
-                }, onGrace = { vm.changeGrace(it) })
-                Screen.ONBOARDING -> OnboardingScreen(
-                    onboarding, ::onStep, { screen = Screen.HOME }, m, onSamsungBattery = { samsungDialog = true },
-                )
-                Screen.INCIDENTS -> {
-                    val incidents by vm.incidents.collectAsStateWithLifecycle()
+                Pushed.INCIDENTS -> {
                     LaunchedEffect(Unit) { vm.loadIncidents() }
                     IncidentsScreen(
                         incidents, openIncident, openPhoto, vm.photoStore::photoFile,
@@ -381,45 +433,74 @@ class MainActivity : FragmentActivity() {
                         onShare = ::share, modifier = m,
                     )
                 }
-                Screen.TRUSTED -> {
-                    val devices by vm.trustedDevices.collectAsStateWithLifecycle()
-                    val pairing by vm.pairing.state.collectAsStateWithLifecycle()
-                    val nearby = NearbyPermissions.missing(this).isEmpty()
-                    // F7: Nearby devices is asked when the owner first opens Trusted devices.
-                    LaunchedEffect(Unit) { if (!nearby) requestNearby() }
-                    TrustedScreen(
-                        devices, pairing, nearby,
-                        onRequestNearby = ::requestNearby,
-                        onShowThisPhone = vm.pairing::showThisPhone,
-                        onFindOther = ::findOther,
-                        onAnswerCode = vm.pairing::answerCode,
-                        onCancel = vm.pairing::cancel,
-                        onDismiss = vm.pairing::dismiss,
-                        onRemove = vm::removeDevice,
+                null -> when (tab) {
+                    Tab.HOME -> {
+                        LaunchedEffect(Unit) { vm.loadIncidents() }
+                        HomeScreen(
+                            home.copy(incidents = incidents.size, paired = devices.size, graceS = dp.unlockGraceS),
+                            onArm = ::onArm,
+                            onDisarm = ::onDisarm,
+                            onOpen = ::open,
+                            onStep = { tab = Tab.SETUP },
+                            modifier = m,
+                        )
+                    }
+                    Tab.SETUP -> OnboardingScreen(
+                        onboarding, ::onStep,
+                        onLearnMore = { step -> helpTopic = HelpContent.topicFor(step); tab = Tab.HELP },
                         modifier = m,
-                        extra = { PairingCircleChooser() },
+                        onOpenAppSettings = { launch(OnboardingIntents.appDetails(this)) },
                     )
-                }
-                Screen.CIRCLES -> {
-                    val circles by vm.circles.collectAsStateWithLifecycle()
-                    val devices by vm.trustedDevices.collectAsStateWithLifecycle()
-                    val reachable by vm.reachable.collectAsStateWithLifecycle()
-                    CirclesScreen(
-                        circles, devices, reachable, ce?.deviceLabel ?: "",
-                        object : ws.crandell.fafo.ui.screens.CirclesActions by vm.circlesActions {
-                            override fun pairInto(circleId: String) {
-                                vm.circlesActions.pairInto(circleId)
-                                screen = Screen.TRUSTED
+                    Tab.HELP -> HelpScreen(
+                        helpTopic, { id -> helpTopic = if (helpTopic == id) null else id }, ::openLink, m,
+                    )
+                    Tab.DEVICES -> Column(m) {
+                        DevicesSwitcher(pane, { pane = it })
+                        val dm = Modifier.fillMaxSize()
+                        when (pane) {
+                            DevicesPane.PAIRED -> {
+                                val pairing by vm.pairing.state.collectAsStateWithLifecycle()
+                                val nearby = NearbyPermissions.missing(this@MainActivity).isEmpty()
+                                // F7: Nearby devices is asked when the owner first opens Paired phones.
+                                LaunchedEffect(Unit) { if (!nearby) requestNearby() }
+                                TrustedScreen(
+                                    devices, pairing, nearby,
+                                    onRequestNearby = ::requestNearby,
+                                    onShowThisPhone = vm.pairing::showThisPhone,
+                                    onFindOther = ::findOther,
+                                    onAnswerCode = vm.pairing::answerCode,
+                                    onCancel = vm.pairing::cancel,
+                                    onDismiss = vm.pairing::dismiss,
+                                    onRemove = vm::removeDevice,
+                                    modifier = dm,
+                                    extra = { PairingCircleChooser() },
+                                )
                             }
-                        },
-                        m,
-                    )
-                }
-                Screen.INTERCOM -> {
-                    val ui by ws.crandell.fafo.intercom.Intercom.ui.collectAsStateWithLifecycle()
-                    val circles by vm.circles.collectAsStateWithLifecycle()
-                    val reachable by vm.reachable.collectAsStateWithLifecycle()
-                    ws.crandell.fafo.ui.screens.IntercomScreen(ui, circles, reachable, home.alarming, intercomActions, m)
+                            DevicesPane.CIRCLES -> {
+                                val circles by vm.circles.collectAsStateWithLifecycle()
+                                val reachable by vm.reachable.collectAsStateWithLifecycle()
+                                CirclesScreen(
+                                    circles, devices, reachable, ce?.deviceLabel ?: "",
+                                    object : ws.crandell.fafo.ui.screens.CirclesActions by vm.circlesActions {
+                                        override fun pairInto(circleId: String) {
+                                            vm.circlesActions.pairInto(circleId)
+                                            pane = DevicesPane.PAIRED
+                                        }
+                                    },
+                                    dm,
+                                )
+                            }
+                        }
+                    }
+                    Tab.INTERCOM -> {
+                        val ui by ws.crandell.fafo.intercom.Intercom.ui.collectAsStateWithLifecycle()
+                        val circles by vm.circles.collectAsStateWithLifecycle()
+                        val reachable by vm.reachable.collectAsStateWithLifecycle()
+                        ws.crandell.fafo.ui.screens.IntercomScreen(
+                            ui, circles, reachable, home.alarming, intercomActions, m,
+                            onOpenDevices = { open(Screen.CIRCLES) },
+                        )
+                    }
                 }
             }
         }
@@ -428,22 +509,9 @@ class MainActivity : FragmentActivity() {
         val message by vm.message.collectAsStateWithLifecycle()
         LaunchedEffect(message) {
             message?.let {
-                Toast.makeText(this@MainActivity, it, Toast.LENGTH_LONG).show()
                 vm.messageShown()
+                snackbar.showSnackbar(it)
             }
-        }
-        if (samsungDialog) {
-            AlertDialog(
-                onDismissRequest = { samsungDialog = false },
-                title = { Text("Samsung battery steps") },
-                text = { Text(OnboardingStep.BATTERY.detail) },
-                confirmButton = {
-                    TextButton(onClick = { samsungDialog = false; launch(OnboardingIntents.appDetails(this)) }) {
-                        Text("Open app settings")
-                    }
-                },
-                dismissButton = { TextButton(onClick = { samsungDialog = false }) { Text("Close") } },
-            )
         }
     }
 }

@@ -48,7 +48,10 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.text
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
@@ -99,9 +102,9 @@ fun stateIcon(kind: StateKind): ImageVector = when (kind) {
 @Composable
 fun FafoTopBar(
     title: String?,
+    modifier: Modifier = Modifier,
     onBack: (() -> Unit)? = null,
     onSettings: (() -> Unit)? = null,
-    modifier: Modifier = Modifier,
 ) {
     Surface(color = FafoColors.Navy, modifier = modifier.fillMaxWidth()) {
         Row(
@@ -200,9 +203,15 @@ fun FafoCard(
     }
 }
 
-/** The big state card on Home: state glyph, state word, one or two sub-lines. */
+/** The big state card on Home: state glyph and word, then [content] (sub-lines, chips). */
 @Composable
-fun StatusHero(kind: StateKind, word: String, lines: List<Pair<String, Color?>>, modifier: Modifier = Modifier, wordTag: String? = null) {
+fun StatusHero(
+    kind: StateKind,
+    word: String,
+    modifier: Modifier = Modifier,
+    wordTag: String? = null,
+    content: @Composable ColumnScope.() -> Unit = {},
+) {
     val color = stateColor(kind)
     FafoCard(modifier, accent = color, shape = RoundedCornerShape(24.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -213,17 +222,13 @@ fun StatusHero(kind: StateKind, word: String, lines: List<Pair<String, Color?>>,
                 Icon(stateIcon(kind), contentDescription = null, tint = color, modifier = Modifier.size(56.dp))
             }
             Spacer(Modifier.width(16.dp))
-            Column(Modifier.weight(1f)) {
-                Text(
-                    word.uppercase(), style = FafoType.stateDisplay, color = color, maxLines = 2,
-                    modifier = if (wordTag != null) Modifier.testTag(wordTag) else Modifier,
-                )
-            }
+            Text(
+                word.uppercase(), style = FafoType.stateDisplay, color = color, maxLines = 2,
+                modifier = Modifier.weight(1f).then(if (wordTag != null) Modifier.testTag(wordTag) else Modifier),
+            )
         }
-        if (lines.isNotEmpty()) Spacer(Modifier.height(10.dp))
-        lines.forEach { (text, c) ->
-            Text(text, style = MaterialTheme.typography.bodyLarge, color = c ?: FafoColors.TextMuted)
-        }
+        Spacer(Modifier.height(12.dp))
+        Column(verticalArrangement = Arrangement.spacedBy(4.dp), content = content)
     }
 }
 
@@ -263,7 +268,8 @@ fun PrimaryActionButton(
             Spacer(Modifier.width(14.dp))
             Text("Confirming it's you", style = MaterialTheme.typography.titleLarge)
         } else if (enabled) {
-            Text(label.uppercase(), style = FafoType.action)
+            // Drawn in capitals; read out (and matched by tests) as the plain word.
+            Text(label.uppercase(), style = FafoType.action, modifier = Modifier.clearAndSetSemantics { text = AnnotatedString(label) })
         } else {
             Text(label, style = MaterialTheme.typography.titleLarge, textAlign = TextAlign.Center)
         }
@@ -299,12 +305,12 @@ fun StateBadge(text: String, color: Color, modifier: Modifier = Modifier, filled
     }
 }
 
-/** Full-width tappable banner (Amber "N setup steps left", Red "Screen lock required"). */
+/** Full-width banner (Amber "N setup steps left", Red "Screen lock required"); tappable when [action] is set. */
 @Composable
 fun Banner(text: String, action: String, color: Color, onClick: () -> Unit, modifier: Modifier = Modifier, icon: ImageVector? = null) {
+    val base = modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(color)
     Row(
-        modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(color).clickable(onClick = onClick)
-            .heightIn(min = 56.dp).padding(horizontal = 16.dp, vertical = 10.dp),
+        (if (action.isNotEmpty()) base.clickable(onClick = onClick) else base).heightIn(min = 56.dp).padding(horizontal = 16.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         if (icon != null) {
@@ -312,8 +318,10 @@ fun Banner(text: String, action: String, color: Color, onClick: () -> Unit, modi
             Spacer(Modifier.width(12.dp))
         }
         Text(text, style = MaterialTheme.typography.titleMedium, color = FafoColors.Ink, modifier = Modifier.weight(1f))
-        Text(action, style = MaterialTheme.typography.labelLarge, color = FafoColors.Ink)
-        Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = FafoColors.Ink)
+        if (action.isNotEmpty()) {
+            Text(action, style = MaterialTheme.typography.labelLarge, color = FafoColors.Ink)
+            Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = FafoColors.Ink)
+        }
     }
 }
 

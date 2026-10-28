@@ -1,5 +1,7 @@
 package ws.crandell.fafo.ui.screens
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -7,19 +9,19 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Switch
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -27,13 +29,25 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import ws.crandell.fafo.circles.Circle
 import ws.crandell.fafo.circles.Permission
 import ws.crandell.fafo.intercom.IntercomUi
+import ws.crandell.fafo.ui.components.Banner
+import ws.crandell.fafo.ui.components.FafoCard
+import ws.crandell.fafo.ui.components.FafoDims
+import ws.crandell.fafo.ui.components.FafoIcons
+import ws.crandell.fafo.ui.components.SectionHeader
+import ws.crandell.fafo.ui.components.StateBadge
+import ws.crandell.fafo.ui.theme.FafoColors
+import ws.crandell.fafo.ui.theme.FafoType
 
 /** Callbacks of the Intercom screen (F10). */
 interface IntercomActions {
@@ -57,93 +71,136 @@ fun IntercomScreen(
     alarming: Boolean,
     actions: IntercomActions,
     modifier: Modifier = Modifier,
+    onOpenDevices: () -> Unit = {},
 ) {
     val intercomCircles = circles.filter { c -> Permission.INTERCOM in c.permissions || c.members.any { Permission.INTERCOM in it.permissions } }
     var roomChoice by remember { mutableStateOf(intercomCircles.map { it.id }.toSet()) }
     var circleId by remember { mutableStateOf(intercomCircles.firstOrNull()?.id) }
     var target by remember { mutableStateOf<String?>(null) } // null = All
     Column(
-        modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(16.dp),
+        modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = FafoDims.Gutter, vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        ScreenTitle("Intercom")
-        if (alarming) Text("Alarm: intercom is off until the incident ends.", color = MaterialTheme.colorScheme.error)
-        ui.note?.let { Text(it, modifier = Modifier.testTag("intercomNote")) }
-
-        Text("Intercom room mode", style = MaterialTheme.typography.titleMedium)
-        Text("Lets the chosen circles listen to this phone and talk back. A notification shows the whole time.", style = MaterialTheme.typography.bodySmall)
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            intercomCircles.forEach { c ->
-                FilterChip(
-                    selected = c.id in roomChoice,
-                    onClick = { roomChoice = if (c.id in roomChoice) roomChoice - c.id else roomChoice + c.id },
-                    enabled = ui.roomCircles == null,
-                    label = { Text(c.name) },
-                )
-            }
+        if (alarming) {
+            Banner("Alarm: intercom is off until the incident ends", "", FafoColors.RedText, {}, icon = FafoIcons.ShieldAlert)
         }
-        SwitchRow(
-            if (ui.roomCircles != null) "Room mode on" else "Room mode off",
-            ui.roomCircles != null,
-            { on -> actions.setRoomMode(on, roomChoice) },
-            "roomMode",
-            enabled = !alarming && (ui.roomCircles != null || roomChoice.isNotEmpty()),
-        )
-        if (ui.listeners.isNotEmpty()) Text("${ui.listeners.joinToString(", ")} listening", color = MaterialTheme.colorScheme.primary)
-        HorizontalDivider()
+        ui.note?.let { FafoCard(Modifier.testTag("intercomNote"), accent = FafoColors.Amber) { Text(it, style = MaterialTheme.typography.bodyLarge, color = FafoColors.White) } }
 
         if (intercomCircles.isEmpty()) {
-            Text("No circle allows Intercom yet. Turn on Intercom for a circle on the Circles screen.")
-            return@Column
-        }
-        Text("Push-to-talk", style = MaterialTheme.typography.titleMedium)
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            intercomCircles.forEach { c -> FilterChip(selected = c.id == circleId, onClick = { circleId = c.id; target = null }, label = { Text(c.name) }) }
-        }
-        val circle = intercomCircles.firstOrNull { it.id == circleId }
-        val members = circle?.members.orEmpty()
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            FilterChip(selected = target == null, onClick = { target = null }, label = { Text("All") }, modifier = Modifier.testTag("target_All"))
-            members.forEach { m ->
-                FilterChip(
-                    selected = target == m.fingerprint,
-                    onClick = { target = m.fingerprint },
-                    label = { Text((if (m.fingerprint in reachable) "● " else "○ ") + m.label) },
-                    modifier = Modifier.testTag("target_${m.label}"),
-                )
-            }
-        }
-        val targets = target?.let { listOf(it) } ?: members.map { it.fingerprint }
-        Card(
-            colors = CardDefaults.cardColors(
-                containerColor = if (ui.talking) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondaryContainer,
-            ),
-            modifier = Modifier.fillMaxWidth().height(140.dp).testTag("talkButton").pointerInput(targets, circleId, alarming) {
-                detectTapGestures(onPress = {
-                    if (alarming || circleId == null) return@detectTapGestures
-                    actions.talkStart(targets, circleId!!)
-                    tryAwaitRelease()
-                    actions.talkStop()
-                })
-            },
-        ) {
-            Box(Modifier.fillMaxWidth().height(140.dp), contentAlignment = Alignment.Center) {
-                Text(if (ui.talking) "Talking..." else "Hold to talk", fontSize = 28.sp)
-            }
-        }
-        ui.talker?.let { Text("$it is talking", style = MaterialTheme.typography.titleMedium, modifier = Modifier.testTag("talker")) }
-        HorizontalDivider()
-        Text("Listen to a room", style = MaterialTheme.typography.titleMedium)
-        if (ui.listeningTo != null) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("Listening to ${ui.listeningTo}", Modifier.weight(1f))
-                TextButton(onClick = actions::stopListening) { Text("Stop") }
+            FafoCard(accent = FafoColors.Steel) {
+                Text("No circle allows Intercom yet", style = MaterialTheme.typography.titleMedium, color = FafoColors.White)
+                Text("Turn on Intercom for a circle on the Devices tab.", style = MaterialTheme.typography.bodyMedium, color = FafoColors.TextMuted)
+                OutlinedButton(onClick = onOpenDevices, modifier = Modifier.padding(top = 8.dp).heightIn(min = 48.dp)) { Text("Open Devices", color = FafoColors.White) }
             }
         } else {
-            members.forEach { m ->
-                TextButton(onClick = { circleId?.let { actions.listen(m.fingerprint, it) } }, enabled = !alarming) { Text("Listen to ${m.label}") }
+            SectionHeader("Push-to-talk")
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                intercomCircles.forEach { c -> FafoChip(selected = c.id == circleId, onClick = { circleId = c.id; target = null }, label = c.name) }
             }
-            Text("Works only when that phone has intercom room mode on.", style = MaterialTheme.typography.bodySmall)
+            val circle = intercomCircles.firstOrNull { it.id == circleId }
+            val members = circle?.members.orEmpty()
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                FafoChip(selected = target == null, onClick = { target = null }, label = "All", modifier = Modifier.testTag("target_All"))
+                members.forEach { m ->
+                    FafoChip(
+                        selected = target == m.fingerprint,
+                        onClick = { target = m.fingerprint },
+                        label = (if (m.fingerprint in reachable) "● " else "○ ") + m.label,
+                        modifier = Modifier.testTag("target_${m.label}"),
+                    )
+                }
+            }
+            val targets = target?.let { listOf(it) } ?: members.map { it.fingerprint }
+            Box(Modifier.fillMaxWidth().padding(vertical = 12.dp), contentAlignment = Alignment.Center) {
+                TalkButton(ui.talking, alarming, Modifier.pointerInput(targets, circleId, alarming) {
+                    detectTapGestures(onPress = {
+                        if (alarming || circleId == null) return@detectTapGestures
+                        actions.talkStart(targets, circleId!!)
+                        tryAwaitRelease()
+                        actions.talkStop()
+                    })
+                })
+            }
+            ui.talker?.let {
+                Banner("$it is talking", "", FafoColors.Guard, {}, Modifier.testTag("talker"), icon = FafoIcons.Mic)
+            }
+
+            SectionHeader("Room mode")
+            FafoCard(accent = if (ui.roomCircles != null) FafoColors.Guard else null) {
+                Text(
+                    "Let the chosen circles listen to this room and talk back. A notification shows the whole time; nothing is recorded.",
+                    style = MaterialTheme.typography.bodyMedium, color = FafoColors.TextMuted,
+                )
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 8.dp)) {
+                    intercomCircles.forEach { c ->
+                        FafoChip(
+                            selected = c.id in roomChoice,
+                            onClick = { roomChoice = if (c.id in roomChoice) roomChoice - c.id else roomChoice + c.id },
+                            enabled = ui.roomCircles == null,
+                            label = c.name,
+                        )
+                    }
+                }
+                SwitchRow(
+                    if (ui.roomCircles != null) "Room mode on" else "Room mode off",
+                    ui.roomCircles != null,
+                    { on -> actions.setRoomMode(on, roomChoice) },
+                    "roomMode",
+                    enabled = !alarming && (ui.roomCircles != null || roomChoice.isNotEmpty()),
+                )
+                if (ui.roomCircles != null) {
+                    val names = intercomCircles.filter { it.id in ui.roomCircles }.joinToString(", ") { it.name }
+                    StateBadge("ROOM MODE ON · $names can listen", FafoColors.Guard)
+                }
+                if (ui.listeners.isNotEmpty()) {
+                    Spacer(Modifier.height(6.dp))
+                    ui.listeners.forEach { StateBadge("$it listening", FafoColors.Amber) }
+                }
+            }
+
+            SectionHeader("Listen to a room")
+            if (ui.listeningTo != null) {
+                FafoCard(accent = FafoColors.Guard) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("Listening to ${ui.listeningTo}", style = MaterialTheme.typography.titleMedium, color = FafoColors.White, modifier = Modifier.weight(1f))
+                        OutlinedButton(onClick = actions::stopListening, modifier = Modifier.heightIn(min = 48.dp)) { Text("Stop", color = FafoColors.White) }
+                    }
+                }
+            } else {
+                members.forEach { m ->
+                    OutlinedButton(
+                        onClick = { circleId?.let { actions.listen(m.fingerprint, it) } }, enabled = !alarming,
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
+                    ) { Text("Listen to ${m.label}", color = if (alarming) FafoColors.TextMuted else FafoColors.White) }
+                }
+                Text("Works only when that phone has room mode on.", style = MaterialTheme.typography.bodyMedium, color = FafoColors.TextMuted)
+            }
+        }
+    }
+}
+
+/** 200dp round hold-to-talk button: idle navy with a red ring, talking solid red. */
+@Composable
+private fun TalkButton(talking: Boolean, disabled: Boolean, modifier: Modifier) {
+    val bg = when {
+        disabled -> FafoColors.Surface1
+        talking -> FafoColors.Red
+        else -> FafoColors.Surface2
+    }
+    Box(
+        modifier.size(200.dp).clip(CircleShape).background(bg)
+            .border(if (talking) 10.dp else 4.dp, if (disabled) FafoColors.Outline else if (talking) FafoColors.RedText.copy(alpha = 0.6f) else FafoColors.Red, CircleShape)
+            .semantics { role = Role.Button }
+            .testTag("talkButton"),
+        contentAlignment = Alignment.Center,
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Icon(FafoIcons.Mic, contentDescription = null, tint = if (disabled) FafoColors.TextMuted else FafoColors.White, modifier = Modifier.size(56.dp))
+            Text(
+                if (talking) "TALKING…" else "HOLD\nTO TALK",
+                style = FafoType.action.copy(fontSize = FafoType.action.fontSize * 0.8f, lineHeight = FafoType.action.lineHeight * 0.8f),
+                color = if (disabled) FafoColors.TextMuted else FafoColors.White, textAlign = TextAlign.Center,
+            )
         }
     }
 }

@@ -68,6 +68,19 @@ class UiTest {
         rule.onNodeWithTag("grace_30 s").assertIsSelected()
     }
 
+    @Test fun armButtonShowsBusyWhileConfirming() {
+        home(HomeUiState(plugged = true, secureLock = true, confirming = true))
+        rule.onNodeWithTag("armButton").assertIsNotEnabled()
+        rule.onNodeWithText("Confirming it's you").assertIsDisplayed()
+    }
+
+    @Test fun setupLearnMoreOpensTheStepsHelpTopic() {
+        var learned: OnboardingStep? = null
+        rule.setContent { OnboardingScreen(OnboardingStatus(), {}, { learned = it }) }
+        rule.onNodeWithTag("learn_FULL_SCREEN").performScrollTo().performClick()
+        assertThat(learned).isEqualTo(OnboardingStep.FULL_SCREEN)
+    }
+
     @Test fun onboardingChecklistReflectsPermissions() {
         val status = OnboardingStatus(secureLock = true, notifications = true, camera = false, fullScreen = false)
         rule.setContent { OnboardingScreen(status, {}, {}) }
