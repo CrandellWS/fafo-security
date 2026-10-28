@@ -44,7 +44,7 @@ class SirenTest {
     private val clock = FakeClock()
 
     private fun machine(preAlarmMs: Long) =
-        AlarmStateMachine(clock, { AlarmConfig(sensitivityMs = 100, preAlarmMs = preAlarmMs) })
+        AlarmStateMachine(clock, { AlarmConfig(sensitivityMs = 100, preAlarmMs = preAlarmMs, armingMs = 0) })
 
     /** Drive the machine and route its effects into the siren exactly like ArmService does. */
     private fun AlarmStateMachine.send(e: AlarmEvent) = handle(e).forEach { siren.apply(it) }

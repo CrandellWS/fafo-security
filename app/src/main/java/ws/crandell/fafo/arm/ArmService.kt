@@ -32,6 +32,7 @@ import ws.crandell.fafo.storage.CeStore
 import ws.crandell.fafo.motion.MotionSensitivity
 import ws.crandell.fafo.storage.DpSettings
 import ws.crandell.fafo.storage.DpStore
+import ws.crandell.fafo.system.BootClock
 import ws.crandell.fafo.system.DeviceStatus
 import ws.crandell.fafo.net.AlertInfo
 import ws.crandell.fafo.net.Command
@@ -56,6 +57,7 @@ class ArmService : LifecycleService() {
     private var networkAttached = false
 
     private var windowJob: Job? = null
+    private var armingJob: Job? = null
     private var preAlarmJob: Job? = null
     private var wakeLock: PowerManager.WakeLock? = null
     private var wakeKeepAlive: Job? = null
@@ -83,9 +85,21 @@ class ArmService : LifecycleService() {
             when (intent.action) {
                 Intent.ACTION_POWER_DISCONNECTED -> events.trySend(AlarmEvent.PowerDisconnected(now))
                 Intent.ACTION_POWER_CONNECTED -> events.trySend(AlarmEvent.PowerConnected(now))
-                Intent.ACTION_USER_PRESENT -> events.trySend(AlarmEvent.UserPresent)
+                Intent.ACTION_USER_PRESENT -> {
+                    recordTrail(screenOff = false)
+                    events.trySend(AlarmEvent.UserPresent)
+                }
+                Intent.ACTION_SCREEN_OFF -> recordTrail(screenOff = true)
             }
         }
+    }
+
+    /** Disarm unlock trail (DisarmPolicy): screen-off and unlock times while ARMED, in DP storage. */
+    private fun recordTrail(screenOff: Boolean) {
+        if (!::machine.isInitialized || machine.state !is AlarmState.Armed) return
+        val at = BootClock.now()
+        val boot = BootClock.bootId(this)
+        lifecycleScope.launch { if (screenOff) dp.recordScreenOff(at, boot) else dp.recordUserPresent(at, boot) }
     }
 
     override fun onCreate() {
@@ -110,7 +124,7 @@ class ArmService : LifecycleService() {
         when (intent?.action) {
             ACTION_ARM -> {
                 // Visible-app start (the Arm tap): camera type allowed if the permission is granted.
-                goForeground(withCamera = DeviceStatus.hasCamera(this))
+                goForeground(withCamera = DeviceStatus.hasCamera(this), arming = true)
                 events.trySend(
                     AlarmEvent.ArmRequested(
                         plugged = DeviceStatus.isPlugged(this),
@@ -118,6 +132,7 @@ class ArmService : LifecycleService() {
                     ),
                 )
             }
+            ACTION_CANCEL_ARMING -> lifecycleScope.launch { events.send(AlarmEvent.ArmCancelled) }
             ACTION_DISARM -> lifecycleScope.launch {
                 if (machine.state == AlarmState.Disarmed) {
                     // Fresh process with stale flags: clear them so nothing resumes later.
@@ -167,11 +182,11 @@ class ArmService : LifecycleService() {
         )
     }
 
-    private fun goForeground(withCamera: Boolean) {
+    private fun goForeground(withCamera: Boolean, arming: Boolean = false) {
         var type = 0
         if (Build.VERSION.SDK_INT >= 34) type = type or ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE
         if (withCamera) type = type or ServiceInfo.FOREGROUND_SERVICE_TYPE_CAMERA
-        val notification = Notifications.forState(this, currentStateForNotification(), AlarmStatusBus.photosPaused.value, false)
+        val notification = Notifications.forState(this, currentStateForNotification(arming), AlarmStatusBus.photosPaused.value, false)
         try {
             ServiceCompat.startForeground(this, Notifications.ID_ARMED, notification, type)
             currentFgsType = type
@@ -188,8 +203,11 @@ class ArmService : LifecycleService() {
         AlarmStatusBus.setCameraActive(cameraType)
     }
 
-    private fun currentStateForNotification(): AlarmState =
-        if (::machine.isInitialized && machine.state != AlarmState.Disarmed) machine.state else AlarmState.Armed()
+    private fun currentStateForNotification(arming: Boolean = false): AlarmState = when {
+        ::machine.isInitialized && machine.state != AlarmState.Disarmed -> machine.state
+        arming -> ArmDeps.clock.now().let { AlarmState.Arming(it, it + (dpSettings ?: DpSettings()).armingS * 1000L) }
+        else -> AlarmState.Armed()
+    }
 
     private suspend fun process(e: AlarmEvent) {
         if (dpSettings == null) dpSettings = dp.readSettings()
@@ -199,6 +217,10 @@ class ArmService : LifecycleService() {
             if (fx == AlarmEffect.StopService) stop = true else run(fx)
         }
         val s = machine.state
+        if (e is AlarmEvent.ArmingElapsed && s is AlarmState.Arming) {
+            // The timer fired a little before endsAt by the clock: wait out the rest.
+            scheduleArming((s.endsAt - ArmDeps.clock.now()).coerceAtLeast(1))
+        }
         if (e == AlarmEvent.PreAlarmElapsed && s is AlarmState.PreAlarm) {
             // The timer fired a little before endsAt by the clock: wait out the rest.
             val rest = (s.endsAt - ArmDeps.clock.now()).coerceAtLeast(1)
@@ -225,6 +247,9 @@ class ArmService : LifecycleService() {
         when (fx) {
             is AlarmEffect.PersistArmed -> dp.setArmed(fx.armed, fx.awaitingPower)
             is AlarmEffect.PersistIncident -> dp.setIncident(fx.active, fx.id, fx.startedAt)
+            is AlarmEffect.StartArmingTimer -> scheduleArming(fx.delayMs)
+            AlarmEffect.CancelArmingTimer -> armingJob?.cancel()
+            AlarmEffect.RecordArmedAt -> dp.recordArmedAt(BootClock.now(), BootClock.bootId(this))
             is AlarmEffect.StartWindowTimer -> {
                 windowJob?.cancel()
                 windowJob = lifecycleScope.launch {
@@ -281,6 +306,19 @@ class ArmService : LifecycleService() {
             }
             is AlarmEffect.Refused -> Log.i(TAG, "refused: ${fx.reason}")
             AlarmEffect.StopService -> Unit
+        }
+    }
+
+    private fun scheduleArming(delayMs: Long) {
+        armingJob?.cancel()
+        armingJob = lifecycleScope.launch {
+            delay(delayMs)
+            events.send(
+                AlarmEvent.ArmingElapsed(
+                    plugged = DeviceStatus.isPlugged(this@ArmService),
+                    secureLock = DeviceStatus.isDeviceSecure(this@ArmService),
+                ),
+            )
         }
     }
 
@@ -367,6 +405,8 @@ class ArmService : LifecycleService() {
             addAction(Intent.ACTION_POWER_DISCONNECTED)
             addAction(Intent.ACTION_POWER_CONNECTED)
             addAction(Intent.ACTION_USER_PRESENT)
+            // Disarm unlock trail: SCREEN_OFF can only be registered at runtime.
+            addAction(Intent.ACTION_SCREEN_OFF)
         }
         // AC2.1: not a manifest-allowed implicit broadcast; register at runtime.
         ContextCompat.registerReceiver(this, systemReceiver, filter, ContextCompat.RECEIVER_NOT_EXPORTED)
@@ -470,6 +510,7 @@ class ArmService : LifecycleService() {
         photos?.stop()
         motion.stop()
         windowJob?.cancel()
+        armingJob?.cancel()
         preAlarmJob?.cancel()
         sound.stop()
         AlarmStatusBus.setCameraActive(false)
@@ -500,6 +541,8 @@ class ArmService : LifecycleService() {
         private const val TAG = "ArmService"
         const val ACTION_ARM = "ws.crandell.fafo.action.ARM"
         const val ACTION_DISARM = "ws.crandell.fafo.action.DISARM"
+        /** Cancel the ARMING countdown (Home button, notification action). No auth: the result is "not armed". */
+        const val ACTION_CANCEL_ARMING = "ws.crandell.fafo.action.CANCEL_ARMING"
         const val ACTION_REPOST = "ws.crandell.fafo.action.REPOST"
         const val ACTION_REPOST_ALARM = "ws.crandell.fafo.action.REPOST_ALARM"
         const val ACTION_NOTIFICATION_TAP = "ws.crandell.fafo.action.NOTIFICATION_TAP"
@@ -512,6 +555,10 @@ class ArmService : LifecycleService() {
         /** Arm tap from the visible app. */
         fun arm(context: Context) {
             ContextCompat.startForegroundService(context, Intent(context, ArmService::class.java).setAction(ACTION_ARM))
+        }
+
+        fun cancelArming(context: Context) {
+            context.startService(Intent(context, ArmService::class.java).setAction(ACTION_CANCEL_ARMING))
         }
 
         fun disarm(context: Context) {

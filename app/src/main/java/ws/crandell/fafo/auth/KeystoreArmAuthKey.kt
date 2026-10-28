@@ -18,17 +18,20 @@ import javax.crypto.SecretKey
  * The grace value is part of the alias (`fafo_arm_auth_g30`) so a changed setting is detected without
  * reading KeyInfo. Not invalidated by a new fingerprint enrolment (adding a finger must not break arming);
  * removing the screen lock invalidates it and [ArmAuthenticator] re-creates it.
+ *
+ * Two instances exist: [ARM_PREFIX] (grace window) and [DISARM_PREFIX] (always created with grace 0, so a
+ * recent unlock or a prompt for anything else can never satisfy it).
  */
-class KeystoreArmAuthKey : ArmAuthKey {
+class KeystoreArmAuthKey(private val prefix: String = ARM_PREFIX) : ArmAuthKey {
     private val ks: KeyStore by lazy { KeyStore.getInstance(STORE).apply { load(null) } }
 
-    private fun alias(): String? = ks.aliases().toList().firstOrNull { it.startsWith(PREFIX) }
+    private fun alias(): String? = ks.aliases().toList().firstOrNull { it.startsWith(prefix) }
 
-    override fun graceOfKey(): Int? = alias()?.removePrefix(PREFIX)?.toIntOrNull()
+    override fun graceOfKey(): Int? = alias()?.removePrefix(prefix)?.toIntOrNull()
 
     override fun create(graceS: Int) {
-        ks.aliases().toList().filter { it.startsWith(PREFIX) }.forEach { ks.deleteEntry(it) }
-        val spec = KeyGenParameterSpec.Builder("$PREFIX$graceS", KeyProperties.PURPOSE_SIGN)
+        ks.aliases().toList().filter { it.startsWith(prefix) }.forEach { ks.deleteEntry(it) }
+        val spec = KeyGenParameterSpec.Builder("$prefix$graceS", KeyProperties.PURPOSE_SIGN)
             .setDigests(KeyProperties.DIGEST_SHA256)
             .setUserAuthenticationRequired(true)
             .setUserAuthenticationParameters(graceS, KeyProperties.AUTH_BIOMETRIC_STRONG or KeyProperties.AUTH_DEVICE_CREDENTIAL)
@@ -55,9 +58,12 @@ class KeystoreArmAuthKey : ArmAuthKey {
 
     override fun finish(mac: Mac): Boolean = runCatching { mac.doFinal(NONCE) }.isSuccess
 
-    private companion object {
-        const val STORE = "AndroidKeyStore"
-        const val PREFIX = "fafo_arm_auth_g"
-        val NONCE = "fafo-arm".toByteArray()
+    companion object {
+        private const val STORE = "AndroidKeyStore"
+        /** Arm (and the "recent real unlock" proof for Disarm): bound to the grace window. */
+        const val ARM_PREFIX = "fafo_arm_auth_g"
+        /** Disarm when the unlock trail does not allow a skip: always per-use (grace 0, CryptoObject). */
+        const val DISARM_PREFIX = "fafo_disarm_g"
+        private val NONCE = "fafo-arm".toByteArray()
     }
 }

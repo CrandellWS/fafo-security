@@ -32,6 +32,7 @@ object AlarmStatusBus {
 
 fun stateLabel(state: AlarmState, now: Long): String = when (state) {
     AlarmState.Disarmed -> "Disarmed"
+    is AlarmState.Arming -> "Arming (${((state.endsAt - now).coerceAtLeast(0) + 999) / 1000} s)"
     is AlarmState.Armed -> if (state.awaitingPower) "Armed, waiting for power" else "Armed"
     is AlarmState.PreAlarm -> "Plug me back in (${((state.endsAt - now).coerceAtLeast(0) + 999) / 1000} s)"
     is AlarmState.Triggered, is AlarmState.IncidentPersisted -> "ALARM"

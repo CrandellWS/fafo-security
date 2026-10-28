@@ -72,10 +72,11 @@ object FafoDims {
 }
 
 /** The four alarm states the UI distinguishes. */
-enum class StateKind { DISARMED, ARMED, PRE_ALARM, TRIGGERED }
+enum class StateKind { DISARMED, ARMING, ARMED, PRE_ALARM, TRIGGERED }
 
 fun AlarmState.kind(): StateKind = when (this) {
     AlarmState.Disarmed -> StateKind.DISARMED
+    is AlarmState.Arming -> StateKind.ARMING
     is AlarmState.Armed -> StateKind.ARMED
     is AlarmState.PreAlarm -> StateKind.PRE_ALARM
     is AlarmState.Triggered, is AlarmState.IncidentPersisted -> StateKind.TRIGGERED
@@ -86,6 +87,7 @@ fun stateColor(kind: StateKind): Color {
     val c = LocalFafoStateColors.current
     return when (kind) {
         StateKind.DISARMED -> c.disarmed
+        StateKind.ARMING -> c.arming
         StateKind.ARMED -> c.armed
         StateKind.PRE_ALARM -> c.preAlarm
         StateKind.TRIGGERED -> FafoColors.RedText
@@ -93,7 +95,7 @@ fun stateColor(kind: StateKind): Color {
 }
 
 fun stateIcon(kind: StateKind): ImageVector = when (kind) {
-    StateKind.DISARMED -> FafoIcons.ShieldOutline
+    StateKind.DISARMED, StateKind.ARMING -> FafoIcons.ShieldOutline
     StateKind.ARMED -> FafoIcons.ShieldCheck
     StateKind.PRE_ALARM, StateKind.TRIGGERED -> FafoIcons.ShieldAlert
 }

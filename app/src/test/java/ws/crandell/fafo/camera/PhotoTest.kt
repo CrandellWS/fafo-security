@@ -178,7 +178,7 @@ class PhotoControllerTest {
         val backend = FakeAudioBackend()
         val siren = Siren(backend, scope)
         val fc = FakeClock()
-        val m = AlarmStateMachine(fc, { AlarmConfig(preAlarmMs = 0) })
+        val m = AlarmStateMachine(fc, { AlarmConfig(preAlarmMs = 0, armingMs = 0) })
         fun send(e: AlarmEvent) = m.handle(e).forEach { fx ->
             if (!siren.apply(fx) && fx == AlarmEffect.StartPhotos) {
                 val s = m.state as AlarmState.Triggered

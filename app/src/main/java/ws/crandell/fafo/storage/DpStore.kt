@@ -15,6 +15,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import ws.crandell.fafo.auth.UnlockTrail
 import ws.crandell.fafo.core.AlarmConfig
 import ws.crandell.fafo.core.Defaults
 import java.io.File
@@ -28,8 +29,9 @@ data class DpSettings(
     val disarmOnUnlock: Boolean = Defaults.DISARM_ON_UNLOCK,
     val motion: String = Defaults.MOTION,
     val unlockGraceS: Int = Defaults.UNLOCK_GRACE_S,
+    val armingS: Int = Defaults.ARMING_S,
 ) {
-    fun alarmConfig() = AlarmConfig(sensitivityMs, preAlarmS * 1000L, disarmOnUnlock)
+    fun alarmConfig() = AlarmConfig(sensitivityMs, preAlarmS * 1000L, disarmOnUnlock, armingS * 1000L)
 }
 
 /** Runtime flags in DP (spec section 4, last paragraph). */
@@ -53,6 +55,27 @@ class DpStore(private val store: DataStore<Preferences>) {
     suspend fun readSettings(): DpSettings = settings.first()
     suspend fun readState(): DpState = state.first()
 
+    /** The disarm unlock trail (auth/DisarmPolicy.kt). DP, so the armed service writes it before first unlock. */
+    suspend fun readTrail(): UnlockTrail = store.data.first().let {
+        UnlockTrail(it[ARMED_AT], it[LAST_SCREEN_OFF_AT], it[LAST_USER_PRESENT_AT], it[TRAIL_BOOT_ID] ?: 0L)
+    }
+
+    /** Entered ARMED: new arm time, and any earlier screen-off / unlock no longer counts. */
+    suspend fun recordArmedAt(at: Long, bootId: Long) = store.edit {
+        it[ARMED_AT] = at
+        it[TRAIL_BOOT_ID] = bootId
+        it.remove(LAST_SCREEN_OFF_AT)
+        it.remove(LAST_USER_PRESENT_AT)
+    }
+
+    suspend fun recordScreenOff(at: Long, bootId: Long) = store.edit {
+        if (it[TRAIL_BOOT_ID] == bootId) it[LAST_SCREEN_OFF_AT] = at
+    }
+
+    suspend fun recordUserPresent(at: Long, bootId: Long) = store.edit {
+        if (it[TRAIL_BOOT_ID] == bootId) it[LAST_USER_PRESENT_AT] = at
+    }
+
     suspend fun setArmed(armed: Boolean, awaitingPower: Boolean) = store.edit {
         it[ARMED] = armed
         it[AWAITING_POWER] = armed && awaitingPower
@@ -73,6 +96,7 @@ class DpStore(private val store: DataStore<Preferences>) {
         it[DISARM_ON_UNLOCK] = n.disarmOnUnlock
         it[MOTION] = n.motion
         it[UNLOCK_GRACE_S] = n.unlockGraceS
+        it[ARMING_S] = n.armingS
     }
 
     private fun Preferences.toSettings() = DpSettings(
@@ -83,6 +107,7 @@ class DpStore(private val store: DataStore<Preferences>) {
         disarmOnUnlock = this[DISARM_ON_UNLOCK] ?: Defaults.DISARM_ON_UNLOCK,
         motion = this[MOTION] ?: Defaults.MOTION,
         unlockGraceS = this[UNLOCK_GRACE_S] ?: Defaults.UNLOCK_GRACE_S,
+        armingS = this[ARMING_S] ?: Defaults.ARMING_S,
     )
 
     private fun Preferences.toState() = DpState(
@@ -108,6 +133,11 @@ class DpStore(private val store: DataStore<Preferences>) {
         private val DISARM_ON_UNLOCK = booleanPreferencesKey("disarm_on_unlock")
         private val MOTION = stringPreferencesKey("motion")
         private val UNLOCK_GRACE_S = intPreferencesKey("unlock_grace_s")
+        private val ARMING_S = intPreferencesKey("arming_s")
+        private val ARMED_AT = longPreferencesKey("armed_at")
+        private val LAST_SCREEN_OFF_AT = longPreferencesKey("last_screen_off_at")
+        private val LAST_USER_PRESENT_AT = longPreferencesKey("last_user_present_at")
+        private val TRAIL_BOOT_ID = longPreferencesKey("trail_boot_id")
 
         @Volatile private var instance: DpStore? = null
 

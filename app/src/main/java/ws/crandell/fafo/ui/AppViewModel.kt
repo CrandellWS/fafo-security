@@ -21,6 +21,10 @@ import ws.crandell.fafo.auth.ArmAuthenticator
 import ws.crandell.fafo.auth.AuthAction
 import ws.crandell.fafo.auth.GuardedAction
 import ws.crandell.fafo.auth.KeystoreArmAuthKey
+import ws.crandell.fafo.auth.DisarmPolicy
+import ws.crandell.fafo.system.BootClock
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.collectLatest
 import ws.crandell.fafo.ui.screens.graceLabel
 import ws.crandell.fafo.circles.Circle
 import ws.crandell.fafo.circles.CircleManager
@@ -79,9 +83,22 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     val gate = DelegatingGate()
 
     /** AC1.7: Arm / Disarm / grace changes need the screen lock or a strong biometric outside the grace window. */
-    private val armAuth = ArmAuthenticator(KeystoreArmAuthKey(), gate, { dpSettings.value.unlockGraceS })
+    private val armAuth = ArmAuthenticator(
+        KeystoreArmAuthKey(), gate, { dpSettings.value.unlockGraceS },
+        disarmKey = KeystoreArmAuthKey(KeystoreArmAuthKey.DISARM_PREFIX),
+    )
     private val armGuard = GuardedAction(armAuth::authorize)
     val armAuthUi: StateFlow<ArmAuthUi> = armGuard.ui
+
+    /**
+     * Disarm (Bill 2026-10-28): no prompt only after a lock and unlock that happened after arming, inside the
+     * grace window, with the grace key proving a real unlock (DisarmPolicy). Otherwise BiometricPrompt.
+     */
+    fun guardedDisarm(block: () -> Unit) = viewModelScope.launch {
+        val trail = dp.readTrail()
+        val skip = DisarmPolicy.canSkipPrompt(trail, BootClock.bootId(ctx), BootClock.now(), dpSettings.value.unlockGraceS)
+        armGuard.run(AuthAction.DISARM, { _message.value = it }, { armAuth.authorizeDisarm(skip) }) { block() }
+    }
 
     /** Runs [block] (start / stop the armed service) only after the owner is confirmed. */
     fun guarded(action: AuthAction, block: () -> Unit) = viewModelScope.launch {
@@ -98,18 +115,34 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    /** Ticks four times a second while a countdown (ARMING, PRE_ALARM) is on screen. */
+    private val tick = MutableStateFlow(System.currentTimeMillis())
+
+    init {
+        viewModelScope.launch {
+            AlarmStatusBus.state.collectLatest { s ->
+                while (s is AlarmState.Arming || s is AlarmState.PreAlarm) {
+                    tick.value = System.currentTimeMillis()
+                    delay(250)
+                }
+            }
+        }
+    }
+
     val home: StateFlow<HomeUiState> = combine(
-        combine(_plugged, armGuard.ui) { p, a -> p to a },
+        combine(_plugged, armGuard.ui, tick) { p, a, t -> Triple(p, a, t) },
         _onboarding, AlarmStatusBus.state, dpState, AlarmStatusBus.cameraActive,
-    ) { (plugged, auth), onboarding, live, dpState, camera ->
+    ) { (plugged, auth, now), onboarding, live, dpState, camera ->
         val state = if (live == AlarmState.Disarmed && dpState.armed) AlarmState.Armed(dpState.awaitingPower) else live
         HomeUiState(
             alarmState = state,
             confirming = auth is ArmAuthUi.Confirming,
             plugged = plugged,
             secureLock = onboarding.secureLock,
-            stateLabel = stateLabel(state, System.currentTimeMillis()),
+            stateLabel = stateLabel(state, maxOf(now, System.currentTimeMillis())),
             armed = state is AlarmState.Armed,
+            arming = state is AlarmState.Arming,
+            armingLeftS = (state as? AlarmState.Arming)?.let { ((it.endsAt - System.currentTimeMillis()).coerceAtLeast(0) + 999) / 1000 } ?: 0,
             alarming = state.isAlarming,
             photosOff = !camera,
             awaitingPower = (state as? AlarmState.Armed)?.awaitingPower == true,

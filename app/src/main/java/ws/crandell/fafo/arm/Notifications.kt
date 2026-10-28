@@ -105,8 +105,24 @@ object Notifications {
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setForegroundServiceBehavior(NotificationCompat.FOREGROUND_SERVICE_IMMEDIATE)
             .setDeleteIntent(serviceIntent(context, ArmService.ACTION_REPOST, 2))
-            .addAction(disarmAction(context))
+        // ARMING offers Cancel (no auth needed: the result is "not armed"); every other state Disarm.
+        if (state is AlarmState.Arming) {
+            b.addAction(NotificationCompat.Action.Builder(0, "Cancel", serviceIntent(context, ArmService.ACTION_CANCEL_ARMING, 4)).build())
+        } else {
+            b.addAction(disarmAction(context))
+        }
         when (state) {
+            is AlarmState.Arming -> {
+                val s = ((state.endsAt - state.startedAt) + 999) / 1000
+                b.setContentTitle("Arming in $s s")
+                    .setContentText("Leave it plugged in. Tap Cancel to stop arming.")
+                    .setUsesChronometer(true)
+                    .setChronometerCountDown(true)
+                    .setWhen(state.endsAt)
+                    .setShowWhen(true)
+                    .setPriority(NotificationCompat.PRIORITY_HIGH)
+                    .setContentIntent(openAppIntent(context))
+            }
             is AlarmState.Armed -> {
                 b.setContentTitle("FAFO Security is armed")
                     .setContentText(

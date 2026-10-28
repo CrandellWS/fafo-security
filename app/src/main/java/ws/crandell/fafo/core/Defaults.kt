@@ -15,6 +15,10 @@ object Defaults {
 
     const val DISARM_ON_UNLOCK = false
 
+    /** ARMING countdown before ARMED (Bill 2026-10-28): a few seconds, cancellable. */
+    val ARMING_CHOICES_S = listOf(3, 5, 10)
+    const val ARMING_S = 5
+
     /** AC1.7: Arm / Disarm skip the prompt this long after the phone was unlocked (0 = always ask). */
     val UNLOCK_GRACE_CHOICES_S = listOf(0, 15, 30, 60, 120)
     const val UNLOCK_GRACE_S = 30

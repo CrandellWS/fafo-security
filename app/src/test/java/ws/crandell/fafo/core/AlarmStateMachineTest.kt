@@ -33,6 +33,9 @@ class AlarmStateMachineTest {
 
     private fun armed(m: AlarmStateMachine = machine()): AlarmStateMachine {
         m.handle(ArmRequested(plugged = true, secureLock = true))
+        assertThat(m.state).isInstanceOf(AlarmState.Arming::class.java)
+        clock.advance(config.armingMs)
+        m.handle(AlarmEvent.ArmingElapsed(plugged = true, secureLock = true))
         assertThat(m.state).isEqualTo(AlarmState.Armed())
         return m
     }
@@ -60,10 +63,12 @@ class AlarmStateMachineTest {
         assertThat(fx).containsExactly(Refused(RefusalReason.NO_SECURE_LOCK))
     }
 
-    @Test fun armPersistsArmedFlag() {
+    @Test fun armPersistsArmedFlagAfterArming() {
         val m = machine()
-        val fx = m.handle(ArmRequested(plugged = true, secureLock = true))
-        assertThat(fx).containsExactly(PersistArmed(true, false))
+        m.handle(ArmRequested(plugged = true, secureLock = true))
+        clock.advance(config.armingMs)
+        val fx = m.handle(AlarmEvent.ArmingElapsed(plugged = true, secureLock = true))
+        assertThat(fx).containsExactly(PersistArmed(true, false), AlarmEffect.RecordArmedAt).inOrder()
     }
 
     @Test fun disarmTappedFromArmed() {

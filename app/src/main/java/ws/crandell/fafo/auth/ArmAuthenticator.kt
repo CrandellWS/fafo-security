@@ -31,26 +31,51 @@ class ArmAuthenticator(
     private val gate: CredentialGate,
     private val graceS: () -> Int,
     private val io: CoroutineDispatcher = Dispatchers.Default,
+    /** Per-use key for Disarm when the unlock trail does not allow a skip (always grace 0). */
+    private val disarmKey: ArmAuthKey? = null,
 ) {
     suspend fun authorize(action: AuthAction): AuthResult {
         if (!gate.hasSecureLock()) return AuthResult.NoSecureLock
-        val grace = graceS()
-        val first = try {
-            withContext(io) {
-                if (key.graceOfKey() != grace) key.create(grace)
-                when (val c = key.check()) {
-                    KeyCheck.Invalidated, KeyCheck.NoKey -> { key.create(grace); key.check() }
-                    else -> c
-                }
+        val first = try { checkKey(key, graceS()) } catch (e: Exception) {
+            return AuthResult.Failed("Could not check your screen lock: ${e.javaClass.simpleName}")
+        }
+        return when (first) {
+            KeyCheck.Ok -> AuthResult.Allowed(prompted = false)
+            is KeyCheck.NeedsAuth -> prompt(action, key, first)
+            KeyCheck.Invalidated, KeyCheck.NoKey -> AuthResult.Failed("Could not set up the confirmation key")
+        }
+    }
+
+    /**
+     * Disarm (Bill 2026-10-28). No prompt only when [trailAllowsSkip] ([DisarmPolicy]: locked and unlocked
+     * after arming, inside the grace window) AND the grace-window key accepts (the unlock used the real
+     * credential or a strong biometric). Otherwise always a prompt on the separate per-use disarm key.
+     */
+    suspend fun authorizeDisarm(trailAllowsSkip: Boolean): AuthResult {
+        if (!gate.hasSecureLock()) return AuthResult.NoSecureLock
+        try {
+            if (trailAllowsSkip && checkKey(key, graceS()) == KeyCheck.Ok) return AuthResult.Allowed(prompted = false)
+            // Without a separate key (tests, old callers) the prompt is still forced, on the grace key.
+            val dk = disarmKey ?: return prompt(AuthAction.DISARM, key, KeyCheck.NeedsAuth(null))
+            return when (val c = checkKey(dk, 0)) {
+                is KeyCheck.NeedsAuth -> prompt(AuthAction.DISARM, dk, c)
+                // A per-use key never passes without a prompt; anything else is a broken key.
+                else -> AuthResult.Failed("Could not set up the confirmation key")
             }
         } catch (e: Exception) {
             return AuthResult.Failed("Could not check your screen lock: ${e.javaClass.simpleName}")
         }
-        val needs = when (first) {
-            KeyCheck.Ok -> return AuthResult.Allowed(prompted = false)
-            is KeyCheck.NeedsAuth -> first
-            KeyCheck.Invalidated, KeyCheck.NoKey -> return AuthResult.Failed("Could not set up the confirmation key")
+    }
+
+    private suspend fun checkKey(k: ArmAuthKey, grace: Int): KeyCheck = withContext(io) {
+        if (k.graceOfKey() != grace) k.create(grace)
+        when (val c = k.check()) {
+            KeyCheck.Invalidated, KeyCheck.NoKey -> { k.create(grace); k.check() }
+            else -> c
         }
+    }
+
+    private suspend fun prompt(action: AuthAction, key: ArmAuthKey, needs: KeyCheck.NeedsAuth): AuthResult {
         return when (val r = gate.confirmUser(action.title, action.subtitle, needs.mac)) {
             is GateResult.Success -> {
                 val accepted = withContext(io) {

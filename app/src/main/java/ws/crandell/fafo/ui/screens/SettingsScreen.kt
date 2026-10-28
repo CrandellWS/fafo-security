@@ -29,8 +29,8 @@ fun graceLabel(s: Int): String = when {
 
 fun graceHint(s: Int): String =
     if (s == 0) "Off: Arm and Disarm always ask for your fingerprint or screen lock."
-    else "If you unlocked the phone in the last ${graceLabel(s)}, Arm and Disarm don't ask again. " +
-        "Changing this asks for your screen lock."
+    else "Arm doesn't ask if you unlocked the phone in the last ${graceLabel(s)}. Disarm doesn't ask only if you " +
+        "locked and unlocked the phone after arming, in the last ${graceLabel(s)}. Changing this asks for your screen lock."
 
 fun sensitivityLabel(ms: Long): String = if (ms % 1000 == 0L) "${ms / 1000} s" else "${ms / 1000.0} s"
 
@@ -66,6 +66,11 @@ fun SettingsScreen(
         )
 
         SectionHeader("Security")
+        ChoiceRow(
+            "Arming countdown", Defaults.ARMING_CHOICES_S, dp.armingS, { "$it s" },
+            { v -> onDp { it.copy(armingS = v) } }, "arming",
+            hint = "After you tap Arm, a yellow countdown runs before FAFO is armed. Cancel any time.",
+        )
         ChoiceRow(
             "Unlock grace window", Defaults.UNLOCK_GRACE_CHOICES_S, dp.unlockGraceS, ::graceLabel, onGrace, "grace",
             hint = graceHint(dp.unlockGraceS),

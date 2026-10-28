@@ -46,7 +46,7 @@ over Bluetooth, end-to-end encrypted with the paired keys.
 
 ```
             arm (plugged in, secure lock set, app on screen)
- DISARMED ──────────────────────────────────────────▶ ARMED ◀──────── plug back in ───────┐
+ DISARMED ──▶ ARMING (3/5/10 s, cancel / unplug ──▶ DISARMED) ──▶ ARMED ◀── plug back in ──┐
     ▲                                                   │ unplug held >= sensitivity window │
     │                                                   ▼ while locked                      │
     │◀──────────── owner unlocks ─────────────────── PRE_ALARM (0-60 s countdown) ─────────┘
@@ -60,6 +60,7 @@ over Bluetooth, end-to-end encrypted with the paired keys.
 | State | Meaning | Siren | Camera | Motion | Notification |
 |---|---|---|---|---|---|
 | DISARMED | Not protecting. No service running. | off | off | off | none |
+| ARMING | Yellow countdown after the Arm tap (3, 5 or 10 s, default 5). Cancel or unplug returns to DISARMED; nothing alarms. Never persisted: a reboot during ARMING ends DISARMED. | off | off | off | "Arming in n s" with Cancel |
 | ARMED | Foreground service running; listening for unplug and motion. | off (chirps only) | ready, idle | on | persistent "Armed" (ongoing; re-posted if dismissed, see AC1.2) |
 | PRE_ALARM | Unplug confirmed while locked; countdown before the full siren. | quieter warning beeps, faster as the end nears | first photo now, then every N s | ignored | persistent "Plug me back in" + countdown |
 | TRIGGERED | Pre-alarm ran out (or pre-alarm is 0 s). | on, full alarm volume, looping | photos continue every N s (first photo now if pre-alarm is 0 s) | ignored (siren already on) | persistent "ALARM" + full-screen intent if allowed |
@@ -74,8 +75,13 @@ over Bluetooth, end-to-end encrypted with the paired keys.
   The tap starts the foreground service (types `specialUse|camera`) only after the owner confirms it is
   them (AC1.7): the phone's screen lock or a Class 3 (strong) biometric, skipped when the phone was unlocked
   within the "Unlock grace window".
-- **ARMED to DISARMED:** the owner taps Disarm in the app or on the notification action. Both need the
-  same confirmation as arming (AC1.7). The notification action opens the app (it needs the device unlocked)
+- **DISARMED to ARMING to ARMED (2026-10-28, Bill's device test):** the confirmed Arm tap starts a yellow
+  ARMING countdown; when it ends the service re-checks plugged-in and secure lock and enters ARMED. Cancel
+  (app button or notification action) needs no confirmation, since the result is "not armed". Unplugging
+  during ARMING cancels it. Remote commands are refused and motion is ignored during ARMING.
+- **ARMED to DISARMED:** the owner taps Disarm in the app or on the notification action. Both need a
+  confirmation (AC1.7), with a stricter skip rule than arming: no prompt only if the phone was locked
+  (screen off) after it was armed, then unlocked, and that unlock is inside the grace window. The notification action opens the app (it needs the device unlocked)
   and the app runs the confirmation, so right after unlocking there is no extra prompt. Changed 2026-10-28:
   the notification action used to disarm straight from a service intent with only "device unlocked",
   which let anyone holding the unlocked phone disarm without the credential. Unlocking alone does not
@@ -141,6 +147,15 @@ over Bluetooth, end-to-end encrypted with the paired keys.
   window also needs the confirmation and re-creates the key. Smart Lock and Class 2 face unlock do not
   count, so they always prompt. Remote Reset / Disarm (AC9.8) and the owner's unlock stopping an alarm are
   unchanged. Cancelling leaves the state as it was.
+  **Disarm rule (2026-10-28, Bill's device test: right after arming, Disarm went through with no prompt
+  because the arm-time unlock was still inside the grace window).** The armed service records
+  `ACTION_SCREEN_OFF` and `ACTION_USER_PRESENT` times (`SystemClock.elapsedRealtime()` plus the boot count,
+  in DP storage) after the arm time. Disarm skips the prompt only when all hold: screen off at or after the
+  arm time, an unlock after that screen off, the unlock within the grace window, the same boot, and the
+  grace-window key accepts (proof the unlock used the real credential or a strong biometric, which rules
+  out Smart Lock / Extend Unlock). Otherwise Disarm always prompts, on a separate per-use Keystore key
+  (`fafo_disarm_g0`, `CryptoObject`), so no recent unlock or other prompt can satisfy it. Arming keeps the
+  plain grace window. The ARMING countdown (default 5 s) runs between the Arm confirmation and ARMED.
 
 ### F2. Unplug siren that persists through reboot
 
@@ -510,7 +525,8 @@ All settings live in DataStore. Settings needed at boot (marked DP) live in a de
 | Force max alarm volume | on/off | on | DP |
 | Pre-alarm | 0, 1, 5, 10, 30, 60 s | 5 s | DP |
 | Disarm on unlock (while armed, not triggered) | on/off | off | DP |
-| Unlock grace window (Arm / Disarm skip the prompt this long after an unlock, AC1.7) | Off, 15, 30, 60, 120 s | 30 s | DP (the key itself lives in Keystore) |
+| Unlock grace window (Arm skips the prompt this long after an unlock; Disarm only after a lock and unlock after arming, AC1.7) | Off, 15, 30, 60, 120 s | 30 s | DP (the key itself lives in Keystore) |
+| Arming countdown (ARMING before ARMED) | 3, 5, 10 s | 5 s | DP |
 | Motion chirps | Off / Low / Medium / High | Medium | DP |
 | Photo on trigger | on/off | on | CE |
 | Photo interval | 5–30 s (step 5) | 10 s | CE |
@@ -531,7 +547,8 @@ DP = device-protected storage (`createDeviceProtectedStorageContext()`), readabl
 CE = credential-protected (default) storage, readable only after first unlock.
 
 Runtime state in DP: `armed` (bool), `awaiting_power` (bool, after a remote Reset while unplugged),
-`incident_active` (bool), `incident_id`, `incident_started_at`.
+`incident_active` (bool), `incident_id`, `incident_started_at`, and the disarm unlock trail `armed_at`,
+`last_screen_off_at`, `last_user_present_at`, `trail_boot_id` (AC1.7).
 
 ## 5. Storage rules
 

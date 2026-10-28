@@ -38,6 +38,12 @@ import ws.crandell.fafo.ui.components.StateBadge
 import ws.crandell.fafo.ui.components.StateKind
 import ws.crandell.fafo.ui.components.StatusHero
 import ws.crandell.fafo.ui.components.kind
+import ws.crandell.fafo.ui.components.stateColor
+import ws.crandell.fafo.ui.theme.FafoType
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.unit.sp
 import ws.crandell.fafo.ui.theme.FafoColors
 
 /** Destinations Home can open (bottom-bar tabs or pushed screens). */
@@ -53,6 +59,9 @@ data class HomeUiState(
     /** Human-readable state: Disarmed, Armed, Plug me back in (n s), ALARM. */
     val stateLabel: String = "Disarmed",
     val armed: Boolean = false,
+    /** The ARMING countdown is running ([armingLeftS] seconds left). */
+    val arming: Boolean = false,
+    val armingLeftS: Long = 0,
     val alarming: Boolean = false,
     val photosOff: Boolean = false,
     val awaitingPower: Boolean = false,
@@ -71,6 +80,7 @@ fun armButtonLabel(s: HomeUiState): String = when {
 
 private fun stateWord(s: HomeUiState): String = when (s.alarmState.kind()) {
     StateKind.DISARMED -> if (s.armed) "Armed" else "Disarmed"
+    StateKind.ARMING -> "Arming"
     StateKind.ARMED -> "Armed"
     StateKind.PRE_ALARM -> "Plug me back in"
     StateKind.TRIGGERED -> "Alarm"
@@ -87,6 +97,7 @@ fun HomeScreen(
     onOpen: (Screen) -> Unit,
     onStep: (OnboardingStep) -> Unit,
     modifier: Modifier = Modifier,
+    onCancelArming: () -> Unit = {},
 ) {
     val kind = state.kindShown()
     Column(
@@ -109,6 +120,15 @@ fun HomeScreen(
                 StateKind.DISARMED -> {
                     PlugLine(state.plugged, if (state.plugged && state.secureLock) "ready to arm" else null)
                 }
+                StateKind.ARMING -> {
+                    Text(
+                        "${state.armingLeftS}", style = FafoType.countdown.copy(fontSize = 72.sp, lineHeight = 76.sp),
+                        color = stateColor(StateKind.ARMING),
+                        modifier = Modifier.testTag("armingCountdown").semantics { liveRegion = LiveRegionMode.Polite },
+                    )
+                    Text("Armed in ${state.armingLeftS} s. Leave it plugged in.", style = MaterialTheme.typography.bodyLarge, color = FafoColors.White)
+                    PlugLine(state.plugged, null)
+                }
                 StateKind.ARMED -> {
                     PlugLine(state.plugged, if (state.awaitingPower) null else "unplugging sets it off")
                     if (state.awaitingPower) Text("Reset remotely: plug in to protect again.", style = MaterialTheme.typography.bodyLarge, color = FafoColors.Amber)
@@ -129,7 +149,11 @@ fun HomeScreen(
             }
         }
 
-        if (state.armed || state.alarming) {
+        if (state.arming) {
+            PrimaryActionButton(
+                "Cancel arming", ActionKind.DISARM, onCancelArming, Modifier.testTag("cancelArmingButton"),
+            )
+        } else if (state.armed || state.alarming) {
             PrimaryActionButton(
                 "Disarm", ActionKind.DISARM, onDisarm, Modifier.testTag("disarmButton"), busy = state.confirming,
             )
@@ -141,8 +165,9 @@ fun HomeScreen(
         }
         Text(
             when {
+                state.arming -> "Cancel needs no fingerprint: cancelling leaves the phone unprotected."
                 state.armed || state.alarming -> "The FAFO notification stays while armed. Disarm asks for your fingerprint or screen lock" +
-                    graceNote(state.graceS)
+                    disarmGraceNote(state.graceS)
                 else -> "Arm asks for your fingerprint or screen lock" + graceNote(state.graceS)
             },
             style = MaterialTheme.typography.bodyMedium, color = FafoColors.TextMuted,
@@ -179,6 +204,10 @@ fun HomeScreen(
         }
     }
 }
+
+/** Bill 2026-10-28: after arming, only a lock and unlock AFTER the arm time skips the Disarm prompt. */
+private fun disarmGraceNote(graceS: Int): String =
+    if (graceS == 0) "." else ", unless you locked and unlocked the phone after arming, in the last ${graceLabel(graceS)}."
 
 private fun graceNote(graceS: Int): String =
     if (graceS == 0) "." else ", unless you unlocked the phone in the last ${graceLabel(graceS)}."

@@ -13,7 +13,7 @@ import ws.crandell.fafo.core.AlarmEvent.WindowElapsed
 class RemoteCommandStateTest {
     private val clock = FakeClock()
     private var ids = 0
-    private val config = AlarmConfig()
+    private val config = AlarmConfig(armingMs = 0)
     private val m = AlarmStateMachine(clock, { config }, { "inc${++ids}" })
 
     private fun trigger() {

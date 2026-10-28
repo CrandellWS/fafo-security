@@ -109,8 +109,80 @@ class ArmServiceTest {
         val c = Robolectric.buildService(ArmService::class.java, Intent(app, ArmService::class.java).setAction(ArmService.ACTION_ARM))
         controller = c
         val svc = c.create().startCommand(0, 1).get()
-        ServiceTestSupport.idleUntil { svc.state is AlarmState.Armed && svc.isListening }
+        // ARMING countdown (default 5 s) first, then ARMED.
+        ServiceTestSupport.idleUntil { svc.state is AlarmState.Arming && svc.isListening }
+        ServiceTestSupport.advance(ws.crandell.fafo.core.Defaults.ARMING_S * 1000L)
+        ServiceTestSupport.idleUntil { svc.state is AlarmState.Armed }
         return svc
+    }
+
+    private fun startArming(): ArmService {
+        val c = Robolectric.buildService(ArmService::class.java, Intent(app, ArmService::class.java).setAction(ArmService.ACTION_ARM))
+        controller = c
+        val svc = c.create().startCommand(0, 1).get()
+        ServiceTestSupport.idleUntil { svc.state is AlarmState.Arming && svc.isListening }
+        return svc
+    }
+
+    @Test fun armingShowsACancelNotificationThenArms() {
+        val svc = startArming()
+        val n = shadowOf(app.getSystemService(android.app.NotificationManager::class.java)).allNotifications
+            .single { it.extras.getString("android.title")?.startsWith("Arming") == true }
+        assertThat(n.actions.map { it.title.toString() }).containsExactly("Cancel")
+        assertThat(runBlocking { dp.readState().armed }).isFalse()
+        ServiceTestSupport.advance(ws.crandell.fafo.core.Defaults.ARMING_S * 1000L)
+        ServiceTestSupport.idleUntil { svc.state is AlarmState.Armed && runBlocking { dp.readState().armed && dp.readTrail().armedAt != null } }
+    }
+
+    @Test fun notificationCancelActionCancelsArming() {
+        val svc = startArming()
+        val n = shadowOf(app.getSystemService(android.app.NotificationManager::class.java)).allNotifications
+            .single { it.extras.getString("android.title")?.startsWith("Arming") == true }
+        val pi = shadowOf(n.actions.single().actionIntent)
+        assertThat(pi.isServiceIntent).isTrue()
+        assertThat(pi.savedIntent.action).isEqualTo(ArmService.ACTION_CANCEL_ARMING)
+        controller!!.withIntent(pi.savedIntent).startCommand(0, 2)
+        ServiceTestSupport.idleUntil { shadowOf(svc).isStoppedBySelf }
+        assertThat(svc.state).isEqualTo(AlarmState.Disarmed)
+        assertThat(runBlocking { dp.readState().armed }).isFalse()
+    }
+
+    @Test fun unplugDuringArmingCancelsWithoutAlarm() {
+        val svc = startArming()
+        ServiceTestSupport.setPlugged(app, false)
+        app.sendBroadcast(Intent(Intent.ACTION_POWER_DISCONNECTED))
+        ServiceTestSupport.idleUntil { shadowOf(svc).isStoppedBySelf }
+        assertThat(svc.state).isEqualTo(AlarmState.Disarmed)
+        assertThat(sound.calls).doesNotContain("siren")
+        assertThat(runBlocking { dp.readState().incidentActive }).isFalse()
+    }
+
+    @Test fun screenOffAndUnlockAfterArmingAreRecorded() {
+        var t = 50_000L
+        ws.crandell.fafo.system.BootClock.now = { t }
+        ws.crandell.fafo.system.BootClock.bootId = { 3L }
+        try {
+            startArm()
+            ServiceTestSupport.idleUntil { runBlocking { dp.readTrail().armedAt } == 50_000L }
+            t = 60_000L
+            app.sendBroadcast(Intent(Intent.ACTION_SCREEN_OFF))
+            ServiceTestSupport.idleUntil { runBlocking { dp.readTrail().lastScreenOffAt } == 60_000L }
+            t = 70_000L
+            app.sendBroadcast(Intent(Intent.ACTION_USER_PRESENT))
+            ServiceTestSupport.idleUntil { runBlocking { dp.readTrail().lastUserPresentAt } == 70_000L }
+            val trail = runBlocking { dp.readTrail() }
+            assertThat(trail.bootId).isEqualTo(3L)
+            assertThat(ws.crandell.fafo.auth.DisarmPolicy.canSkipPrompt(trail, 3L, 75_000L, 30)).isTrue()
+        } finally {
+            ws.crandell.fafo.system.BootClock.reset()
+        }
+    }
+
+    @Test fun screenOffBeforeArmingIsNotRecorded() {
+        startArming()
+        app.sendBroadcast(Intent(Intent.ACTION_SCREEN_OFF))
+        ServiceTestSupport.advance(50)
+        assertThat(runBlocking { dp.readTrail().lastScreenOffAt }).isNull()
     }
 
     @Test fun armStartsForegroundWithSpecialUseAndCamera() {
@@ -118,8 +190,11 @@ class ArmServiceTest {
         assertThat(svc.currentFgsType).isEqualTo(
             ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE or ServiceInfo.FOREGROUND_SERVICE_TYPE_CAMERA,
         )
-        val n = shadowOf(svc).lastForegroundNotification
-        assertThat(n).isNotNull()
+        // startForeground posts the ARMING notification; ARMED updates it in place.
+        assertThat(shadowOf(svc).lastForegroundNotification).isNotNull()
+        val nm = shadowOf(app.getSystemService(android.app.NotificationManager::class.java))
+        ServiceTestSupport.idleUntil { nm.getNotification(Notifications.ID_ARMED)?.extras?.getString("android.title") == "FAFO Security is armed" }
+        val n = nm.getNotification(Notifications.ID_ARMED)
         assertThat(n.extras.getString("android.title")).isEqualTo("FAFO Security is armed")
         assertThat(n.actions.map { it.title.toString() }).contains("Disarm")
         assertThat(n.deleteIntent).isNotNull()

@@ -5,6 +5,12 @@ sealed interface AlarmState {
     data object Disarmed : AlarmState
 
     /**
+     * The ARMING countdown (Bill 2026-10-28): a few seconds, cancellable, before ARMED. Never persisted: a
+     * reboot or process death during ARMING ends DISARMED. Unplugging cancels it; nothing alarms.
+     */
+    data class Arming(val startedAt: Long, val endsAt: Long) : AlarmState
+
+    /**
      * @param awaitingPower set after a remote Reset while unplugged: unplug detection is paused until
      *   power is reconnected (spec section 2, remote reset (a)).
      * @param unplugPendingSince time the power disconnect arrived; the sensitivity window is running.
@@ -36,6 +42,7 @@ val AlarmState.isAlarming: Boolean get() = incidentId != null
 val AlarmState.wireName: String
     get() = when (this) {
         AlarmState.Disarmed -> "DISARMED"
+        is AlarmState.Arming -> "ARMING"
         is AlarmState.Armed -> "ARMED"
         is AlarmState.PreAlarm -> "PRE_ALARM"
         is AlarmState.Triggered -> "TRIGGERED"

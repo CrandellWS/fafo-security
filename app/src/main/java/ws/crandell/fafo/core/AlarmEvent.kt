@@ -4,6 +4,12 @@ sealed interface AlarmEvent {
     /** User tap in the visible app. */
     data class ArmRequested(val plugged: Boolean, val secureLock: Boolean) : AlarmEvent
 
+    /** The ARMING countdown ran out; the service re-read plugged state and the secure lock. */
+    data class ArmingElapsed(val plugged: Boolean, val secureLock: Boolean) : AlarmEvent
+
+    /** Cancel during ARMING (Home button or notification action). Needs no auth: the result is "not armed". */
+    data object ArmCancelled : AlarmEvent
+
     data class PowerDisconnected(val at: Long) : AlarmEvent
     data class PowerConnected(val at: Long) : AlarmEvent
 
@@ -55,6 +61,14 @@ enum class CloseReason { CANCELLED, UNLOCKED, DISARMED, RESET_REMOTE, DISARMED_R
 sealed interface AlarmEffect {
     data class PersistArmed(val armed: Boolean, val awaitingPower: Boolean = false) : AlarmEffect
     data class PersistIncident(val active: Boolean, val id: String? = null, val startedAt: Long? = null) : AlarmEffect
+    /** ARMING: fire [AlarmEvent.ArmingElapsed] after [delayMs] (at [endsAt] by the machine's clock). */
+    data class StartArmingTimer(val delayMs: Long, val endsAt: Long) : AlarmEffect
+    data object CancelArmingTimer : AlarmEffect
+    /**
+     * Entered ARMED: store the arm time (elapsed realtime + boot id) and clear the unlock trail, so Disarm
+     * skips the prompt only after a lock and unlock that happened after this moment (DisarmPolicy).
+     */
+    data object RecordArmedAt : AlarmEffect
     data class StartWindowTimer(val delayMs: Long) : AlarmEffect
     data object CancelWindowTimer : AlarmEffect
     /** Quieter warning beeps on the PreAlarmSchedule and the countdown timer. */

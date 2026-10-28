@@ -317,8 +317,11 @@ class MainActivity : FragmentActivity() {
     }
 
     fun onDisarm() {
-        vm.guarded(AuthAction.DISARM) { ArmService.disarm(this) }
+        vm.guardedDisarm { ArmService.disarm(this) }
     }
+
+    /** ARMING: Cancel needs no confirmation (the result is "not armed"). */
+    fun onCancelArming() = ArmService.cancelArming(this)
 
     /** AC6.6: pairing ends with the device in the circle the owner started from (default Home). */
     @OptIn(ExperimentalLayoutApi::class)
@@ -443,6 +446,7 @@ class MainActivity : FragmentActivity() {
                             onOpen = ::open,
                             onStep = { tab = Tab.SETUP },
                             modifier = m,
+                            onCancelArming = ::onCancelArming,
                         )
                     }
                     Tab.SETUP -> OnboardingScreen(

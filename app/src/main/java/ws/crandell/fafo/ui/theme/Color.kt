@@ -36,12 +36,15 @@ object FafoColors {
     val Guard = Color(0xFF2FD07A)
     /** Pre-alarm state, warnings, setup steps still to do. */
     val Amber = Color(0xFFFFB020)
+    /** ARMING countdown (status yellow). */
+    val Yellow = Color(0xFFFFD21F)
 }
 
 /** The four alarm states, told apart by color and by shape (never by color alone). */
 @Immutable
 data class StateColors(
     val disarmed: Color = FafoColors.Steel,
+    val arming: Color = FafoColors.Yellow,
     val armed: Color = FafoColors.Guard,
     val preAlarm: Color = FafoColors.Amber,
     val triggered: Color = FafoColors.Red,

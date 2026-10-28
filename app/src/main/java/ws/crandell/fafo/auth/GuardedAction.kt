@@ -18,10 +18,19 @@ class GuardedAction(private val authorize: suspend (AuthAction) -> AuthResult) {
     private val _ui = MutableStateFlow<ArmAuthUi>(ArmAuthUi.Idle)
     val ui: StateFlow<ArmAuthUi> = _ui
 
-    suspend fun run(action: AuthAction, onMessage: (String) -> Unit, block: suspend () -> Unit): AuthResult {
+    suspend fun run(action: AuthAction, onMessage: (String) -> Unit, block: suspend () -> Unit): AuthResult =
+        run(action, onMessage, { authorize(it) }, block)
+
+    /** Same, with a custom authorization for this one action (Disarm uses the unlock trail). */
+    suspend fun run(
+        action: AuthAction,
+        onMessage: (String) -> Unit,
+        auth: suspend (AuthAction) -> AuthResult,
+        block: suspend () -> Unit,
+    ): AuthResult {
         if (_ui.value is ArmAuthUi.Confirming) return AuthResult.Failed("Already confirming")
         _ui.value = ArmAuthUi.Confirming(action)
-        val r = try { authorize(action) } finally { _ui.value = ArmAuthUi.Idle }
+        val r = try { auth(action) } finally { _ui.value = ArmAuthUi.Idle }
         if (r is AuthResult.Allowed) block() else message(action, r)?.let(onMessage)
         return r
     }

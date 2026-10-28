@@ -15,6 +15,8 @@ data class AlarmConfig(
     val sensitivityMs: Long = Defaults.SENSITIVITY_MS,
     val preAlarmMs: Long = Defaults.PRE_ALARM_S * 1000L,
     val disarmOnUnlock: Boolean = Defaults.DISARM_ON_UNLOCK,
+    /** ARMING countdown before ARMED (Bill 2026-10-28). 0 arms at once (tests only; the UI offers 3/5/10 s). */
+    val armingMs: Long = Defaults.ARMING_S * 1000L,
 )
 
 object IncidentIds {
@@ -47,12 +49,18 @@ class AlarmStateMachine(
 
     private fun transition(s: AlarmState, e: AlarmEvent): Pair<AlarmState, List<AlarmEffect>> = when (e) {
         is AlarmEvent.ArmRequested -> onArm(s, e)
+        is AlarmEvent.ArmingElapsed -> onArmingElapsed(s, e)
+        AlarmEvent.ArmCancelled -> onArmCancelled(s)
         is AlarmEvent.PowerDisconnected -> onDisconnect(s, e)
         is AlarmEvent.PowerConnected -> onConnect(s)
         is AlarmEvent.WindowElapsed -> onWindowElapsed(s, e)
         AlarmEvent.PreAlarmElapsed -> onPreAlarmElapsed(s)
         AlarmEvent.UserPresent -> onUserPresent(s)
-        AlarmEvent.DisarmTapped -> if (s == AlarmState.Disarmed) s to emptyList() else disarm(s, CloseReason.DISARMED, null)
+        AlarmEvent.DisarmTapped -> when (s) {
+            AlarmState.Disarmed -> s to emptyList()
+            is AlarmState.Arming -> onArmCancelled(s)
+            else -> disarm(s, CloseReason.DISARMED, null)
+        }
         is AlarmEvent.BootCompleted -> onBoot(s, e)
         is AlarmEvent.NotificationTapped -> onNotificationTapped(s, e)
         is AlarmEvent.RemoteReset -> onRemoteReset(s, e)
@@ -63,10 +71,33 @@ class AlarmStateMachine(
         if (s != AlarmState.Disarmed) return s to emptyList()
         if (!e.plugged) return s to listOf(AlarmEffect.Refused(RefusalReason.NOT_PLUGGED))
         if (!e.secureLock) return s to listOf(AlarmEffect.Refused(RefusalReason.NO_SECURE_LOCK))
-        return AlarmState.Armed() to listOf(AlarmEffect.PersistArmed(armed = true, awaitingPower = false))
+        val ms = config().armingMs
+        if (ms <= 0L) return enterArmed()
+        val now = clock.now()
+        return AlarmState.Arming(now, now + ms) to listOf(AlarmEffect.StartArmingTimer(ms, now + ms))
+    }
+
+    private fun enterArmed(): Pair<AlarmState, List<AlarmEffect>> =
+        AlarmState.Armed() to listOf(AlarmEffect.PersistArmed(armed = true, awaitingPower = false), AlarmEffect.RecordArmedAt)
+
+    private fun onArmingElapsed(s: AlarmState, e: AlarmEvent.ArmingElapsed): Pair<AlarmState, List<AlarmEffect>> {
+        if (s !is AlarmState.Arming) return s to emptyList()
+        if (clock.now() < s.endsAt) return s to emptyList()
+        if (!e.plugged) return AlarmState.Disarmed to listOf(AlarmEffect.Refused(RefusalReason.NOT_PLUGGED), AlarmEffect.StopService)
+        if (!e.secureLock) return AlarmState.Disarmed to listOf(AlarmEffect.Refused(RefusalReason.NO_SECURE_LOCK), AlarmEffect.StopService)
+        return enterArmed()
+    }
+
+    private fun onArmCancelled(s: AlarmState): Pair<AlarmState, List<AlarmEffect>> {
+        if (s !is AlarmState.Arming) return s to emptyList()
+        return AlarmState.Disarmed to listOf(AlarmEffect.CancelArmingTimer, AlarmEffect.StopService)
     }
 
     private fun onDisconnect(s: AlarmState, e: AlarmEvent.PowerDisconnected): Pair<AlarmState, List<AlarmEffect>> {
+        // Unplugging during ARMING cancels arming; it never starts an alarm.
+        if (s is AlarmState.Arming) {
+            return AlarmState.Disarmed to listOf(AlarmEffect.CancelArmingTimer, AlarmEffect.Refused(RefusalReason.NOT_PLUGGED), AlarmEffect.StopService)
+        }
         if (s !is AlarmState.Armed || s.awaitingPower || s.unplugPendingSince != null) return s to emptyList()
         return s.copy(unplugPendingSince = e.at) to listOf(AlarmEffect.StartWindowTimer(config().sensitivityMs))
     }
@@ -130,7 +161,7 @@ class AlarmStateMachine(
         is AlarmState.PreAlarm, is AlarmState.Triggered, is AlarmState.IncidentPersisted ->
             disarm(s, CloseReason.UNLOCKED, null)
         is AlarmState.Armed -> if (config().disarmOnUnlock) disarm(s, CloseReason.UNLOCKED, null) else s to emptyList()
-        AlarmState.Disarmed -> s to emptyList()
+        AlarmState.Disarmed, is AlarmState.Arming -> s to emptyList()
     }
 
     private fun disarm(s: AlarmState, reason: CloseReason, by: String?): Pair<AlarmState, List<AlarmEffect>> {
@@ -188,6 +219,7 @@ class AlarmStateMachine(
     }
 
     private fun onRemoteReset(s: AlarmState, e: AlarmEvent.RemoteReset): Pair<AlarmState, List<AlarmEffect>> {
+        if (s is AlarmState.Arming) return s to listOf(AlarmEffect.Refused(RefusalReason.WRONG_STATE))
         val id = s.incidentId ?: return s to listOf(AlarmEffect.Refused(RefusalReason.NO_INCIDENT))
         if (s is AlarmState.IncidentPersisted && !e.ceUnlocked) {
             return s to listOf(AlarmEffect.Refused(RefusalReason.BEFORE_FIRST_UNLOCK))
@@ -205,7 +237,7 @@ class AlarmStateMachine(
     }
 
     private fun onRemoteDisarm(s: AlarmState, e: AlarmEvent.RemoteDisarm): Pair<AlarmState, List<AlarmEffect>> {
-        if (s == AlarmState.Disarmed) return s to listOf(AlarmEffect.Refused(RefusalReason.WRONG_STATE))
+        if (s == AlarmState.Disarmed || s is AlarmState.Arming) return s to listOf(AlarmEffect.Refused(RefusalReason.WRONG_STATE))
         if (s is AlarmState.IncidentPersisted && !e.ceUnlocked) {
             return s to listOf(AlarmEffect.Refused(RefusalReason.BEFORE_FIRST_UNLOCK))
         }
