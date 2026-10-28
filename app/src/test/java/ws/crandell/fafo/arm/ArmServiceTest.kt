@@ -69,12 +69,16 @@ class ArmServiceTest {
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private lateinit var dp: DpStore
     private val sound = RecordingSound()
+    private val fakeCapturer = ws.crandell.fafo.camera.Capturer { ws.crandell.fafo.camera.CapturedPhoto(ByteArray(500), IntArray(1024)) }
     private var controller: ServiceController<ArmService>? = null
 
     @Before fun setUp() {
         dp = DpStore.create(app, scope)
         ArmDeps.dpStore = { dp }
         ArmDeps.sound = { _, _, _ -> sound }
+        ArmDeps.capturer = { _, _ -> fakeCapturer }
+        ArmDeps.freeBytes = { Long.MAX_VALUE }
+        ws.crandell.fafo.storage.CeStore.override = ws.crandell.fafo.storage.CeStore.create(app, scope)
         ArmDeps.clock = ws.crandell.fafo.core.Clock { android.os.SystemClock.uptimeMillis() }
         shadowOf(app).grantPermissions(android.Manifest.permission.POST_NOTIFICATIONS, android.Manifest.permission.CAMERA)
         ServiceTestSupport.setPlugged(app, true)
@@ -84,6 +88,7 @@ class ArmServiceTest {
     @After fun tearDown() {
         controller?.destroy()
         ArmDeps.reset()
+        ws.crandell.fafo.storage.CeStore.override = null
         scope.cancel()
     }
 
@@ -203,5 +208,21 @@ class ArmServiceTest {
         val svc = startArm()
         ServiceTestSupport.advance(50)
         assertThat(svc.motionRunning).isFalse()
+    }
+
+    @Test fun triggerTakesFirstPhotoIntoIncidentFolder() {
+        runBlocking { dp.update { it.copy(preAlarmS = 0, sensitivityMs = 100) } }
+        val svc = startArm()
+        ServiceTestSupport.setPlugged(app, false)
+        app.sendBroadcast(Intent(Intent.ACTION_POWER_DISCONNECTED))
+        ServiceTestSupport.idleUntil { (svc.state as? AlarmState.Armed)?.unplugPendingSince != null }
+        ServiceTestSupport.advance(150)
+        ServiceTestSupport.idleUntil { svc.photosTaken >= 1 }
+        val id = (svc.state as AlarmState.Triggered).incidentId
+        val dir = java.io.File(app.filesDir, "incidents/$id")
+        assertThat(dir.listFiles()!!.map { it.name }).contains("incident.json")
+        app.sendBroadcast(Intent(Intent.ACTION_USER_PRESENT))
+        ServiceTestSupport.idleUntil { svc.state == AlarmState.Disarmed }
+        ServiceTestSupport.idleUntil { java.io.File(dir, "incident.json").readText().contains("UNLOCKED") }
     }
 }

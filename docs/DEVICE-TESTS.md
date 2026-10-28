@@ -45,6 +45,17 @@ exact steps, and the next build session fixes it.
 - [ ] Low / High feel right (High catches light taps, Low needs a real knock). Off: no chirps.
 - [ ] Motion never starts the siren; during the alarm there are no chirps.
 
+## M8 Photos
+
+- [ ] Arm (camera allowed), lock, unplug: first photo within 2 s of the pre-alarm start, then every
+      10 s. After unlocking, Incidents shows the incident with its photos; front camera by default.
+- [ ] Camera setting Back and Alternate work.
+- [ ] Photos are taken while the screen is off and locked (camera foreground service while locked).
+- [ ] Plug back in during the pre-alarm: incident shows "Cancelled (plugged back in)", photos kept.
+- [ ] Share a photo through the share sheet; delete a photo; delete an incident.
+- [ ] After a process kill (not a reboot), tapping the alarm notification / alarm screen resumes photos.
+- [ ] Self-test takes a test photo ("Test photo OK").
+
 ## Results
 
 (Bill: write findings here, newest first.)

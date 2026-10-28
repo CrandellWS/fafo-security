@@ -22,7 +22,13 @@ import ws.crandell.fafo.core.AlarmEvent
 import ws.crandell.fafo.core.AlarmState
 import ws.crandell.fafo.core.AlarmStateMachine
 import ws.crandell.fafo.core.AlarmStatusBus
+import ws.crandell.fafo.camera.DeviceSnapshot
+import ws.crandell.fafo.camera.PhotoController
+import ws.crandell.fafo.camera.PhotoSettings
+import ws.crandell.fafo.camera.PhotoStore
+import ws.crandell.fafo.core.incidentId
 import ws.crandell.fafo.motion.MotionMonitor
+import ws.crandell.fafo.storage.CeStore
 import ws.crandell.fafo.motion.MotionSensitivity
 import ws.crandell.fafo.storage.DpSettings
 import ws.crandell.fafo.storage.DpStore
@@ -233,13 +239,57 @@ class ArmService : LifecycleService() {
             }
             AlarmEffect.RemoteChirp -> sound.apply(fx)
             AlarmEffect.AddCameraType -> Unit // handled in onStartCommand (needs the visible start)
-            AlarmEffect.StartPhotos, AlarmEffect.StopPhotos -> hooks.forEach { it.onEffect(fx) }
-            is AlarmEffect.CloseIncident -> hooks.forEach { it.onEffect(fx) }
+            AlarmEffect.StartPhotos -> startPhotos()
+            AlarmEffect.StopPhotos -> photos?.stop()
+            is AlarmEffect.CloseIncident -> {
+                // CE storage only; after a reboot the incident ends with the first unlock, so CE is open.
+                if (DeviceStatus.isCeUnlocked(this)) {
+                    runCatching { photoStore().close(fx.id, fx.reason.name, fx.by, ArmDeps.clock.now()) }
+                }
+                hooks.forEach { it.onEffect(fx) }
+            }
             is AlarmEffect.StartAlerts, AlarmEffect.StopAlerts, AlarmEffect.EndIntercom -> hooks.forEach { it.onEffect(fx) }
             is AlarmEffect.Refused -> Log.i(TAG, "refused: ${fx.reason}")
             AlarmEffect.StopService -> Unit
         }
     }
+
+    private var photos: PhotoController? = null
+    private var store: PhotoStore? = null
+    private fun photoStore() = store ?: PhotoStore(PhotoStore.root(filesDir)).also { store = it }
+
+    /** F5. Only with the camera FGS type active and CE storage unlocked (never on the boot path). */
+    private fun startPhotos() {
+        val s = machine.state
+        val id = s.incidentId ?: return
+        val startedAt = when (s) {
+            is AlarmState.PreAlarm -> s.startedAt
+            is AlarmState.Triggered -> s.startedAt
+            is AlarmState.IncidentPersisted -> s.startedAt
+            else -> return
+        }
+        if (!cameraType || !DeviceStatus.isCeUnlocked(this)) return
+        val pc = photos ?: PhotoController(
+            scope = lifecycleScope,
+            capturer = ArmDeps.capturer(this, this),
+            store = ::photoStore,
+            settings = {
+                val ce = CeStore.get(this).read()
+                PhotoSettings(ce.photoOnTrigger, ce.photoIntervalS, ce.camera, ce.photoCapMb)
+            },
+            freeBytes = { ArmDeps.freeBytes(this) },
+            device = { DeviceSnapshot(DeviceStatus.batteryPercent(this), DeviceStatus.isPlugged(this)) },
+            clock = ArmDeps.clock,
+            onPaused = {
+                AlarmStatusBus.setPhotosPaused(it)
+                postNotification()
+            },
+        ).also { photos = it }
+        pc.start(id, startedAt)
+    }
+
+    /** Photos taken so far in this service instance (tests). */
+    val photosTaken: Int get() = photos?.shots ?: 0
 
     /** Later milestones (photos, alerts, intercom) attach here. */
     fun interface EffectHook { fun onEffect(fx: AlarmEffect) }
@@ -313,6 +363,7 @@ class ArmService : LifecycleService() {
     }
 
     private fun shutdown() {
+        photos?.stop()
         motion.stop()
         windowJob?.cancel()
         preAlarmJob?.cancel()

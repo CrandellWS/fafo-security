@@ -18,12 +18,19 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.core.content.FileProvider
 import androidx.fragment.app.FragmentActivity
+import kotlinx.coroutines.launch
+import ws.crandell.fafo.camera.CameraXCapturer
+import ws.crandell.fafo.camera.Lens
+import ws.crandell.fafo.ui.screens.IncidentsScreen
+import java.io.File
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
 import ws.crandell.fafo.arm.ArmService
@@ -88,11 +95,30 @@ class MainActivity : FragmentActivity() {
         }
     }
 
-    /** F7 step 8: 1 s chirp + 1 s siren at alarm volume (and a test photo once the camera lands). */
+    /** F7 step 8: 1 s chirp + 1 s siren at alarm volume, then a test photo (not saved). */
     fun runSelfTest() {
         val dp = vm.dpSettings.value
         Siren(AndroidAudioBackend(this), lifecycleScope, { dp.sirenSound }, { dp.forceMaxVolume }).selfTest()
         vm.markOnboarding(CeStore.FLAG_SELF_TEST)
+        if (!DeviceStatus.hasCamera(this)) {
+            Toast.makeText(this, "Camera permission is off: no test photo", Toast.LENGTH_LONG).show()
+            return
+        }
+        lifecycleScope.launch {
+            val cap = CameraXCapturer(this@MainActivity, this@MainActivity)
+            val photo = runCatching { cap.capture(Lens.FRONT) }.getOrNull()
+            cap.release()
+            val msg = if (photo != null) "Test photo OK (${photo.jpeg.size / 1024} KB, not saved)" else "Test photo failed"
+            Toast.makeText(this@MainActivity, msg, Toast.LENGTH_LONG).show()
+        }
+    }
+
+    /** User-initiated share through the Android share sheet (AC5.6). */
+    private fun share(file: File) {
+        val uri = FileProvider.getUriForFile(this, "$packageName.files", file)
+        val send = Intent(Intent.ACTION_SEND).setType("image/jpeg").putExtra(Intent.EXTRA_STREAM, uri)
+            .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        startActivity(Intent.createChooser(send, "Share photo"))
     }
 
     private var armAfterPermissions = false
@@ -125,7 +151,15 @@ class MainActivity : FragmentActivity() {
     private fun AppRoot() {
         var screen by rememberSaveable { mutableStateOf(Screen.HOME) }
         var samsungDialog by rememberSaveable { mutableStateOf(false) }
-        BackHandler(enabled = screen != Screen.HOME) { screen = Screen.HOME }
+        var openIncident by rememberSaveable { mutableStateOf<String?>(null) }
+        var openPhoto by rememberSaveable { mutableStateOf<String?>(null) }
+        BackHandler(enabled = screen != Screen.HOME) {
+            when {
+                openPhoto != null -> openPhoto = null
+                openIncident != null -> openIncident = null
+                else -> screen = Screen.HOME
+            }
+        }
 
         val home by vm.home.collectAsStateWithLifecycle()
         val onboarding by vm.onboarding.collectAsStateWithLifecycle()
@@ -147,7 +181,16 @@ class MainActivity : FragmentActivity() {
                 Screen.ONBOARDING -> OnboardingScreen(
                     onboarding, ::onStep, { screen = Screen.HOME }, m, onSamsungBattery = { samsungDialog = true },
                 )
-                Screen.INCIDENTS -> PlaceholderScreen("Incidents", "No incidents yet.", m)
+                Screen.INCIDENTS -> {
+                    val incidents by vm.incidents.collectAsStateWithLifecycle()
+                    LaunchedEffect(Unit) { vm.loadIncidents() }
+                    IncidentsScreen(
+                        incidents, openIncident, openPhoto, vm.photoStore::photoFile,
+                        onOpenIncident = { openIncident = it }, onOpenPhoto = { openPhoto = it },
+                        onDeletePhoto = vm::deletePhoto, onDeleteIncident = vm::deleteIncident,
+                        onShare = ::share, modifier = m,
+                    )
+                }
                 Screen.TRUSTED -> PlaceholderScreen("Trusted devices", "Pairing arrives in a later build.", m)
                 Screen.CIRCLES -> PlaceholderScreen("Circles", "Circles arrive in a later build.", m)
                 Screen.INTERCOM -> PlaceholderScreen("Intercom", "Intercom arrives in a later build.", m)

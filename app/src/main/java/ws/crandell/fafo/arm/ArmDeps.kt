@@ -1,7 +1,11 @@
 package ws.crandell.fafo.arm
 
 import android.content.Context
+import androidx.lifecycle.LifecycleOwner
 import kotlinx.coroutines.CoroutineScope
+import ws.crandell.fafo.camera.CameraXCapturer
+import ws.crandell.fafo.camera.Capturer
+import ws.crandell.fafo.system.DeviceStatus
 import ws.crandell.fafo.core.AlarmEffect
 import ws.crandell.fafo.core.AlarmStatusBus
 import ws.crandell.fafo.core.Clock
@@ -53,8 +57,12 @@ object ArmDeps {
     var clock: Clock = Clock.SYSTEM
     var dpStore: (Context) -> DpStore = { DpStore.get(it) }
     var sound: SoundFactory = defaultSound
+    var capturer: (Context, LifecycleOwner) -> Capturer = { c, o -> CameraXCapturer(c, o) }
+    var freeBytes: (Context) -> Long = { DeviceStatus.freeBytes(it) }
 
     fun reset() {
+        capturer = { c, o -> CameraXCapturer(c, o) }
+        freeBytes = { DeviceStatus.freeBytes(it) }
         clock = Clock.SYSTEM
         dpStore = { DpStore.get(it) }
         sound = defaultSound

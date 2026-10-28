@@ -8,12 +8,15 @@ import android.content.IntentFilter
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import ws.crandell.fafo.camera.IncidentSidecar
+import ws.crandell.fafo.camera.PhotoStore
 import ws.crandell.fafo.core.AlarmState
 import ws.crandell.fafo.core.AlarmStatusBus
 import ws.crandell.fafo.core.isAlarming
@@ -82,6 +85,18 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             selfTestDone = CeStore.FLAG_SELF_TEST in f,
         )
         _plugged.value = DeviceStatus.isPlugged(ctx)
+    }
+
+    val photoStore = PhotoStore(PhotoStore.root(app.filesDir))
+    private val _incidents = MutableStateFlow<List<IncidentSidecar>>(emptyList())
+    val incidents: StateFlow<List<IncidentSidecar>> = _incidents
+
+    fun loadIncidents() = viewModelScope.launch(Dispatchers.IO) { _incidents.value = photoStore.list() }
+    fun deletePhoto(id: String, name: String) = viewModelScope.launch(Dispatchers.IO) {
+        photoStore.deletePhoto(id, name); _incidents.value = photoStore.list()
+    }
+    fun deleteIncident(id: String) = viewModelScope.launch(Dispatchers.IO) {
+        photoStore.deleteIncident(id); _incidents.value = photoStore.list()
     }
 
     fun markOnboarding(flag: String) = viewModelScope.launch { ce.markOnboarding(flag) }
