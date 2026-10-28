@@ -24,6 +24,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
 import androidx.fragment.app.FragmentActivity
 import kotlinx.coroutines.launch
@@ -31,6 +32,14 @@ import ws.crandell.fafo.camera.CameraXCapturer
 import ws.crandell.fafo.camera.Lens
 import ws.crandell.fafo.ui.screens.IncidentsScreen
 import ws.crandell.fafo.ui.screens.TrustedScreen
+import ws.crandell.fafo.ui.screens.CirclesScreen
+import ws.crandell.fafo.ui.screens.InviteDialog
+import ws.crandell.fafo.net.android.PeerNetwork
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.material3.FilterChip
 import ws.crandell.fafo.pairing.BiometricCredentialGate
 import ws.crandell.fafo.ble.BleIds
 import android.bluetooth.le.ScanFilter
@@ -85,10 +94,23 @@ class MainActivity : FragmentActivity() {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
         vm.gate.target = BiometricCredentialGate(this)
+        PeerNetwork.gate.target = vm.gate.target
         setContent { FafoTheme { AppRoot() } }
     }
 
+    override fun onStart() {
+        super.onStart()
+        // AC10.4 / F9: while the app is open this phone is reachable by its circles.
+        PeerNetwork.acquire(this, PeerNetwork.OWNER_UI)
+    }
+
+    override fun onStop() {
+        PeerNetwork.release(PeerNetwork.OWNER_UI)
+        super.onStop()
+    }
+
     override fun onDestroy() {
+        if (PeerNetwork.gate.target === vm.gate.target) PeerNetwork.gate.target = null
         if (vm.gate.target is BiometricCredentialGate) vm.gate.target = null
         super.onDestroy()
     }
@@ -210,6 +232,23 @@ class MainActivity : FragmentActivity() {
 
     fun onDisarm() = ArmService.disarm(this)
 
+    /** AC6.6: pairing ends with the device in the circle the owner started from (default Home). */
+    @OptIn(ExperimentalLayoutApi::class)
+    @Composable
+    private fun PairingCircleChooser() {
+        val circles by vm.circles.collectAsStateWithLifecycle()
+        val chosen by vm.pairingCircle.collectAsStateWithLifecycle()
+        val current = chosen ?: circles.firstOrNull()?.id
+        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text("The new device joins:")
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                circles.forEach { c ->
+                    FilterChip(selected = c.id == current, onClick = { vm.choosePairingCircle(c.id) }, label = { Text(c.name) })
+                }
+            }
+        }
+    }
+
     @Composable
     private fun AppRoot() {
         var screen by rememberSaveable { mutableStateOf(Screen.HOME) }
@@ -270,10 +309,34 @@ class MainActivity : FragmentActivity() {
                         onDismiss = vm.pairing::dismiss,
                         onRemove = vm::removeDevice,
                         modifier = m,
+                        extra = { PairingCircleChooser() },
                     )
                 }
-                Screen.CIRCLES -> PlaceholderScreen("Circles", "Circles arrive in a later build.", m)
+                Screen.CIRCLES -> {
+                    val circles by vm.circles.collectAsStateWithLifecycle()
+                    val devices by vm.trustedDevices.collectAsStateWithLifecycle()
+                    val reachable by vm.reachable.collectAsStateWithLifecycle()
+                    CirclesScreen(
+                        circles, devices, reachable, ce?.deviceLabel ?: "",
+                        object : ws.crandell.fafo.ui.screens.CirclesActions by vm.circlesActions {
+                            override fun pairInto(circleId: String) {
+                                vm.circlesActions.pairInto(circleId)
+                                screen = Screen.TRUSTED
+                            }
+                        },
+                        m,
+                    )
+                }
                 Screen.INTERCOM -> PlaceholderScreen("Intercom", "Intercom arrives in a later build.", m)
+            }
+        }
+        val invites by vm.invites.collectAsStateWithLifecycle()
+        invites.firstOrNull()?.let { inv -> InviteDialog(inv) { vm.answerInvite(inv, it) } }
+        val message by vm.message.collectAsStateWithLifecycle()
+        LaunchedEffect(message) {
+            message?.let {
+                Toast.makeText(this@MainActivity, it, Toast.LENGTH_LONG).show()
+                vm.messageShown()
             }
         }
         if (samsungDialog) {

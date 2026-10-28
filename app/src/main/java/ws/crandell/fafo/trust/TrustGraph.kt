@@ -1,6 +1,7 @@
 package ws.crandell.fafo.trust
 
 import android.content.Context
+import ws.crandell.fafo.circles.CircleStore
 import ws.crandell.fafo.pairing.IdentityKeys
 import ws.crandell.fafo.pairing.KeystoreIdentityKeys
 import ws.crandell.fafo.pairing.TrustedDeviceStore
@@ -12,6 +13,7 @@ import java.io.File
  */
 object TrustGraph {
     @Volatile private var trusted: TrustedDeviceStore? = null
+    @Volatile private var circles: CircleStore? = null
 
     /** Test hooks. */
     @Volatile var keysOverride: IdentityKeys? = null
@@ -22,11 +24,16 @@ object TrustGraph {
         trusted ?: TrustedDeviceStore(File(context.applicationContext.filesDir, "trust/trusted.json")).also { trusted = it }
     }
 
+    fun circles(context: Context): CircleStore = circles ?: synchronized(this) {
+        circles ?: CircleStore(File(context.applicationContext.filesDir, "trust/circles.json")).also { circles = it }
+    }
+
     fun keys(): IdentityKeys = keysOverride ?: keystoreKeys
 
     /** Tests only. */
     fun reset() {
         trusted = null
+        circles = null
         keysOverride = null
     }
 }

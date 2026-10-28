@@ -68,6 +68,11 @@ class PairingController(
     /** Initiator: find the other phone (API 31+ scan) or use the device the API 30 picker returned. */
     fun findOther(device: BluetoothDevice? = null) = start(initiator = true, device = device)
 
+    /** Progress text from the post-pairing step (invite on the pairing link). */
+    fun status(text: String) {
+        _state.value = PairingState.Working(text)
+    }
+
     fun answerCode(match: Boolean) {
         answer?.complete(match)
     }
