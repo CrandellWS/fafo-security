@@ -288,6 +288,54 @@ time 15 s, Photo on trigger on. Setup checklist: full-screen alarm allowed.
 - [ ] Settings > Accessibility > Visibility enhancements > Remove animations on: no white flash, the
   PHOTO TAKEN label and picture still show. Turn it back off afterwards.
 
+## Round 5 2026-10-29: pin app while armed, lock-screen Flashlight / Talk, Quick Settings tiles (A17)
+
+Install the APK from the green CI run of branch `feat/round5-20261029` (artifact `fafo-debug-apk-play` or
+`-oss`). Talk needs a second phone with the same APK, paired, in a circle with Intercom.
+
+**1. Lock-screen Flashlight and Talk.**
+- [ ] Arm (plugged in), lock, wake the screen. The FAFO notification on the lock screen shows Disarm,
+  Flashlight and Talk. (If it shows only the icon: Settings > Notifications > Lock screen notifications >
+  Show content, or allow content for FAFO.)
+- [ ] Tap Flashlight: the flash turns on without unlocking. Tap again: off.
+- [ ] Tap Talk: the FAFO Talk screen opens over the lock screen, no PIN asked. It shows your circle, the
+  other phone with a filled dot (reachable), All, and the big HOLD TO TALK button. There is no Disarm,
+  room mode or Listen anywhere on it.
+- [ ] Hold the button and speak: the other phone (FAFO open or Stay reachable on) plays it and shows
+  "<this phone> is talking". Release: it stops. The mic indicator shows only while you hold.
+- [ ] First time only, if the mic was never allowed: Allow microphone asks for your PIN first, then
+  Android's mic prompt.
+- [ ] Tap Open FAFO: Android asks for your PIN; cancel it and you stay on the lock screen.
+- [ ] Press the power button while Talk is open, then wake: Talk is gone, plain lock screen.
+- [ ] Disarm on the notification still asks for the PIN / fingerprint (unchanged).
+- [ ] Unplug while locked (pre-alarm), and during the siren: the notification shows Disarm only.
+- [ ] Restart the phone while armed, before unlocking open the notification: tap Talk. Expected
+  "Unlock once after a restart to use Talk." Flashlight works.
+
+**2. Quick Settings tiles.**
+- [ ] Swipe down twice, Edit (pencil, or the menu at the top right), drag FAFO Light and FAFO Talk in, Done.
+- [ ] FAFO Light toggles the flash and shows On / Off; turning the flash off with Samsung's own Flashlight
+  tile updates FAFO Light to Off.
+- [ ] FAFO Talk opens the Talk screen; on the lock screen it opens over it without asking for the PIN.
+- [ ] Both work while FAFO is disarmed too.
+
+**3. Pin app while armed.**
+- [ ] First turn on Samsung's pinning: Settings > Security and privacy > More security settings > Pin
+  windows (or Pin app): on, and Ask for PIN before unpinning: on. Note the exact menu names: ______
+- [ ] FAFO Settings > Security > Pin app while armed: on. Tap ARM, confirm. The status screen opens and
+  Android asks "Pin app?" (or similar). Accept. Home and Recents do nothing; "Pinned: other apps are blocked."
+  and an Unpin button show under Disarm.
+- [ ] Tap Unpin: the phone locks (with Ask for PIN on). Unlock: FAFO is still ARMED, not pinned.
+- [ ] Arm pinned again, then Disarm on the status screen: the pin ends, the phone locks, then Android asks
+  for the PIN and FAFO disarms. The status screen closes.
+- [ ] Arm pinned, lock, unplug: the countdown and siren show on the pinned screen as usual; unlock / Disarm
+  stops it.
+- [ ] Arm pinned, use Android's unpin (hold Back and Recents, or swipe up and hold): the phone locks; FAFO
+  stays armed.
+- [ ] Decline Android's "Pin app?": FAFO stays armed, just not pinned.
+- [ ] With Samsung's Pin windows switched off: does "Pin app?" still appear? ______
+- [ ] Setting off (default): Arm works exactly as before, no status screen pops up.
+
 ## Results
 
 (Bill: write findings here, newest first.)
