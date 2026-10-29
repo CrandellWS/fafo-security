@@ -71,7 +71,8 @@ class AlarmActivity : ComponentActivity() {
             var sawAlarm = false
             var sawProtected = false
             AlarmStatusBus.state.collect { s ->
-                refreshPinned()
+                // The pin state matters only for a disarm; onResume and focus changes keep it fresh otherwise.
+                if (s == AlarmState.Disarmed) refreshPinned()
                 if (PinPolicy.shouldUnpin(pinned.value, s) && sawProtected) unpin()
                 if (isAlarming(s)) sawAlarm = true else if (sawAlarm && PinPolicy.closeWhenAlarmEnds(pinned.value, s)) finish()
                 // Opened as the calm status screen: close once FAFO is disarmed.
@@ -122,8 +123,10 @@ class AlarmActivity : ComponentActivity() {
         }
     }
 
+    /** Only while this screen exists: a status update must never reach the system for a closed screen. */
     private fun refreshPinned() {
-        pinned.value = screenPin.isPinned(this)
+        if (isDestroyed) return
+        pinned.value = runCatching { screenPin.isPinned(this) }.getOrDefault(false)
     }
 
     /** The status screen's Unpin button, and every disarm: ends the pin. */

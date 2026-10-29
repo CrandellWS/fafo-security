@@ -47,8 +47,9 @@ interface ScreenPin {
 }
 
 object AndroidScreenPin : ScreenPin {
-    override fun isPinned(context: Context): Boolean =
-        context.getSystemService(ActivityManager::class.java)?.lockTaskModeState?.let { it != ActivityManager.LOCK_TASK_MODE_NONE } ?: false
+    override fun isPinned(context: Context): Boolean = runCatching {
+        context.getSystemService(ActivityManager::class.java)?.lockTaskModeState?.let { it != ActivityManager.LOCK_TASK_MODE_NONE }
+    }.getOrNull() ?: false
 
     override fun pin(activity: Activity) {
         runCatching { activity.startLockTask() }.onFailure { Log.w("ScreenPin", "startLockTask refused", it) }

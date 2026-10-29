@@ -92,7 +92,8 @@ val playOnlyTests = listOf(
 tasks.withType<Test>().configureEach {
     // CI cannot download the test report from every environment: print the full cause of a failure in the log.
     testLogging {
-        events("failed")
+        // standard_error too: kotlinx-coroutines-test prints leaked coroutine exceptions there.
+        events("failed", "standard_error")
         exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
         showCauses = true
         showStackTraces = true
