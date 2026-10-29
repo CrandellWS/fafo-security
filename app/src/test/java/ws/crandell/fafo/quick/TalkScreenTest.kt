@@ -100,11 +100,13 @@ class TalkScreenTest {
     @Test fun activityShowsOverTheLockScreenAndClosesWithTheScreen() {
         val app = ApplicationProvider.getApplicationContext<android.app.Application>()
         // create() only: onStart would start the local network for real.
-        val activity = Robolectric.buildActivity(TalkActivity::class.java).create().get()
+        val controller = Robolectric.buildActivity(TalkActivity::class.java).create()
+        val activity = controller.get()
         assertThat(shadowOf(activity).getShowWhenLocked()).isTrue()
         app.sendBroadcast(Intent(Intent.ACTION_SCREEN_OFF).setPackage(app.packageName))
         org.robolectric.shadows.ShadowLooper.idleMainLooper()
         assertThat(activity.isFinishing).isTrue()
+        controller.destroy()
     }
 
     private companion object {

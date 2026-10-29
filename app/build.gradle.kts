@@ -90,6 +90,13 @@ val playOnlyTests = listOf(
     "ws.crandell.fafo.EgressTest", "ws.crandell.fafo.RepoSecretsTest", "ws.crandell.fafo.FlavorTest",
 )
 tasks.withType<Test>().configureEach {
+    // CI cannot download the test report from every environment: print the full cause of a failure in the log.
+    testLogging {
+        events("failed")
+        exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
+        showCauses = true
+        showStackTraces = true
+    }
     if (name == "testPlayDebugUnitTest") {
         filter {
             playOnlyTests.forEach { includeTestsMatching(it) }

@@ -29,10 +29,13 @@ class FakeScreenPin : ScreenPin {
 class ScreenPinActivityTest {
     private val context: Context = ApplicationProvider.getApplicationContext()
     private val pin = FakeScreenPin()
+    private val opened = mutableListOf<org.robolectric.android.controller.ActivityController<AlarmActivity>>()
 
     @Before fun setUp() { ArmDeps.screenPin = pin }
 
     @After fun tearDown() {
+        // Destroyed, so no status-bus collector outlives the test.
+        opened.forEach { c -> runCatching { c.pause().stop().destroy() } }
         AlarmStatusBus.publish(AlarmState.Disarmed)
         ArmDeps.reset()
     }
@@ -40,7 +43,7 @@ class ScreenPinActivityTest {
     private fun open(pinRequest: Boolean) = Robolectric.buildActivity(
         AlarmActivity::class.java,
         if (pinRequest) AlarmActivity.pinIntent(context) else android.content.Intent(context, AlarmActivity::class.java),
-    ).setup().get()
+    ).setup().also { opened += it }.get()
 
     @Test fun armTapPinsOnceFafoIsArming() {
         // The Arm tap opens the screen before the service publishes ARMING: the request waits.
