@@ -73,10 +73,9 @@ fun IntercomScreen(
     modifier: Modifier = Modifier,
     onOpenDevices: () -> Unit = {},
 ) {
-    val intercomCircles = circles.filter { c -> Permission.INTERCOM in c.permissions || c.members.any { Permission.INTERCOM in it.permissions } }
+    val intercomCircles = intercomCircles(circles)
     var roomChoice by remember { mutableStateOf(intercomCircles.map { it.id }.toSet()) }
     var circleId by remember { mutableStateOf(intercomCircles.firstOrNull()?.id) }
-    var target by remember { mutableStateOf<String?>(null) } // null = All
     Column(
         modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = FafoDims.Gutter, vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -94,36 +93,8 @@ fun IntercomScreen(
             }
         } else {
             SectionHeader("Push-to-talk")
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                intercomCircles.forEach { c -> FafoChip(selected = c.id == circleId, onClick = { circleId = c.id; target = null }, label = c.name) }
-            }
-            val circle = intercomCircles.firstOrNull { it.id == circleId }
-            val members = circle?.members.orEmpty()
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                FafoChip(selected = target == null, onClick = { target = null }, label = "All", modifier = Modifier.testTag("target_All"))
-                members.forEach { m ->
-                    FafoChip(
-                        selected = target == m.fingerprint,
-                        onClick = { target = m.fingerprint },
-                        label = (if (m.fingerprint in reachable) "● " else "○ ") + m.label,
-                        modifier = Modifier.testTag("target_${m.label}"),
-                    )
-                }
-            }
-            val targets = target?.let { listOf(it) } ?: members.map { it.fingerprint }
-            Box(Modifier.fillMaxWidth().padding(vertical = 12.dp), contentAlignment = Alignment.Center) {
-                TalkButton(ui.talking, alarming, Modifier.pointerInput(targets, circleId, alarming) {
-                    detectTapGestures(onPress = {
-                        if (alarming || circleId == null) return@detectTapGestures
-                        actions.talkStart(targets, circleId!!)
-                        tryAwaitRelease()
-                        actions.talkStop()
-                    })
-                })
-            }
-            ui.talker?.let {
-                Banner("$it is talking", "", FafoColors.Guard, {}, Modifier.testTag("talker"), icon = FafoIcons.Mic)
-            }
+            PushToTalkPanel(ui, intercomCircles, reachable, alarming, actions::talkStart, actions::talkStop, circleId, { circleId = it })
+            val members = intercomCircles.firstOrNull { it.id == circleId }?.members.orEmpty()
 
             SectionHeader("Room mode")
             FafoCard(accent = if (ui.roomCircles != null) FafoColors.Guard else null) {
@@ -175,6 +146,61 @@ fun IntercomScreen(
                 }
                 Text("Works only when that phone has room mode on.", style = MaterialTheme.typography.bodyMedium, color = FafoColors.TextMuted)
             }
+        }
+    }
+}
+
+/** Circles that allow Intercom for at least someone (F10). */
+fun intercomCircles(circles: List<Circle>): List<Circle> =
+    circles.filter { c -> Permission.INTERCOM in c.permissions || c.members.any { Permission.INTERCOM in it.permissions } }
+
+/**
+ * Push-to-talk (AC10.4): circle, target (one device or All, reachable dots) and the hold-to-talk button,
+ * plus who is talking. Shared by the Intercom tab and the lock-screen Talk screen (round 5, spec F13).
+ */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+fun PushToTalkPanel(
+    ui: IntercomUi,
+    intercomCircles: List<Circle>,
+    reachable: Set<String>,
+    alarming: Boolean,
+    onTalkStart: (targets: List<String>, circleId: String) -> Unit,
+    onTalkStop: () -> Unit,
+    circleId: String?,
+    onCircle: (String) -> Unit,
+) {
+    var target by remember(circleId) { mutableStateOf<String?>(null) } // null = All
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            intercomCircles.forEach { c -> FafoChip(selected = c.id == circleId, onClick = { onCircle(c.id) }, label = c.name) }
+        }
+        val members = intercomCircles.firstOrNull { it.id == circleId }?.members.orEmpty()
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            FafoChip(selected = target == null, onClick = { target = null }, label = "All", modifier = Modifier.testTag("target_All"))
+            members.forEach { m ->
+                FafoChip(
+                    selected = target == m.fingerprint,
+                    onClick = { target = m.fingerprint },
+                    label = (if (m.fingerprint in reachable) "● " else "○ ") + m.label,
+                    modifier = Modifier.testTag("target_${m.label}"),
+                )
+            }
+        }
+        val targets = target?.let { listOf(it) } ?: members.map { it.fingerprint }
+        Box(Modifier.fillMaxWidth().padding(vertical = 12.dp), contentAlignment = Alignment.Center) {
+            TalkButton(ui.talking, alarming, Modifier.pointerInput(targets, circleId, alarming) {
+                detectTapGestures(onPress = {
+                    val c = circleId
+                    if (alarming || c == null) return@detectTapGestures
+                    onTalkStart(targets, c)
+                    tryAwaitRelease()
+                    onTalkStop()
+                })
+            })
+        }
+        ui.talker?.let {
+            Banner("$it is talking", "", FafoColors.Guard, {}, Modifier.testTag("talker"), icon = FafoIcons.Mic)
         }
     }
 }

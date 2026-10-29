@@ -527,6 +527,9 @@ baby monitor or as a way to listen to anyone; it is an intercom/walkie-talkie fo
   app open, room mode on, or "Stay reachable" on (F9). Receivers play it immediately with a short
   start/end beep and show "Register is talking". Half duplex: if two people press at once, both hear a
   busy tone and the later one is dropped.
+  Round 5 (2026-10-29): push-to-talk also runs from the Talk screen (F13), opened from the armed
+  notification or the FAFO Talk tile and shown over the lock screen. Same rules: the mic is open only while
+  the button is held in that visible screen; no room mode or listening there.
 - AC10.5 **Targets.** "All" sends to every reachable member of the circle that grants Intercom (unicast
   to each, no multicast). The target list shows labels with a reachable dot.
 - AC10.6 **Audio.** 16 kHz mono, 20 ms frames, `AudioRecord` with `VOICE_COMMUNICATION` source (echo
@@ -600,6 +603,58 @@ chooses. This is the one way FAFO data can leave the owner's own devices, and on
   step raises it in advance. Needs `ACCESS_WIFI_STATE` and `CHANGE_WIFI_STATE` (normal permissions) and the
   existing `NEARBY_WIFI_DEVICES` (`neverForLocation`); no location permission (AC6.5). Android 13+ only.
 
+### F13. Lock-screen shortcuts and Quick Settings tiles (round 5, 2026-10-29)
+
+Bill's round-5 list: a flashlight and push-to-talk reachable without unlocking.
+
+- AC13.1 **Armed notification actions.** While ARMED (not ARMING, PRE_ALARM, TRIGGERED or after a reboot
+  during an incident), the persistent notification shows Disarm, Flashlight (only when the phone has a back
+  flash) and Talk. Disarm keeps `setAuthenticationRequired(true)` and still opens the app's confirmation
+  (AC1.7). Flashlight and Talk need no authentication, so they work from the lock screen.
+- AC13.2 **Flashlight.** A plain on/off of the back camera torch (`CameraManager.setTorchMode`, no
+  permission) through an unexported, directBootAware receiver. It follows Android's torch callback, so a
+  torch switched elsewhere shows correctly. It never touches the alarm; during an alarm the alarm light
+  (AC2.10) owns the torch and the action is not shown.
+- AC13.3 **Talk screen.** `TalkActivity`: not exported, `showWhenLocked` (no `turnScreenOn`: always
+  user-opened), directBootAware, closes when the screen turns off. It offers push-to-talk only (AC10.4:
+  circle, target or All, hold to talk) and who is talking. No Disarm, Reset, settings, room mode or
+  listening. "Open FAFO" and the microphone prompt go through `requestDismissKeyguard` (the real screen
+  lock) first. Before the first unlock it only says "Unlock once after a restart" and never opens CE
+  storage. During an alarm push-to-talk is refused as on the Intercom tab. While open it holds the local
+  network (`PeerNetwork` owner `talk`) so replies reach it.
+- AC13.4 **Quick Settings tiles.** "FAFO Light" (toggleable tile: On / Off / No flash) and "FAFO Talk"
+  (opens the Talk screen with `startActivityAndCollapse`, the `PendingIntent` form on Android 14+). Both
+  are `TileService`s exported only to System UI through `BIND_QUICK_SETTINGS_TILE`, directBootAware, and
+  available whether or not FAFO is armed. No new `uses-permission`.
+- AC13.5 Tests: notification action set per state and which actions need authentication; action and tile
+  targets unexported / bound only by System UI; flashlight toggle, failure and no-flash cases; the Talk
+  screen has no Disarm / room mode / listen, asks for the mic first, and says so before the first unlock;
+  Roborazzi screenshots.
+
+### F14. Pin app while armed (round 5, 2026-10-29, opt-in)
+
+- AC14.1 Settings > Security > "Pin app while armed", off by default (DP). With it on, the owner's Arm tap
+  (after the AC1.7 confirmation) also opens the status screen (`AlarmActivity`), which calls
+  `startLockTask()` once FAFO is ARMING or ARMED. FAFO is not a device owner, so this is Android's screen
+  pinning: Android shows its own "Pin app?" confirmation, and the person at the phone can always leave
+  with Android's unpin gesture. No device admin, no overlay, no new permission.
+- AC14.2 Only the Arm tap pins: never boot, a notification tap, the alarm's full-screen intent or a remote
+  message. A pending request is dropped if an alarm starts first. FAFO pins only its status screen, so the
+  alarm's full-screen intent still lands in the pinned task.
+- AC14.3 **The way out.** Disarm on the pinned status screen ends the pin first (Android blocks the app's
+  Disarm confirmation, another task, while pinned), then runs the normal Disarm over the lock screen; any
+  disarm (owner, remote, cancelled arming) unpins and closes the screen. An "Unpin" button under Disarm
+  ends the pin and keeps FAFO armed. Android's own unpin gesture always works.
+- AC14.4 Security comes from Android's "Ask for PIN before unpinning" (Samsung: Pin windows / Pin app):
+  with it, any unpin, including FAFO's Unpin button, locks the phone. Apps cannot read that setting, so
+  Settings and Help tell the owner to turn it on. Without it, FAFO's Unpin is no weaker than Android's
+  gesture.
+- AC14.5 While pinned the status bar and notifications are hidden: the armed notification's shortcuts
+  (F13) and the separate HANDS OFF screen (another task) cannot show; the pinned status screen shows the
+  same traffic-light states.
+- AC14.6 Tests: `PinPolicy` (pin only for the Arm tap while ARMING / ARMED, never twice, dropped by an
+  alarm, unpin on disarm, stays through a remote Reset); the status screen with a fake pin; screenshots.
+
 ## 4. Settings and defaults
 
 All settings live in DataStore. Settings needed at boot (marked DP) live in a device-protected DataStore.
@@ -615,6 +670,7 @@ All settings live in DataStore. Settings needed at boot (marked DP) live in a de
 | Arming countdown (ARMING before ARMED) | 3, 5, 10 s | 5 s | DP |
 | Flash as alarm light (AC2.10) | on/off | on | DP |
 | Motion can sound the alarm (AC4.2) | on/off | on | DP |
+| Pin app while armed (F14) | on/off | off | DP |
 | Bump reset time (AC4.2: untouched this long, the ladder cools back to GREEN) | 10, 15, 30, 60 s | 15 s | DP |
 | Theme (app and status screen; round 3 replaces dark-only) | System / Light / Dark | System (follows the phone) | DP (the lock-screen status screen reads it before first unlock) |
 | Motion chirps | Off / Low / Medium / High | Medium | DP |
@@ -693,6 +749,10 @@ Merged in by AndroidX libraries (not declared in FAFO's own manifest): `USE_BIOM
 `USE_FINGERPRINT` (androidx.biometric, for `BiometricPrompt`; normal, install-time) and the app-private
 signature permission `ws.crandell.fafo.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION` (androidx.core). The
 manifest test allows exactly these on top of the list above (build note M13).
+
+Round 5 (F13, F14) adds no permission: the Quick Settings tiles require `BIND_QUICK_SETTINGS_TILE` from
+their caller (System UI); FAFO does not request it. Screen pinning (`startLockTask` without device-owner
+rights) and `CameraManager.setTorchMode` need none.
 
 Later: `ACCESS_LOCAL_NETWORK` when targetSdk moves to 37 (Android 17 enforces local network protection).
 
@@ -778,6 +838,15 @@ armed while plugged in.
   get a suffix (AC8.2); its claimed permissions are never trusted, each device enforces its own circles.
 - **Room mode left on when an alarm starts:** room mode ends and listeners are dropped (AC10.8).
 
+**Round 5 (F13, F14):**
+- **Lock-screen shortcuts.** Anyone holding the locked phone can switch the flashlight and use
+  push-to-talk to the owner's circles, and the Talk screen shows circle and device labels. They cannot
+  disarm, reset, change settings, start room mode or listen: those stay behind the screen lock. Push-to-talk
+  reaches only the owner's paired, reachable devices, which show who is talking.
+- **Pinning is not a lock.** Screen pinning keeps a casual user on the status screen; without Android's
+  "Ask for PIN before unpinning" anyone can unpin with the system gesture. With it, unpinning locks the
+  phone. Pinning never replaces the screen lock.
+
 ## 8. Play policy posture (for later Play release)
 
 - **Round 3 additions.** Photo email: the play flavor requests the sensitive (not restricted) `gmail.send`
@@ -835,6 +904,10 @@ armed while plugged in.
 - Push-to-talk playback on a locked receiver with Stay reachable on.
 - Motion pre-alarm settle (AC4.7) on the A17: pick up, set down, leave it; how long until it cancels.
 - HANDS OFF (AC4.8): does the full-screen intent wake the A17's screen over the lock screen for a bump?
+- Round 5: notification actions on the One UI lock screen (may need "Show content" for FAFO); the Talk
+  screen over the lock screen and the mic prompt after `requestDismissKeyguard`; whether `startLockTask()`
+  shows "Pin app?" when One UI's Pin windows is off; whether Pin windows' "Ask for PIN before unpinning"
+  also locks on FAFO's own Unpin; the alarm full-screen intent while pinned.
 
 ## 9a. Dropped
 

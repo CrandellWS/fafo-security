@@ -104,6 +104,18 @@ object Notifications {
             .build()
     }
 
+    /**
+     * Lock-screen shortcuts on the ARMED notification (round 5, spec F13): Flashlight (only with a flash) and
+     * Talk. Neither needs the screen lock, because neither can touch the alarm: the light is a plain torch and
+     * Talk opens push-to-talk only. Disarm keeps [NotificationCompat.Action.Builder.setAuthenticationRequired].
+     */
+    fun shortcutActions(context: Context): List<NotificationCompat.Action> = buildList {
+        if (ws.crandell.fafo.quick.Flashlight.available(context)) {
+            add(NotificationCompat.Action.Builder(0, "Flashlight", ws.crandell.fafo.quick.TorchToggleReceiver.pendingIntent(context)).build())
+        }
+        add(NotificationCompat.Action.Builder(0, "Talk", ws.crandell.fafo.quick.TalkActivity.pendingIntent(context)).build())
+    }
+
     /** Persistent notification for ARMED / PRE_ALARM / TRIGGERED / INCIDENT_PERSISTED (AC1.2). */
     fun forState(context: Context, state: AlarmState, photosPaused: Boolean, armedAfterBootNoCamera: Boolean): Notification {
         val alarming = state is AlarmState.PreAlarm || state is AlarmState.Triggered || state is AlarmState.IncidentPersisted
@@ -134,6 +146,7 @@ object Notifications {
                     .setContentIntent(openAppIntent(context))
             }
             is AlarmState.Armed -> {
+                shortcutActions(context).forEach { b.addAction(it) }
                 b.setContentTitle("FAFO Security is armed")
                     .setContentText(
                         when {

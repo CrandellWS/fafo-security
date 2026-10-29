@@ -109,7 +109,25 @@ class ManifestTest {
             "ws.crandell.fafo.arm.ArmService", ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE or ServiceInfo.FOREGROUND_SERVICE_TYPE_CAMERA,
             "ws.crandell.fafo.reach.ReachableService", ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE,
             "ws.crandell.fafo.intercom.IntercomService", ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE or ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE,
+            // Round 5, spec F13: Quick Settings tiles, bound by System UI; not foreground services.
+            "ws.crandell.fafo.quick.LightTileService", 0,
+            "ws.crandell.fafo.quick.TalkTileService", 0,
         )
+    }
+
+    /**
+     * Round 5 (spec F13, F14): the lock-screen shortcuts add no permission (the tiles' BIND_QUICK_SETTINGS_TILE
+     * guards FAFO's services, it is not requested), and pinning uses no device admin or overlay.
+     */
+    @Test fun shortcutsAndPinningAddNoPermission() {
+        val xml = sourceManifest()
+        assertThat(xml).doesNotContain("<uses-permission android:name=\"android.permission.BIND_QUICK_SETTINGS_TILE\"")
+        assertThat(xml).doesNotContain("lockTaskMode")
+        assertThat(xml).doesNotContain("DEVICE_ADMIN")
+        val talk = Regex("<activity\\s+android:name=\"\\.quick\\.TalkActivity\"[^>]*>").find(xml)!!.value
+        assertThat(talk).contains("android:exported=\"false\"")
+        assertThat(talk).contains("android:showWhenLocked=\"true\"")
+        assertThat(talk).doesNotContain("turnScreenOn")
     }
 
     @Test fun noForbiddenPermissions() {

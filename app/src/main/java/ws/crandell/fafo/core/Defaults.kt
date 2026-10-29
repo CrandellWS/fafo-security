@@ -31,6 +31,8 @@ object Defaults {
     const val BUMP_RESET_S = 15
     /** Camera torch as the alarm light (Bill 2026-10-28, approved). */
     const val FLASH_ALARM = true
+    /** Round 5: pin the status screen (Android screen pinning) after the owner arms. Off by default. */
+    const val PIN_WHILE_ARMED = false
 
     const val PHOTO_ON_TRIGGER = true
     val PHOTO_INTERVAL_CHOICES_S = listOf(5, 10, 15, 20, 25, 30)

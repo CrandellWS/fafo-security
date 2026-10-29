@@ -38,6 +38,11 @@ fun themeLabel(s: String): String = when (s) {
     else -> "System"
 }
 
+/** Pin app while armed (spec F14): what it does and the way out, shown under the switch. */
+const val PIN_HINT = "After you arm, the status screen is pinned so nobody can switch apps. Android asks first. " +
+    "Disarm or Unpin ends it, and so does Android's unpin gesture. Turn on Android's \"Ask for PIN before unpinning\" " +
+    "so unpinning locks the phone (Help > Pin app while armed)."
+
 fun sensitivityLabel(ms: Long): String = if (ms % 1000 == 0L) "${ms / 1000} s" else "${ms / 1000.0} s"
 
 /** Settings (gear in the top bar): grouped into Alarm, Security, Motion, Photos, Nearby devices, About. */
@@ -86,6 +91,10 @@ fun SettingsScreen(
         ChoiceRow(
             "Unlock grace window", Defaults.UNLOCK_GRACE_CHOICES_S, dp.unlockGraceS, ::graceLabel, onGrace, "grace",
             hint = graceHint(dp.unlockGraceS),
+        )
+        SwitchRow(
+            "Pin app while armed", dp.pinWhileArmed, { v -> onDp { it.copy(pinWhileArmed = v) } }, "pinWhileArmed",
+            subtitle = PIN_HINT,
         )
 
         SectionHeader("Motion")

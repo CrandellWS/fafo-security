@@ -31,6 +31,7 @@ class DpStoreTest {
         assertThat(s.motion).isEqualTo("MEDIUM")
         assertThat(s.sirenSound).isEqualTo("Klaxon")
         assertThat(s.bumpResetS).isEqualTo(15)
+        assertThat(s.pinWhileArmed).isFalse()
         val st = store.readState()
         assertThat(st.armed).isFalse()
         assertThat(st.incidentActive).isFalse()
@@ -50,6 +51,8 @@ class DpStoreTest {
         assertThat(store.readSettings().sensitivityMs).isEqualTo(2000L)
         store.update { it.copy(bumpResetS = 30) }
         assertThat(store.readSettings().bumpResetS).isEqualTo(30)
+        store.update { it.copy(pinWhileArmed = true) }
+        assertThat(store.readSettings().pinWhileArmed).isTrue()
 
         val file = DpStore.file(context)
         assertThat(file.exists()).isTrue()

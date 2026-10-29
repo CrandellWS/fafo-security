@@ -44,6 +44,21 @@ class HelpContentTest {
         assertThat(HelpContent.topic("photos")!!.sections.mapNotNull { it.heading }).contains("PHOTO TAKEN")
     }
 
+    @Test fun roundFiveTopics() {
+        val shortcuts = HelpContent.topic("shortcuts")!!.sections.joinToString { it.heading + it.text + it.steps }
+        assertThat(shortcuts).contains("Flashlight")
+        assertThat(shortcuts).contains("FAFO Talk")
+        assertThat(shortcuts).contains("FAFO Light")
+        assertThat(shortcuts).contains("Nobody can disarm")
+        val pinning = HelpContent.topic("pinning")!!
+        val text = pinning.sections.joinToString { it.heading + it.text + it.steps }
+        assertThat(text).contains("Ask for PIN before unpinning")
+        assertThat(text).contains("Unpin")
+        assertThat(text).contains("Android's own unpin")
+        assertThat(pinning.links).contains(HelpLink.SECURITY)
+        assertThat(HelpContent.topic("intercom")!!.sections.mapNotNull { it.heading }).contains("From the lock screen")
+    }
+
     @Test fun optionalStepsNeverBlockTheBadge() {
         val s = OnboardingStatus(true, true, true, true, true, true, true, true, true, true, mailReady = false, openWifiWanted = true)
         assertThat(s.missing).isEmpty()

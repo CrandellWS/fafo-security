@@ -108,6 +108,20 @@
             android:taskAffinity=""
             android:theme="@style/Theme.Fafo" />
 
+        <!--
+            Round 5, spec F13: push-to-talk from the armed notification's Talk action or the FAFO Talk tile. Shows over
+            the lock screen; push-to-talk only (no Disarm, settings or room mode). Not exported.
+        -->
+        <activity
+            android:name=".quick.TalkActivity"
+            android:directBootAware="true"
+            android:excludeFromRecents="true"
+            android:exported="false"
+            android:launchMode="singleTop"
+            android:showWhenLocked="true"
+            android:taskAffinity=""
+            android:theme="@style/Theme.Fafo" />
+
         <activity
             android:name=".ui.RemoteCommandActivity"
             android:excludeFromRecents="true"
@@ -165,6 +179,43 @@
             android:name=".intercom.IntercomService"
             android:exported="false"
             android:foregroundServiceType="microphone|connectedDevice" />
+
+        <!-- Round 5, spec F13: the armed notification's Flashlight action (FAFO's own PendingIntent only). -->
+        <receiver
+            android:name=".quick.TorchToggleReceiver"
+            android:directBootAware="true"
+            android:exported="false" />
+
+        <!--
+            Round 5, spec F13: Quick Settings tiles. Exported only to System UI (BIND_QUICK_SETTINGS_TILE). Light is a
+            plain flashlight; Talk opens the push-to-talk screen. Neither can disarm or change anything.
+        -->
+        <service
+            android:name=".quick.LightTileService"
+            android:directBootAware="true"
+            android:exported="true"
+            android:icon="@drawable/ic_tile_light"
+            android:label="@string/tile_light"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.service.quicksettings.TOGGLEABLE_TILE"
+                android:value="true" />
+        </service>
+
+        <service
+            android:name=".quick.TalkTileService"
+            android:directBootAware="true"
+            android:exported="true"
+            android:icon="@drawable/ic_tile_talk"
+            android:label="@string/tile_talk"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+        </service>
 
         <!-- AC9.7: woken by the background Bluetooth scan PendingIntent (explicit, not exported). -->
         <receiver

@@ -220,6 +220,8 @@ object PeerNetwork {
 
     const val OWNER_ARM = "arm"
     const val OWNER_UI = "ui"
+    /** The lock-screen Talk screen (round 5, spec F13) while it is open. */
+    const val OWNER_TALK = "talk"
 }
 
 /** What ArmService needs from the network; tests swap it out. */

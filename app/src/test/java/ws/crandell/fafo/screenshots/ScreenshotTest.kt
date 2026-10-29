@@ -406,6 +406,39 @@ class ScreenshotTest {
         )
     }
 
+    // ---- Round 5: pin app while armed, lock-screen Talk (spec F13, F14) ----------------------------
+
+    @Test fun s84_status_armed_pinned() = shot("84_status_armed_pinned") {
+        StatusScreen(AlarmState.Armed(), ThreatLevel.GREEN, now = 0, photosOn = true, animate = false, onDisarm = {}, pinned = true, onUnpin = {})
+    }
+    @Test fun s85_status_alarm_pinned() = shot("85_status_alarm_pinned") {
+        StatusScreen(AlarmState.Triggered("i", 0), ThreatLevel.GREEN, now = 0, photosOn = true, animate = false, onDisarm = {}, pinned = true, onUnpin = {})
+    }
+    @Config(qualifiers = NARROW)
+    @Test fun s86_status_pinned_360dp_fs15() = shotFs("86_status_pinned_360dp_fs15", 1.5f) {
+        StatusScreen(AlarmState.Armed(), ThreatLevel.YELLOW, now = 0, photosOn = true, animate = false, onDisarm = {}, pinned = true, onUnpin = {})
+    }
+    @Config(qualifiers = TALLER)
+    @Test fun s87_settings_pin_on() = shot("87_settings_pin_on") { Settings(DpSettings(pinWhileArmed = true)) }
+
+    @Composable
+    private fun Talk(ui: IntercomUi = IntercomUi(), ceLocked: Boolean = false, mic: Boolean = true, alarming: Boolean = false, list: List<Circle> = circles) =
+        ws.crandell.fafo.ui.screens.TalkScreen(ui, list, setOf(PIXEL), alarming, ceLocked, mic, NoTalk)
+
+    @Test fun s88_talk_lockscreen() = shot("88_talk_lockscreen") { Talk() }
+    @Test fun s89_talk_talking() = shot("89_talk_talking") { Talk(IntercomUi(talking = true, talker = null)) }
+    @Test fun s90_talk_incoming() = shot("90_talk_incoming") { Talk(IntercomUi(talker = "Back room")) }
+    @Test fun s91_talk_before_first_unlock() = shot("91_talk_before_first_unlock") { Talk(ceLocked = true, list = emptyList()) }
+    @Test fun s92_talk_allow_mic() = shot("92_talk_allow_mic") { Talk(mic = false) }
+    @Test fun s93_talk_alarm() = shot("93_talk_alarm") { Talk(alarming = true) }
+    @Test fun s94_talk_light() = shotLight("94_talk_light") { Talk() }
+    @Config(qualifiers = NARROWEST)
+    @Test fun s95_talk_320dp_fs15() = shotFs("95_talk_320dp_fs15", 1.5f) { Talk() }
+    @Config(qualifiers = TALL)
+    @Test fun s96_help_shortcuts() = shot("96_help_shortcuts") { Shell(Tab.HELP) { m -> HelpScreen("shortcuts", {}, {}, m) } }
+    @Config(qualifiers = TALL)
+    @Test fun s97_help_pinning() = shot("97_help_pinning") { Shell(Tab.HELP) { m -> HelpScreen("pinning", {}, {}, m) } }
+
     // ---- Alarm screen (AlarmActivity) -------------------------------------------------------------
 
     @Test fun s11_alarm_prealarm_5s() = shot("11_alarm_prealarm_5s") { AlarmScreen(AlarmState.PreAlarm("i", 0, 5_000), now = 0, photosOn = true) }
@@ -544,6 +577,13 @@ class ScreenshotTest {
             override fun removeCircle(circleId: String) {}
             override fun invite(circleId: String, fingerprint: String) {}
             override fun pairInto(circleId: String) {}
+        }
+        val NoTalk = object : ws.crandell.fafo.ui.screens.TalkActions {
+            override fun talkStart(targets: List<String>, circleId: String) {}
+            override fun talkStop() {}
+            override fun allowMic() {}
+            override fun openApp() {}
+            override fun close() {}
         }
         val NoIntercom = object : IntercomActions {
             override fun setRoomMode(on: Boolean, circles: Set<String>) {}

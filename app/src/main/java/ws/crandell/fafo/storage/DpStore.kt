@@ -38,6 +38,8 @@ data class DpSettings(
     val bumpResetS: Int = Defaults.BUMP_RESET_S,
     /** Camera torch as the alarm light (strobe at RED, blink at ORANGE). DP: the alarm can run before first unlock. */
     val flashAlarm: Boolean = Defaults.FLASH_ALARM,
+    /** Round 5: pin the status screen after the owner arms (spec F14). DP: the status screen reads it before first unlock. */
+    val pinWhileArmed: Boolean = Defaults.PIN_WHILE_ARMED,
 ) {
     fun alarmConfig() = AlarmConfig(sensitivityMs, preAlarmS * 1000L, disarmOnUnlock, armingS * 1000L)
 }
@@ -109,6 +111,7 @@ class DpStore(private val store: DataStore<Preferences>) {
         it[MOTION_CAN_ALARM] = n.motionCanAlarm
         it[BUMP_RESET_S] = n.bumpResetS
         it[FLASH_ALARM] = n.flashAlarm
+        it[PIN_WHILE_ARMED] = n.pinWhileArmed
     }
 
     private fun Preferences.toSettings() = DpSettings(
@@ -124,6 +127,7 @@ class DpStore(private val store: DataStore<Preferences>) {
         motionCanAlarm = this[MOTION_CAN_ALARM] ?: Defaults.MOTION_CAN_ALARM,
         bumpResetS = this[BUMP_RESET_S] ?: Defaults.BUMP_RESET_S,
         flashAlarm = this[FLASH_ALARM] ?: Defaults.FLASH_ALARM,
+        pinWhileArmed = this[PIN_WHILE_ARMED] ?: Defaults.PIN_WHILE_ARMED,
     )
 
     private fun Preferences.toState() = DpState(
@@ -154,6 +158,7 @@ class DpStore(private val store: DataStore<Preferences>) {
         private val MOTION_CAN_ALARM = booleanPreferencesKey("motion_can_alarm")
         private val FLASH_ALARM = booleanPreferencesKey("flash_alarm")
         private val BUMP_RESET_S = intPreferencesKey("bump_reset_s")
+        private val PIN_WHILE_ARMED = booleanPreferencesKey("pin_while_armed")
         private val ARMED_AT = longPreferencesKey("armed_at")
         private val LAST_SCREEN_OFF_AT = longPreferencesKey("last_screen_off_at")
         private val LAST_USER_PRESENT_AT = longPreferencesKey("last_user_present_at")

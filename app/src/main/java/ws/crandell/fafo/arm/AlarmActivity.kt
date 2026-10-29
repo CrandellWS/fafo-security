@@ -12,7 +12,10 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
@@ -44,11 +47,21 @@ import ws.crandell.fafo.ui.status.photoTakenLook
  * once the alarm has ended.
  */
 class AlarmActivity : ComponentActivity() {
+    /**
+     * Pin app while armed (spec F14): set only by the owner's Arm tap with the setting on ([pinIntent]; this
+     * activity is not exported, so nothing else can send it), cleared once handled.
+     */
+    private var pinRequest = false
+    /** Android's lock task state, for the Unpin button. */
+    private val pinned = mutableStateOf(false)
+    private val screenPin get() = ArmDeps.screenPin
+
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge(SystemBarStyle.dark(AndroidColor.TRANSPARENT), SystemBarStyle.dark(AndroidColor.TRANSPARENT))
         super.onCreate(savedInstanceState)
         setShowWhenLocked(true)
         setTurnScreenOn(true)
+        if (savedInstanceState == null) takePinRequest(intent)
         tapService()
         setContent { AlarmContent() }
         // The full-screen intent opens this screen by itself on every alarm, so close it once the alarm
@@ -58,7 +71,9 @@ class AlarmActivity : ComponentActivity() {
             var sawAlarm = false
             var sawProtected = false
             AlarmStatusBus.state.collect { s ->
-                if (isAlarming(s)) sawAlarm = true else if (sawAlarm) finish()
+                refreshPinned()
+                if (PinPolicy.shouldUnpin(pinned.value, s) && sawProtected) unpin()
+                if (isAlarming(s)) sawAlarm = true else if (sawAlarm && PinPolicy.closeWhenAlarmEnds(pinned.value, s)) finish()
                 // Opened as the calm status screen: close once FAFO is disarmed.
                 if (s != AlarmState.Disarmed) sawProtected = true else if (sawProtected) finish()
                 // Keep the screen on only for the pre-alarm and the alarm (calm green must not burn it).
@@ -66,19 +81,82 @@ class AlarmActivity : ComponentActivity() {
                 else window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
             }
         }
+        // Pinning needs this screen in front, and the Arm tap usually arrives before the service publishes ARMING.
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.RESUMED) {
+                AlarmStatusBus.state.collect { s -> maybePin(s) }
+            }
+        }
     }
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
+        takePinRequest(intent)
         tapService()
     }
 
-    /** Disarm from the status screen (it shows over the lock screen): needs the screen lock first. */
-    fun requestDisarm() = requestDisarmOverLock(this)
+    override fun onResume() {
+        super.onResume()
+        refreshPinned()
+    }
+
+    /** Android's "Pin app?" dialog takes the focus; it comes back here once answered. */
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        refreshPinned()
+    }
+
+    private fun takePinRequest(i: Intent?) {
+        if (i?.getBooleanExtra(EXTRA_PIN, false) == true) pinRequest = true
+    }
+
+    private fun maybePin(s: AlarmState) {
+        if (!pinRequest) return
+        when {
+            PinPolicy.shouldPin(pinRequest, s, screenPin.isPinned(this)) -> {
+                pinRequest = false
+                screenPin.pin(this)
+                refreshPinned()
+            }
+            PinPolicy.dropRequest(s) -> pinRequest = false
+        }
+    }
+
+    private fun refreshPinned() {
+        pinned.value = screenPin.isPinned(this)
+    }
+
+    /** The status screen's Unpin button, and every disarm: ends the pin. */
+    fun unpin() {
+        screenPin.unpin(this)
+        refreshPinned()
+    }
+
+    /**
+     * Disarm from the status screen (it shows over the lock screen): needs the screen lock first. While pinned,
+     * Android would block the app's Disarm confirmation (another task), so the pin ends first; with Android's
+     * "Ask for PIN before unpinning" the phone locks, and Disarm then starts from the lock screen.
+     */
+    fun requestDisarm() {
+        if (!pinned.value) return requestDisarmOverLock(this)
+        unpin()
+        lifecycleScope.launch {
+            delay(UNPIN_SETTLE_MS)
+            requestDisarmOverLock(this@AlarmActivity)
+        }
+    }
+
+    /** True while pinned (Compose). */
+    internal val isPinnedState: Boolean get() = pinned.value
 
     private fun tapService() = tapArmService(this)
 
     companion object {
+        /** Extra on [pinIntent]: this status screen was opened by the owner's Arm tap with "Pin app while armed" on. */
+        const val EXTRA_PIN = "ws.crandell.fafo.extra.PIN"
+        /** Time for Android to end the pin (and lock, if set) before the Disarm request. */
+        private const val UNPIN_SETTLE_MS = 600L
+
         fun isAlarming(s: AlarmState): Boolean =
             s is AlarmState.PreAlarm || s is AlarmState.Triggered || s is AlarmState.IncidentPersisted
 
@@ -87,6 +165,11 @@ class AlarmActivity : ComponentActivity() {
             Intent(context, AlarmActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP),
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
         )
+
+        /** After the owner's Arm tap with "Pin app while armed" on: the status screen, which then pins itself. */
+        fun pinIntent(context: Context): Intent =
+            Intent(context, AlarmActivity::class.java).putExtra(EXTRA_PIN, true)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
     }
 }
 
@@ -141,7 +224,7 @@ fun decodeThumbnail(path: String, maxPx: Int = 320): ImageBitmap? = runCatching 
  * a clock for the countdown, flash and shutter fade; the drawing is [StatusScreen].
  */
 @Composable
-internal fun LiveStatusContent(handsOff: Boolean, onDisarm: (() -> Unit)?) {
+internal fun LiveStatusContent(handsOff: Boolean, onDisarm: (() -> Unit)?, pinned: Boolean = false, onUnpin: (() -> Unit)? = null) {
     val state by AlarmStatusBus.state.collectAsStateWithLifecycle()
     val threat by AlarmStatusBus.threat.collectAsStateWithLifecycle()
     val camera by AlarmStatusBus.cameraActive.collectAsStateWithLifecycle()
@@ -174,6 +257,8 @@ internal fun LiveStatusContent(handsOff: Boolean, onDisarm: (() -> Unit)?) {
             handsOff = handsOff,
             photo = current?.let { photoTakenLook(it.at, it.count, now, calm) },
             thumbnail = thumb,
+            pinned = pinned,
+            onUnpin = onUnpin,
         )
     }
 }
@@ -181,5 +266,8 @@ internal fun LiveStatusContent(handsOff: Boolean, onDisarm: (() -> Unit)?) {
 @Composable
 private fun AlarmContent() {
     val activity = androidx.activity.compose.LocalActivity.current as? AlarmActivity
-    LiveStatusContent(handsOff = false, onDisarm = activity?.let { a -> { a.requestDisarm() } })
+    LiveStatusContent(
+        handsOff = false, onDisarm = activity?.let { a -> { a.requestDisarm() } },
+        pinned = activity?.isPinnedState == true, onUnpin = activity?.let { a -> { a.unpin() } },
+    )
 }

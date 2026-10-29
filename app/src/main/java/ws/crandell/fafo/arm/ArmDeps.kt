@@ -66,8 +66,12 @@ object ArmDeps {
     var torch: (Context) -> ws.crandell.fafo.siren.TorchBackend = { ws.crandell.fafo.siren.AndroidTorch(it) }
     /** PHOTO TAKEN shutter click (never while the siren plays). */
     var shutter: (Context) -> Unit = { ws.crandell.fafo.siren.ShutterSound.play() }
+    /** Pin app while armed (round 5): Android screen pinning. */
+    var screenPin: ScreenPin = AndroidScreenPin
 
     fun reset() {
+        screenPin = AndroidScreenPin
+        ws.crandell.fafo.quick.Flashlight.reset()
         shutter = { ws.crandell.fafo.siren.ShutterSound.play() }
         torch = { ws.crandell.fafo.siren.AndroidTorch(it) }
         network = { PeerNetwork.ForAlarm(it) }

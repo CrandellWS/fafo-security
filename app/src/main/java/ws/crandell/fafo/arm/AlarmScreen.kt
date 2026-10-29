@@ -12,12 +12,14 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -116,6 +118,9 @@ fun StatusScreen(
     /** PHOTO TAKEN flash, label and counter for the latest trigger photo, or null. */
     photo: PhotoTakenLook? = null,
     thumbnail: ImageBitmap? = null,
+    /** Pin app while armed (spec F14): the screen is pinned; [onUnpin] shows the Unpin button. */
+    pinned: Boolean = false,
+    onUnpin: (() -> Unit)? = null,
 ) {
     val look = if (handsOff) handsOffLook(state, threat, now) else statusLook(state, threat, now)
     val bg = when {
@@ -123,7 +128,7 @@ fun StatusScreen(
         else -> FafoColors.Ink
     }
     Box(Modifier.fillMaxSize()) {
-        StatusBody(look, bg, state, photosOn, photo?.countLabel, onDisarm, onCancelArming)
+        StatusBody(look, bg, state, photosOn, photo?.countLabel, onDisarm, onCancelArming, if (pinned) onUnpin else null)
         if (photo != null) PhotoTakenLayer(photo, thumbnail)
     }
 }
@@ -169,6 +174,7 @@ private fun StatusBody(
     photoCount: String?,
     onDisarm: (() -> Unit)?,
     onCancelArming: (() -> Unit)?,
+    onUnpin: (() -> Unit)?,
 ) {
     val landscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
     BoxWithConstraints(Modifier.fillMaxSize().background(bg).safeDrawingPadding().padding(20.dp)) {
@@ -179,7 +185,7 @@ private fun StatusBody(
             Row(Modifier.fillMaxSize(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(24.dp)) {
                 StatusShield(look, shieldH)
                 Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
-                    StatusText(look, photosOn, photoCount, onDisarm, onCancelArming, state)
+                    StatusText(look, photosOn, photoCount, onDisarm, onCancelArming, state, onUnpin)
                 }
             }
         } else {
@@ -194,7 +200,7 @@ private fun StatusBody(
                     StatusShield(look, minOf(shieldH, maxHeight))
                 }
                 Spacer(Modifier.height(16.dp))
-                StatusText(look, photosOn, photoCount, onDisarm, onCancelArming, state)
+                StatusText(look, photosOn, photoCount, onDisarm, onCancelArming, state, onUnpin)
             }
         }
     }
@@ -232,6 +238,7 @@ private fun ColumnScope.StatusText(
     onDisarm: (() -> Unit)?,
     onCancelArming: (() -> Unit)?,
     state: AlarmState,
+    onUnpin: (() -> Unit)?,
 ) {
     val onRed = look.flash
     val text = if (onRed) FafoBrand.White else FafoColors.White
@@ -269,5 +276,16 @@ private fun ColumnScope.StatusText(
     if (button != null) {
         Spacer(Modifier.height(20.dp))
         PrimaryActionButton(button.first, ActionKind.DISARM, button.second, Modifier.fillMaxWidth().widthIn(max = 320.dp).testTag(button.third))
+    }
+    // Pin app while armed (spec F14): a calm way out. Android's own unpin gesture works too.
+    if (onUnpin != null) {
+        Spacer(Modifier.height(10.dp))
+        Text(
+            "Pinned: other apps are blocked.", style = MaterialTheme.typography.bodyMedium,
+            color = if (onRed) FafoBrand.White else FafoColors.TextMuted, textAlign = TextAlign.Center,
+        )
+        TextButton(onClick = onUnpin, modifier = Modifier.heightIn(min = 48.dp).testTag("statusUnpin")) {
+            Text("Unpin", style = MaterialTheme.typography.titleMedium, color = text)
+        }
     }
 }

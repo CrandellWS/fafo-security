@@ -351,7 +351,11 @@ class MainActivity : FragmentActivity() {
         }
         if (!DeviceStatus.isPlugged(this) || !DeviceStatus.isDeviceSecure(this)) return
         // AC1.7: the screen lock or fingerprint, skipped inside the unlock grace window.
-        vm.guarded(AuthAction.ARM) { ArmService.arm(this) }
+        vm.guarded(AuthAction.ARM) {
+            ArmService.arm(this)
+            // Spec F14: open the status screen, which asks Android to pin it once FAFO is arming.
+            if (ws.crandell.fafo.arm.PinPolicy.requestOnArm(vm.dpSettings.value.pinWhileArmed)) startActivity(ws.crandell.fafo.arm.AlarmActivity.pinIntent(this))
+        }
     }
 
     fun onDisarm() {

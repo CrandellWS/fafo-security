@@ -202,7 +202,67 @@ object HelpContent {
                 ),
                 HelpSection("During an alarm", "An alarm turns room mode off and drops listeners until the incident ends."),
                 HelpSection("Microphone permission", "Asked the first time you use the intercom, never when you arm."),
+                HelpSection("From the lock screen", "Talk on the armed notification and the FAFO Talk tile open push-to-talk without unlocking. See Lock-screen shortcuts."),
             ),
+        ),
+        HelpTopic(
+            "shortcuts", "Lock-screen shortcuts", "Flashlight and Talk without unlocking", HelpIcon.FLASH,
+            listOf(
+                HelpSection(
+                    text = "While FAFO is armed, its notification has Flashlight and Talk buttons that work from the lock screen. " +
+                        "Disarm stays behind your screen lock, as always.",
+                ),
+                HelpSection("Flashlight", "Turns the camera flash on or off. Phones without a flash don't show it. During an alarm the flash belongs to the alarm light."),
+                HelpSection(
+                    "Talk",
+                    "Opens a push-to-talk screen over the lock screen: pick a circle and a phone (or All) and hold the button. " +
+                        "The mic is on only while you hold it, and nothing is recorded. It has no Disarm, settings, room mode or listening. " +
+                        "Open FAFO on that screen asks for your screen lock first. Talk works after the first unlock since the phone started.",
+                ),
+                HelpSection(
+                    "Quick Settings tiles",
+                    "Add FAFO Light and FAFO Talk to Quick Settings. They work whether or not FAFO is armed.",
+                    steps = listOf(
+                        "Swipe down from the top of the screen twice to open Quick Settings.",
+                        "Tap the pencil (Edit) button. On Samsung it can be in the menu at the top right.",
+                        "Drag FAFO Light and FAFO Talk into your tiles, then tap Done.",
+                    ),
+                ),
+                HelpSection(
+                    "What a stranger can do with them",
+                    "Anyone holding the phone can switch the flashlight and talk to your circles, and the Talk screen shows the names of your circles and phones. " +
+                        "Nobody can disarm, reset, listen in or change anything from them.",
+                ),
+            ),
+        ),
+        HelpTopic(
+            "pinning", "Pin app while armed", "Keep the status screen in front", HelpIcon.LOCK,
+            listOf(
+                HelpSection(
+                    text = "Off by default. With Settings > Security > Pin app while armed on, FAFO opens its status screen when you arm and asks " +
+                        "Android to pin it (Android's screen pinning). While pinned, Home, Recents and notifications are blocked, so whoever picks up " +
+                        "the phone stays on FAFO's screen.",
+                ),
+                HelpSection(
+                    "Turn on \"Ask for PIN before unpinning\"",
+                    "Pinning is only as strong as this Android setting: with it, unpinning locks the phone. Menus differ by phone.",
+                    steps = listOf(
+                        "Samsung: Settings > Security and privacy > More security settings > Pin windows (or Pin app). Turn it on, then turn on Ask for PIN before unpinning.",
+                        "Other phones: Settings > Security > App pinning.",
+                    ),
+                ),
+                HelpSection(
+                    "The way out",
+                    steps = listOf(
+                        "Disarm on the status screen ends the pin, then asks for your screen lock as usual.",
+                        "Unpin under the Disarm button ends the pin and keeps FAFO armed.",
+                        "Android's own unpin always works: hold Back and Recents together, or with gesture navigation swipe up and hold.",
+                    ),
+                ),
+                HelpSection("Android asks first", "The first time, Android shows Pin app? Tap Got it or Pin. If you decline, FAFO stays armed without the pin."),
+                HelpSection("While pinned", "The alarm screen still opens and the siren still sounds. Notification buttons (Flashlight, Talk) can't be reached until you unpin."),
+            ),
+            links = listOf(HelpLink.SECURITY),
         ),
         HelpTopic(
             "reachable", "Stay reachable", "Alerts and push-to-talk in the background", HelpIcon.WIFI,

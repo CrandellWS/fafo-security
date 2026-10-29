@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Quick Settings tile "FAFO Light": a flashlight (head, body, switch cut out). -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:fillType="evenOdd"
+        android:pathData="M6,2H18V5L15.5,9V21C15.5,21.6 15.1,22 14.5,22H9.5C8.9,22 8.5,21.6 8.5,21V9L6,5Z M11,12V15H13V12Z" />
+</vector>

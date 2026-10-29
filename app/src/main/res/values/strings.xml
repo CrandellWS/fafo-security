@@ -1,4 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">FAFO Security</string>
+    <!-- Round 5, spec F13: Quick Settings tile names. -->
+    <string name="tile_light">FAFO Light</string>
+    <string name="tile_talk">FAFO Talk</string>
 </resources>
