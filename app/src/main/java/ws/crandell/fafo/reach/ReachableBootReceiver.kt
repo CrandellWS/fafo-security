@@ -22,7 +22,8 @@ import ws.crandell.fafo.ui.NearbyPermissions
 class ReachableBootReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         if (intent.action != Intent.ACTION_BOOT_COMPLETED || !DeviceStatus.isCeUnlocked(context)) return
-        val pending = goAsync()
+        // Null when onReceive is called directly (tests), not from a broadcast.
+        val pending: PendingResult? = goAsync()
         CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
             try {
                 if (NearbyPermissions.missing(context).isEmpty() && TrustGraph.trusted(context).all().isNotEmpty()) {
@@ -30,7 +31,7 @@ class ReachableBootReceiver : BroadcastReceiver() {
                 }
                 if (CeStore.get(context).read().stayReachable) ReachableService.start(context)
             } finally {
-                pending.finish()
+                pending?.finish()
             }
         }
     }
